@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Gradle 8.14.3 → **9.7.0** (bleeding edge, последний стабильный GA).
+  Warning про deprecated 8.x исчез. KGP 2.4.20-RC поддерживает Gradle 9.x
+  без верхней границы (`GradleCompatibilityCheck.kt`).
+
 ### Added — Phase 0–6: минимальный pipeline `test_add`
 
 - Скелет проекта: `AGENTS.md`, `CLAUDE.md -> AGENTS.md`, `.gitignore`.
