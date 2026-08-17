@@ -15,42 +15,43 @@ Kotlin `test_add(Int, Int): Int` → `Arithmetic.dll` → C# consumer печат
 ### Установка окружения (один раз)
 
 ```bash
-./scripts/bootstrap.sh        # JDK 21, kotlinc 2.4.20-RC, .NET 10, Gradle, ilasm, dotnet-ildasm
-source scripts/activate.sh    # активировать env в текущем шелле
+just bootstrap      # JDK 21, kotlinc 2.4.20-RC, .NET 10, Gradle 9.7.0, ilasm, dotnet-ildasm
+                    # + shallow clones исходников (JetBrains/kotlin, dotnet/runtime)
 ```
 
 ### Сборка `test_add` end-to-end
 
 ```bash
-source scripts/activate.sh
-./scripts/build-test-add.sh
+just test
 ```
 
 Ожидаемый вывод:
 ```
+[just] generating build/Arithmetic.il
 ...
-=== Step 4: Run C# consumer (expects: 5) ===
+[just] assembling build/Arithmetic.dll
+...
 5
-=== Done. Pipeline succeeded. ===
+```
+
+Повторный `just test` пропустит пересборку (mtime-инкрементальность):
+```
+[just] build/Arithmetic.dll up-to-date (.il unchanged)
+5
 ```
 
 ### Пошагово
 
 ```bash
-source scripts/activate.sh
-
-# 1. Собрать плагин.
-./gradlew :compiler-plugin:jar
-
-# 2. Запустить kotlinc с плагином → build/Arithmetic.il
-kotlinc -Xplugin=compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar \
-        test-projects/00-int-add/Arithmetic.kt -d build/kt-out
-
-# 3. ilasm → build/Arithmetic.dll
-ilasm /dll /output:build/Arithmetic.dll build/Arithmetic.il
-
-# 4. C# consumer
-cd test-projects/00-int-add/csharp-test && dotnet run   # печатает 5
+just list            # показать все рецепты
+just plugin          # собрать compiler-plugin JAR (Gradle)
+just il              # kotlinc + plugin → build/Arithmetic.il
+just dll             # ilasm → build/Arithmetic.dll
+just test            # C# consumer → печатает 5
+just show-il         # показать сгенерированный IL
+just disasm          # дизассемблировать Arithmetic.dll
+just show-ir         # показать IR-дамп из плагина
+just clean           # удалить build/
 ```
 
 ### Ручной IL (без компилятора Kotlin, для отладки ilasm)
@@ -60,6 +61,13 @@ source scripts/activate.sh
 cd test-projects/00-int-add
 ilasm /dll /output:manual.dll manual.il
 dotnet-ildasm manual.dll | head -40
+```
+
+### Интерактивная работа
+
+```bash
+source scripts/activate.sh   # активировать env (java, kotlinc, dotnet, ilasm в PATH)
+source scripts/deactivate.sh # снять env
 ```
 
 ## Структура
@@ -78,12 +86,11 @@ dotnet-ildasm manual.dll | head -40
   - `Arithmetic.kt` — исходник Kotlin
   - `manual.il` — hand-written IL (для отладки ilasm без плагина)
   - `csharp-test/` — C#-consumer
-- `scripts/` — окружение и сборка
+- `scripts/` — окружение (вызывается из `justfile`)
   - `activate.sh` / `deactivate.sh` — активация локального окружения
   - `install-sdks.sh` — установка JDK/kotlinc/.NET/Gradle в `.sdk/`
   - `install-sources.sh` — shallow clones исходников в `.sources/`
-  - `bootstrap.sh` — полный бутстрап + проверка
-  - `build-test-add.sh` — полный конвейер сборки `test_add`
+- `justfile` — единая точка входа (`just bootstrap`, `just test`, `just list`)
 - `.sdk/` (gitignored) — локальные JDK, kotlinc, .NET, Gradle
 - `.sources/` (gitignored, кроме README) — shallow clones JetBrains/kotlin + dotnet/runtime
 - `adr/` — Architecture Decision Records

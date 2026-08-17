@@ -6,6 +6,10 @@
 
 ### Changed
 
+- **`just` как единая точка входа для сборки** (ADR 0006).
+  `justfile` в корне: `just bootstrap`, `just test`, `just list`,
+  `just clean`, etc. mtime-инкрементальность на `il`/`dll` шагах.
+  Удалены дубликаты `scripts/bootstrap.sh` и `scripts/build-test-add.sh`.
 - Gradle 8.14.3 → **9.7.0** (bleeding edge, последний стабильный GA).
   Warning про deprecated 8.x исчез. KGP 2.4.20-RC поддерживает Gradle 9.x
   без верхней границы (`GradleCompatibilityCheck.kt`).
