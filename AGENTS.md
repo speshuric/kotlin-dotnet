@@ -98,48 +98,12 @@ Runtime-библиотека состоит из двух частей:
 
 ## Источники данных
 
-### Kotlin-компилятор
-- Репозиторий: https://github.com/JetBrains/kotlin
-- IR-дерево: compiler/ir/ir.tree/
-  - IrElement — базовый класс всех IR-элементов
-  - IrTree.kt — спецификация, из которой генерируются классы
-  - Ключевые элементы: IrModuleFragment, IrFile, IrClass,
-    IrSimpleFunction, IrBlockBody, IrCall, IrConst, IrGetValue,
-    IrReturn, IrWhen, IrBranch, IrTypeOperatorCall, и др.
-- Существующие бэкенды (для референса):
-  - compiler/ir/backend.jvm — JVM bytecode generation
-  - compiler/ir/backend.js — JavaScript generation
-  - compiler/ir/backend.wasm — WebAssembly generation
-  - Kotlin/Native backend (в kotlin-native репозитории) — LLVM
-- Сериализация IR:
-  - compiler/ir/serialization.common — общий формат
-  - compiler/ir/serialization.jvm, serialization.js, serialization.native
-- FIR (Frontend IR): compiler/fir/
-- IR README: compiler/ir/ReadMe.md
+Подробные ссылки — в [`docs/references.md`](docs/references.md).
 
-### Kotlin 2.0+ (K2 compiler)
-- Документация: https://kotlinlang.org/docs/whatsnew20.html
-- K2 стабилен с Kotlin 2.0, используется по умолчанию
-- Архитектура: Frontend (FIR) → Backend (IR) → Codegen
-- IR используется всеми бэкендами для lowering и оптимизации
-- Compiler plugins поддерживаются: all-open, serialization,
-  Compose, KSP, и др.
-
-### .NET
-- Стандарт формата сборок: ECMA-335
-  https://www.ecma-international.org/publications-and-standards/standards/ecma-335/
-- Описание формата:
-  https://learn.microsoft.com/en-us/dotnet/standard/assembly-format
-- .NET runtime: https://github.com/dotnet/runtime
-- Roslyn (C# компилятор, референс по codegen):
-  https://github.com/dotnet/roslyn
-- ilasm — утилита для компиляции IL-текста в сборку
-  (входит в .NET SDK)
-
-### Библиотеки для эмиссии .NET-сборок (для запасного варианта)
-- dnlib: https://github.com/dnlib/dnlib (C# библиотека,
-  создание/чтение/модификация .NET-сборок)
-- System.Reflection.Metadata (встроенный .NET API)
+- Kotlin: https://github.com/JetBrains/kotlin (v2.4.20-RC, shallow clone в `.sources/kotlin/`)
+- .NET runtime: https://github.com/dotnet/runtime (release/10.0, `.sources/dotnet-runtime/`)
+- ilasm — из NuGet `ilasm-cli`, `dotnet-ildasm` — NuGet global tool
+- Запасной вариант (если IL-текст не подойдёт): dnlib, System.Reflection.Metadata
 
 ## Маппинг типов
 
@@ -199,82 +163,14 @@ Runtime-библиотека состоит из двух частей:
 
 ## Дженерики: JVM type erasure vs .NET reified generics
 
-### Почему .NET reified generics — это преимущество, а не проблема
+Подробности — в [`docs/generics-strategy.md`](docs/generics-strategy.md).
 
-.NET сохраняет type parameters в runtime (reified), JVM стирает (erasure).
-Это значит:
-- `List<string>` и `List<int>` — **разные типы** в .NET runtime
-- **Не нужны** bridge-методы для covariance/contravariance
-- **Не нужны** явные cast'ы — type safety на уровне runtime
-- `List<int>` — специализированный тип, **без boxing** для value types
-
-### Variance: маппинг почти 1:1
-
-Kotlin и .NET оба используют **declaration-site variance** (не Java wildcards):
-
-| Kotlin                       | .NET (IL)                           |
-|------------------------------|-------------------------------------|
-| `class Box<T>`               | `class Box<T>` (invariant)          |
-| `interface Producer<out T>`  | `interface Producer<+T>` (covariant)|
-| `interface Consumer<in T>`   | `interface Consumer<-T>` (contravariant) |
-
-### Критический вопрос: в каком состоянии IR до нас доходит?
-
-Pipeline компилятора:
-```
-Frontend (FIR) → IR Generation → IR Lowering → Backend Codegen
-                                      ↑
-                          JVM-specific passes тут?
-```
-
-Нужно выяснить на Этапе 0: **выполняются ли JVM-специфичные lowering-проходы
-(type erasure, bridge methods) до того, как наш плагин получит IR?**
-
-Возможные сценарии:
-- **A (хороший):** IR сохраняет полные type arguments. Erasure — только в
-  JVM codegen. Мы имеем полную информацию о дженериках.
-- **B (плохой):** JVM-specific lowering стирает типы в IR до нас.
-  Реконструкция крайне сложна.
-- **C (рабочий):** IrGenerationExtension позволяет выбрать фазу перехвата
-  до erasure-проходов.
-
-Тот факт, что Kotlin/JS и Kotlin/Native работают с IR и поддерживают
-reified-подобное поведение, говорит в пользу сценария A или C.
-
-### Проблемные случаи и решения для PoC
-
-1. **Star projection (`Array<*>`, `List<*>`)**:
-   - В .NET нет прямого аналога.
-   - PoC: маппить на `Array<object>` / `List<object>` с потерей type safety.
-   - TODO: корректная обработка через variance-правила .NET.
-
-2. **Use-site variance (`Box<out Number>`)**:
-   - Редко, в основном для Java interop (неактуально).
-   - PoC: игнорировать, маппить на `Box<object>` с TODO.
-
-3. **`reified` type parameters**:
-   - Работают через inline-инлайнинг — фронтенд разворачивает.
-   - К нам в IR уже приходит развёрнутый код с конкретным типом.
-   - **Не нужно ничего делать.**
-
-4. **Type checks с дженериками (`x is List<String>`)**:
-   - В JVM: невозможно из-за erasure (только `x is List<*>`).
-   - В .NET: **возможно** через reflection.
-   - PoC: если IR содержит generic type check — генерировать runtime check
-     через .NET reflection. Если IR уже lowering'нул в erased check —
-     всё равно работает, менее точно.
-
-5. **Generic method instantiation**:
-   - `fun <T> identity(x: T): T = x`
-   - В .NET IL: метод с generic parameter (как в JVM bytecode).
-   - Маппинг прямой: `.method <T> T identity(T x)`.
-
-6. **Generic specialization для value types**:
-   - JVM: `List<int>` невозможен → `List<Integer>` с boxing.
-   - .NET: `List<int>` — специализированный тип, без boxing.
-   - Если IR содержит `List<Int>` — генерируем `List<int32>`.
-   - Если IR уже lowering'нул в erased `List<Object>` — работает,
-     но с boxing. TODO: восстановить type arguments из IR, если возможно.
+**Кратко:**
+- .NET использует reified generics (типы сохранены в runtime), JVM — erasure.
+- Variance: `out T` → `+T` (covariant), `in T` → `-T` (contravariant) — маппинг 1:1.
+- **ADR 0003:** IR до нас доходит со сохранёнными type arguments (сценарий A).
+- `reified` type parameters — фронтенд разворачивает через inline, к нам уже приходит конкретный тип.
+- Полная проверка дженериков — Phase 12.
 
 ## Что НЕ реализуется в первой версии (PoC)
 
@@ -295,147 +191,84 @@ reified-подобное поведение, говорит в пользу сц
 
 ### Решения для PoC (с фиксацией в adr/)
 
-1. **struct vs class**: В .NET есть value types (struct),
-   в JVM нет аналога. Для PoC — всё маппить на reference types
-   (class). TODO: оптимизация — примитивные типы .NET и так
-   value types, для кастомных struct'ов нужен отдельный механизм.
-
-2. **Generics**: JVM — type erasure, .NET — reified generics.
-   Для PoC — использовать reified generics .NET (упрощает жизнь:
-   не нужно генерировать мостовые методы для covariance/contravariance).
-   Критический вопрос для Этапа 0: в каком виде IR до нас доходит
-   (сохранены ли type arguments или уже стёрты?).
-
-3. **Null safety**: Kotlin nullable (T?) vs non-null (T).
-   В .NET reference types тоже могут быть null. Для PoC:
-   - Non-null reference types не проверяются в runtime
-     (только в compile-time Kotlin)
-   - Nullable reference types → просто .NET reference type
-     (без nullable annotation)
-   - Nullable value types (Int?) → System.Nullable<int32>
-   TODO: добавить .nullable annotations для Roslyn analyzer
-
-4. **Delegation (by)**: Транслировать в композицию —
-   поле-делегат + проброс методов.
-
-5. **Data class**: Генерировать equals, hashCode, toString,
-   copy, componentN вручную в IL.
-
-6. **Companion object**: Статические методы/поля на классе.
-   Companion object как тип → вложенный класс с singleton,
-   доступ через статическое поле.
-
-7. **Sealed class**: .NET sealed class + private constructor
-   + вложенные классы-наследники.
-
-8. **Object declaration (singleton)**: Статическое поле
-   с lazy init или eager init в static constructor.
-
-9. **Lateinit**: Просто field без инициализатора (default
-   null для reference types, исключение при доступе если null).
-
-10. **Reified generics из inline-функций**: В Kotlin reified
-    работает через инлайнинг — фронтенд разворачивает.
-    К нашему бэкенду уже приходит развёрнутый код.
-
-11. **String interpolation** ("$x ${expr}"):
-    → string.Concat или String.Format in IL.
-    Kotlin компилятор может lowering'нуть это в StringBuilder
-    или concat ещё до нашего бэкенда.
-
-12. **Elvis operator (?:)**:
-    → if-then-else с null-check в IL.
-
-13. **Smart casts**: Выполняются фронтендом, в IR уже
-    появляются явные cast'ы (IrTypeOperatorCall AS/AS_DYNAMIC).
-
-14. **when with subject**: В IR уже развёрнуто в
-    последовательность if-else (IrWhen + IrBranch).
-
-15. **for loop over range**:
-    → for i from start to end (IL loop или .NET Enumerable).
-    Kotlin IR lowering обычно разворачивает в while +
-    iterator или индексированный доступ.
-
-16. **Tail recursion**: Игнорировать для PoC.
-    TODO: добавить tail. prefix в IL.
-
-17. **Crossinline/noinline**: Обрабатываются фронтендом
-    при инлайнинге.
-
-18. **Contracts (contracts {})**: Игнорировать для PoC —
-    это hints для компилятора, в runtime не нужны.
-
-19. **Специализированные массивы (IntArray и др.)**:
-    В Kotlin они существуют из-за type erasure на JVM —
-    Array<Int> boxed, а IntArray — unboxed.
-    В .NET это не проблема: IntArray → int32[],
-    LongArray → int64[], и т.д. Прямой маппинг 1:1.
+1. **struct vs class**: всё маппить на reference types (class). TODO: кастомные struct'ы — отдельный механизм.
+2. **Generics**: использовать reified generics .NET. ADR 0003 — сценарий A (типы сохранены). Полная проверка — Phase 12.
+3. **Null safety**: non-null reference types не проверяются в runtime; nullable reference types → просто .NET reference type; nullable value types (Int?) → `System.Nullable<int32>`. TODO: .nullable annotations.
+4. **Delegation (by)**: транслировать в композицию (поле-делегат + проброс методов).
+5. **Data class**: генерировать equals/hashCode/toString/copy/componentN вручную в IL.
+6. **Companion object**: статические методы/поля на классе + вложенный класс с singleton.
+7. **Sealed class**: .NET sealed class + private constructor + вложенные классы-наследники.
+8. **Object declaration (singleton)**: статическое поле с lazy/eager init в static constructor.
+9. **Lateinit**: field без инициализатора (default null для reference types).
+10. **Reified generics**: фронтенд разворачивает через inline, к нам приходит развёрнутый код.
+11. **String interpolation** ("$x ${expr}"): → string.Concat/String.Format (Kotlin lowering обычно уже в concat).
+12. **Elvis (?:)**: if-then-else с null-check в IL.
+13. **Smart casts**: фронтенд, в IR уже явные cast'ы (IrTypeOperatorCall AS/AS_DYNAMIC).
+14. **when with subject**: в IR развёрнуто в if-else (IrWhen + IrBranch).
+15. **for loop over range**: Kotlin IR lowering разворачивает в while + iterator.
+16. **Tail recursion**: игнорировать для PoC. TODO: `tail.` prefix.
+17. **Crossinline/noinline**: обрабатываются фронтендом при инлайнинге.
+18. **Contracts**: игнорировать — hints для компилятора, в runtime не нужны.
+19. **Специализированные массивы (IntArray и др.)**: прямой маппинг 1:1 → int32[], int64[], и т.д. (в .NET нет проблемы erasure).
 
 ## План работ (поэтапный)
 
-### Этап 0: Исследование и настройка окружения
+> **Статус обновлён: 2026-08-17.** Этапы 0–1 и большая часть этапа 2 выполнены
+> (Phase 0–8 в нумерации коммитов). См. `CHANGELOG.md` и `adr/`.
+
+### Этап 0: Исследование и настройка окружения ✅
 
 > **Важно по окружению:** JDK и .NET SDK тащить **локально в проект**,
 > не глобально в систему. Не захламлять машину версиями.
-> - JDK: через Gradle toolchain или локальная установка в `.sdk/jdk/`
+> - JDK: локальная установка в `.sdk/jdk/` (Temurin 21)
 > - .NET SDK: локальная установка через `dotnet-install.sh --install-dir .sdk/dotnet/`
->   (ilasm входит в .NET SDK)
+>   (ilasm — через NuGet `ilasm-cli`, `dotnet-ildasm` — через NuGet)
+> - Gradle: локально в `.sdk/gradle/` (9.7.0)
 > - В дальнейшем — изоляция через контейнеры (Docker/Podman)
 
-- [ ] Клонировать репозиторий kotlin, изучить структуру
-      compiler/ir/
-- [ ] Изучить IrGenerationExtension API — как зарегистрировать
-      плагин, как получить доступ к IrModuleFragment
-- [ ] Изучить существующие примеры compiler plugins
-      (all-open, serialization)
-- [ ] **Критично:** проверить, в каком виде IR до нас доходит —
+- [x] Клонировать репозиторий kotlin, изучить структуру
+      compiler/ir/ → `.sources/kotlin/` (shallow clone v2.4.20-RC)
+- [x] Изучить IrGenerationExtension API — `CompilerPluginRegistrar`
+      (не устаревший `ComponentRegistrar`), `IrGenerationExtension.generate()`
+- [x] Изучить существующие примеры compiler plugins
+      (all-open, serialization) — API подтверждён в `.sources/kotlin/`
+- [x] **Критично:** проверить, в каком виде IR до нас доходит —
       сохранены ли type arguments в дженериках или уже стёрты?
-      (Определяет стратегию работы с дженериками)
-- [ ] Изучить IL-синтаксис (CIL assembly language):
+      → ADR 0003: **сценарий A** (типы сохранены). Для `test_add` проверено;
+      полную проверку дженериков — на Phase 12.
+- [x] Изучить IL-синтаксис (CIL assembly language):
       - Объявление assembly, module, class, method
       - Базовые инструкции: ldstr, call, callvirt, ret,
         ldarg, stloc, ldloc, br, brtrue, brfalse
       - Объявление точки входа (.entrypoint)
-- [ ] Установить JDK и .NET SDK локально в проект (см. замечание выше)
-- [ ] Создать скелет Gradle-проекта для compiler plugin
-- [ ] Создать скелет KotlinDotnetRuntime (C# class library)
+- [x] Установить JDK и .NET SDK локально в проект → `scripts/install-sdks.sh`
+- [x] Создать скелет Gradle-проекта для compiler plugin → `compiler-plugin/`
+- [x] Создать скелет KotlinDotnetRuntime (C# class library) → `runtime/` (Phase 8)
 
-### Этап 1: "Hello World" (минимальный PoC)
-- [ ] Написать Kotlin compiler plugin, регистрирующий
-      IrGenerationExtension
-- [ ] В плагине: перехватить IR для fun main() { println("Hello") }
-- [ ] Сгенерировать IL-текст:
-      .assembly extern KotlinDotnetRuntime {}
-      .assembly MyKotlinApp {}
-      .class Program {
-        .method public static void Main() cil managed {
-          .entrypoint
-          ldstr "Hello"
-          call void [KotlinDotnetRuntime]Kotlin.Runtime.Print::println(string)
-          ret
-        }
-      }
-- [ ] Создать минимальный KotlinDotnetRuntime с Print.println
-- [ ] Вызвать ilasm для компиляции .il → .exe
-- [ ] Проверить, что EXE запускается и печатает "Hello"
-- [ ] Зафиксировать pipeline в скрипте (Gradle task или shell script)
+### Этап 1: "Hello World" (минимальный PoC) ✅
+- [x] Написать Kotlin compiler plugin, регистрирующий
+      IrGenerationExtension → `DotnetCompilerPluginRegistrar`
+- [x] В плагине: перехватить IR для fun main() { println("Hello") }
+- [x] Сгенерировать IL-текст (заголовок, класс, метод, `.entrypoint`)
+- [x] Создать минимальный KotlinDotnetRuntime с Print.println → `runtime/src/Print.cs`
+- [x] Вызвать ilasm для компиляции .il → .exe → `scripts/kotlinc-net.sh`
+- [x] Проверить, что EXE запускается и печатает "Hello" → `just test-03-hello`
+- [x] Зафиксировать pipeline в скрипте → `kotlinc-net.sh`, `justfile`
 
-### Этап 2: Базовые конструкции
-- [ ] Маппинг примитивных типов (Int, Long, Double, Boolean,
-      String, Char, Unit)
-- [ ] Локальные переменные (ldloc, stloc)
-- [ ] Арифметические операции (add, sub, mul, div, rem)
-- [ ] Сравнения (clt, cgt, ceq + brtrue/brfalse)
-- [ ] If/when expressions → ветвления в IL
-- [ ] Циклы (for, while) → br/brtrue/brfalse циклы
-- [ ] Вызовы функций: top-level functions → static methods,
-      функции в объектах → static methods
-- [ ] Возврат значений (ret с значением)
-- [ ] Строковые литералы и интерполяция → string.Concat
+### Этап 2: Базовые конструкции (частично ✅)
+- [x] Маппинг примитивных типов (Int, Long, Double, Boolean,
+      String, Char, Unit) → `TypeMapper.kt`
+- [x] Локальные переменные (ldloc, stloc) → Phase 7
+- [x] Арифметические операции (add, sub, mul, div, rem) → Phase 7
+- [x] Сравнения (clt, cgt, ceq + brtrue/brfalse) → Phase 7
+- [x] If/when expressions → ветвления в IL → Phase 7
+- [ ] Циклы (for, while) → br/brtrue/brfalse циклы → **Phase 9**
+- [ ] Вызовы пользовательских функций: top-level functions → static methods → **Phase 9**
+- [x] Возврат значений (ret с значением) → Phase 7
+- [ ] Строковые литералы и интерполяция → string.Concat → **Phase 9** (литералы есть, интерполяция нет)
 - [ ] Специализированные массивы (IntArray, LongArray, и т.д.)
-      → int32[], int64[], и т.д.
-- [ ] Расширить runtime: Stdio.readLine, базовые строковые операции
+      → int32[], int64[], и т.д. → **Phase 11**
+- [ ] Расширить runtime: Stdio.readLine, базовые строковые операции → **Phase 11**
 
 ### Этап 3: Классы и ООП
 - [ ] Объявление классов в IL (.class)
@@ -470,7 +303,7 @@ reified-подобное поведение, говорит в пользу сц
       + (concat), equals — через runtime
 - [ ] Ranges (..) → for loop с инкрементом или .NET Range
 - [ ] in/!in → Contains() call
-- [ ] println/print → Kotlin.Runtime.Print
+- [x] println/print → Kotlin.Runtime.Print → Phase 8
 - [ ] readLine → Kotlin.Runtime.Stdio
 - [ ] Остальное из kotlin.* → заглушки в runtime
       (NotImplementedException с именем функции)
@@ -486,54 +319,82 @@ reified-подобное поведение, говорит в пользу сц
 - [ ] Компилировать Kotlin-часть runtime нашим компилятором
 - [ ] Постепенно увеличивать долю Kotlin, уменьшать долю C#
 
-## Структура проекта (предлагаемая)
+### Дальнейший план (по фазам, с приоритетами)
+
+| Phase | Что | Зависимости | Приоритет |
+|---|---|---|---|
+| **9** | Циклы (for/while) + вызовы пользовательских функций + строковая интерполяция | — | высокий |
+| **10** | Классы (минимальные): `.class`, поля, `.ctor`, instance-методы, `newobj` | — | высокий |
+| **11** | Массивы (`int32[]`) + `readLine` + базовые строки (length, substring, +) | runtime расширение | средний |
+| **12** | Nullable (`Nullable<T>`) + дженерики (минимальные) | ADR 0003 проверка на реальном дженерике | средний |
+| **13+** | Data classes, companion objects, object declarations, enums, extension functions, коллекции (List/Map/Set через runtime) | runtime расширение | низкий |
+
+**Следующая сессия — Phase 9** (циклы + функции + интерполяция):
+- `IrWhileLoop` / `IrDoWhileLoop` → IL-цикл с метками (`br`/`brfalse`).
+- `for (i in 0..10)` — Kotlin lowering разворачивает в while + iterator (проверить дамп).
+- Вызовы пользовательских top-level функций → `call int32 org.example.math.OtherKt::foo(int32)`.
+- Рекурсия (прямая) — работает автоматически (статический `call`).
+- `IrBreak` / `IrContinue` → `br` к меткам выхода/итерации.
+- Строковая интерполяция `"$x ${expr}"` → `string.Concat` (или Kotlin lowering уже в concat — проверить дамп).
+- Тестовый проект `04-loops/`.
+
+## Структура проекта (актуальная)
 
 ```
-kotlin-dotnet-compiler/
+kotlin-dotnet/
 ├── .sdk/                        # Локальные SDK (не в git)
-│   ├── jdk/                      # JDK (через Gradle toolchain)
-│   └── dotnet/                   # .NET SDK (dotnet-install.sh)
+│   ├── jdk/                      # JDK Temurin 21
+│   ├── kotlinc/                  # kotlin-compiler-2.4.20-RC.zip
+│   ├── dotnet/                   # .NET 10 SDK + ilasm-cli + dotnet-ildasm
+│   └── gradle/                   # Gradle 9.7.0
 ├── .sources/                    # Локальные исходники для референса (не в git)
-│   ├── kotlin/                   # shallow clone JetBrains/kotlin
-│   └── dotnet-runtime/           # shallow clone dotnet/runtime
-├── .gitignore                    # Игнорировать .sdk/, .sources/, build/, и т.д.
-├── build.gradle.kts              # Gradle-сборка плагина
-├── compiler-plugin/              # Kotlin compiler plugin
-│   ├── src/main/kotlin/
-│   │   ├── DotnetIrGenerationExtension.kt
-│   │   ├── DotnetIrVisitor.kt          # IrElementVisitor
-│   │   │                                # для обхода IR
-│   │   ├── IlEmitter.kt                # Генератор IL-текста
-│   │   ├── TypeMapper.kt               # Kotlin → .NET
-│   │   │                                # маппинг типов
-│   │   ├── StdlibResolver.kt           # Разрешение вызовов
-│   │   │                                # stdlib → runtime
-│   │   └── IlasmRunner.kt              # Вызов ilasm
-│   └── build.gradle.kts
-├── runtime/                      # KotlinDotnetRuntime
-│   ├── src/                      # C#-часть runtime
-│   │   ├── Print.cs              # println/print
-│   │   ├── Stdio.cs              # readLine
-│   │   ├── Strings.cs            # строковые операции
-│   │   ├── Collections.cs        # коллекции, listOf, etc.
-│   │   └── Stubs.cs              # NotImplementedException
-│   ├── kotlin/                   # Kotlin-часть runtime
-│   │   │                          # (появляется на этапе 6)
-│   │   └── ...
-│   └── KotlinDotnetRuntime.csproj
+│   ├── kotlin/                   # shallow clone JetBrains/kotlin @ v2.4.20-RC
+│   └── dotnet-runtime/           # shallow clone dotnet/runtime @ release/10.0
+├── .gitignore                    # .sdk/, .sources/, build/, *.dll, *.exe, .kotlin/
+├── build.gradle.kts              # Gradle root (плагин в :compiler-plugin)
+├── settings.gradle.kts
+├── gradle.properties             # toolchain: .sdk/jdk
+├── gradle/wrapper/               # Gradle wrapper 9.7.0
+├── gradlew, gradlew.bat
+├── justfile                      # Единая точка входа: just bootstrap/test/compile
+├── compiler-plugin/              # Kotlin compiler plugin (K2 IR)
+│   ├── build.gradle.kts
+│   └── src/main/
+│       ├── kotlin/org/kotlindotnet/compiler/
+│       │   ├── DotnetCompilerPluginRegistrar.kt  # CompilerPluginRegistrar (K2)
+│       │   ├── DotnetIrGenerationExtension.kt    # IrGenerationExtension
+│       │   ├── DotnetIrVisitor.kt                # IrVisitor → IL
+│       │   ├── IlEmitter.kt                      # Билдер IL-текста
+│       │   ├── TypeMapper.kt                     # Kotlin → CIL типы
+│       │   ├── NameMapper.kt                     # package → namespace, <File>Kt
+│       │   └── StdlibResolver.kt                 # println/print → runtime
+│       └── resources/META-INF/services/
+│           └── org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
+├── runtime/                      # KotlinDotnetRuntime (C# class library)
+│   ├── KotlinDotnetRuntime.csproj
+│   └── src/Print.cs              # Kotlin.Runtime.Print (println/print)
 ├── test-projects/                # Тестовые Kotlin-проекты
-│   ├── 01-hello-world/
-│   ├── 02-arithmetic/
-│   ├── 03-classes/
-│   └── 04-collections/
-├── docs/                        # Документация проекта
-├── adr/                         # Architecture Decision Records
+│   ├── 00-int-add/               # test_add(Int,Int): Int → DLL + C# consumer
+│   ├── 02-expr/                  # 16 выражений → DLL + C# consumer
+│   └── 03-hello/                 # fun main() { println(...) } → EXE
+├── scripts/
+│   ├── activate.sh               # активация env (JAVA_HOME, DOTNET_ROOT, ...)
+│   ├── deactivate.sh
+│   ├── install-sdks.sh           # установка JDK/kotlinc/.NET/Gradle в .sdk/
+│   ├── install-sources.sh        # shallow clones в .sources/
+│   └── kotlinc-net.sh            # CLI: .kt → .exe/.dll
+├── discussions/                  # Архив чатов и логов (gitignored кроме README)
+├── docs/                         # Документация
+├── adr/                          # Architecture Decision Records
 │   ├── 0001-pipeline-ir-to-il.md
 │   ├── 0002-runtime-library.md
-│   └── ...
-├── AGENTS.md                    # Инструкции для AI-агентов
-├── CLAUDE.md -> AGENTS.md       # Симлинк для Claude
-├── CHANGELOG.md                 # Журнал изменений
+│   ├── 0003-ir-state-at-interception.md
+│   ├── 0004-net10-kotlin24-versions.md
+│   ├── 0005-name-mapping.md
+│   └── 0006-just-as-build-runner.md
+├── AGENTS.md                     # Этот файл
+├── CLAUDE.md -> AGENTS.md        # Симлинк
+├── CHANGELOG.md
 └── README.md
 ```
 
@@ -572,47 +433,7 @@ kotlin-dotnet-compiler/
     `git add -n` для проверки стейджа. Это правило касается и
     любых других деструктивных/публичных операций над git.
 
-## Формат IL-текста (краткий справочник)
+## Формат IL-текста
 
-### Структура .il файла
-```
-.assembly extern mscorlib {}
-.assembly extern KotlinDotnetRuntime {}
-.assembly MyKotlinApp {}
-.module MyKotlinApp.exe
-
-.class public auto ansi MyKotlinApp.Program
-       extends [mscorlib]System.Object
-{
-  .method public hidebysig static void Main(string[] args) cil managed
-  {
-    .entrypoint
-    ldstr "Hello"
-    call void [KotlinDotnetRuntime]Kotlin.Runtime.Print::println(string)
-    ret
-  }
-  .method public hidebysig specialname rtspecialname
-          instance void .ctor() cil managed
-  {
-    ldarg.0
-    call instance void [mscorlib]System.Object::.ctor()
-    ret
-  }
-}
-```
-
-### Ключевые IL-инструкции (шпаргалка)
-- Загрузка: ldstr, ldc.i4, ldc.i8, ldc.r4, ldc.r8,
-  ldloc, ldarg, ldnull, ldc.i4.0/1
-- Сохранение: stloc, starg
-- Арифметика: add, sub, mul, div, rem, neg
-- Сравнение: clt, cgt, ceq, clt.un, cgt.un
-- Ветвление: br, brtrue, brfalse, beq, bne, blt, bgt,
-  ble, bge, switch
-- Вызовы: call, callvirt, ret
-- Объекты: newobj, ldfld, stfld, ldsfld, stsfld,
-  isinst, castclass, box, unbox
-- Массивы: newarr, ldelem, stelem, ldlen
-- Исключения: throw, rethrow, leave, endfilter
-- Дженерики: !0, !1 (type params), !!0 (method type params),
-  box, unbox.any, constrained.
+Справочник по синтаксису CIL и ключевым инструкциям — в
+[`docs/il-reference.md`](docs/il-reference.md).
