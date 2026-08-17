@@ -1,0 +1,47 @@
+# Локальные SDK (JDK, kotlinc, .NET, Gradle)
+.sdk/
+
+# Локальные исходники для референса (shallow clones).
+# Игнорируем всё содержимое, кроме README.md (памятка).
+.sources/*
+!.sources/README.md
+
+# Kotlin compiler daemon: логи ошибок и сессии (kotlinc -Xplugin=...)
+.kotlin/
+
+# Сборочные артефакты
+build/
+*/bin/
+*/obj/
+bin/
+obj/
+
+# .NET / IL
+*.dll
+*.exe
+*.il
+*.pdb
+*.mdb
+*.cache
+*.tmp
+
+# Gradle
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+
+# Kotlin
+*.kotlin_metadata
+*.kotlin_module
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Chat export (не часть проекта)
+chat-export-*.json
