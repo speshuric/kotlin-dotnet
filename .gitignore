@@ -43,5 +43,15 @@ gradle-app.setting
 .DS_Store
 Thumbs.db
 
-# Chat export (не часть проекта)
-chat-export-*.json
+# Chat exports и логи сессий в корне — игнорируем.
+# Они хранятся выборочно в discussions/ (см. ниже).
+/chat-export-*.json
+/*.log
+
+# Discussions: chat-exports и выборочные логи сессий.
+# По умолчанию новые файлы в discussions/ игнорируются, кроме README и .gitkeep.
+# Конкретные чат-экспорты добавляются через !-правила по мере необходимости.
+discussions/*
+!discussions/README.md
+!discussions/.gitkeep
+!discussions/chat-export-1786958489540.json
