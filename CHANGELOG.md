@@ -4,6 +4,30 @@
 
 ## [Unreleased]
 
+### Added — Phase 8: Runtime + hello world (EXE)
+
+- `runtime/` — KotlinDotnetRuntime (C# class library, net10.0):
+  - `Print.cs` — `Kotlin.Runtime.Print.println/print` для всех примитивов.
+- `StdlibResolver.kt` — маппинг `kotlin.io.println`/`print` → runtime-вызовы.
+- `main()` → EXE с `.entrypoint` (раньше только DLL).
+- `test-projects/03-hello/` — `fun main() { println("Hello, .NET!") }` →
+  `hello.exe` печатает "Hello, .NET!".
+- `just runtime` — собирать `KotlinDotnetRuntime.dll`.
+- `just test-03-hello` — полный pipeline hello world (EXE + runtimeconfig.json).
+- `just test-all` — все тесты (00-int-add, 02-expr, 03-hello).
+
+### Added — Phase 7: Расширение выражений
+
+- `test-projects/02-expr/` — арифметика, локальные переменные, if/when,
+  сравнения, bool (&&/||/!), Long, Double, String-eq.
+- `IlEmitter`: locals (`.locals init`), метки (`IL_N:`), `declareLocal`.
+- `DotnetIrVisitor`: `IrVariable`, `IrSetValue`, `IrWhen`/`IrBranch`
+  (if/when/ANDAND/OROR), `IrBlock`, все `IrConstKind` (Boolean/Long/Double/
+  String/Char/Float), сравнения (GT/LT/GE/LE/EQEQ), унарные (neg/not),
+  логические (and/or/xor), сдвиги (shl/shr/ushr).
+- `just test-02-expr`, `just test-all`.
+- `gradle.properties` — `org.gradle.java.installations.paths=.sdk/jdk`.
+
 ### Changed
 
 - **`just` как единая точка входа для сборки** (ADR 0006).

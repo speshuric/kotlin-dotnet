@@ -1,7 +1,7 @@
 # ADR 0002: Runtime-библиотека KotlinDotnetRuntime
 
 - **Дата:** 2026-08-17
-- **Статус:** Proposed (на будущее — не реализуется в текущем PoC-цикле)
+- **Статус:** Accepted (Phase 8 — реализована минимально)
 
 ## Контекст
 
@@ -16,9 +16,17 @@ Kotlin stdlib (print, readLine, listOf, map, filter, строки и т.д.) н�
 `[KotlinDotnetRuntime]Kotlin.Runtime.Print::println(object)`, а не
 `[mscorlib]System.Console::WriteLine(string)`.
 
-## Структура (план)
+## Структура (текущая — Phase 8)
 
-- `Kotlin.Runtime.Print` — println/print
+- `runtime/KotlinDotnetRuntime.csproj` (net10.0, library)
+- `runtime/src/Print.cs` — `Kotlin.Runtime.Print`:
+  - `println()`, `println(object?)`, `println(string)`, `println(int)`,
+    `println(long)`, `println(double)`, `println(float)`, `println(bool)`,
+    `println(char)`
+  - `print(...)` — аналогично
+
+## Структура (план — Phase 9+)
+
 - `Kotlin.Runtime.Stdio` — readLine
 - `Kotlin.Runtime.Strings` — строковые операции Kotlin-семантики
 - `Kotlin.Runtime.Collections` — listOf, mapOf, map, filter, ...
@@ -26,14 +34,17 @@ Kotlin stdlib (print, readLine, listOf, map, filter, строки и т.д.) н�
 
 ## Роль в pipeline
 
-- Компилятор генерирует простые вызовы к runtime.
-- Семантика Kotlin живёт в runtime.
-- Лёгкая замена/расширение: добавляем функции в runtime без изменения
-  кодогенератора.
-- Bootstrapping (этап 6): постепенно переписывать runtime с C# на Kotlin.
+- Компилятор генерирует вызовы к runtime через `StdlibResolver.kt`.
+- `StdlibResolver` маппит `kotlin.io.println` → `Kotlin.Runtime.Print::println`.
+- IL-генератор эмитит `.assembly extern KotlinDotnetRuntime` всегда
+  (упрощение PoC — двухпроходный обход для точного определения не нужен).
+- `KotlinDotnetRuntime.dll` должна быть рядом со сгенерированным EXE
+  (или в GAC / по пути разрешения сборок).
 
-## Почему сейчас не реализуется
+## Сборка
 
-Текущий PoC-цикл (Phases 0–7) фокусируется на минимальном pipeline
-`test_add(Int, Int): Int` — без печати, без stdlib-вызовов. Runtime
-появится на этапе "hello world" (Phase 8+, AGENTS.md Этап 1).
+```bash
+just runtime    # dotnet build runtime/ -c Release
+```
+
+Артефакт: `runtime/bin/Release/net10.0/KotlinDotnetRuntime.dll`.

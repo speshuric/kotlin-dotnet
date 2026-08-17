@@ -31,7 +31,7 @@ bootstrap: sdks sources
     echo "ildasm:  $(command -v dotnet-ildasm 2>&1 || echo NOT FOUND)"
     echo "gradle:  $(./gradlew --version 2>&1 | grep '^Gradle ' | head -1)"
     echo ""
-    echo ">>> Bootstrap complete. Run 'just test' to verify pipeline."
+    echo ">>> Bootstrap complete. Run 'just test-all' to verify pipeline."
 
 # === Сборка compiler plugin ===
 
@@ -41,49 +41,86 @@ plugin:
     source scripts/activate.sh
     ./gradlew :compiler-plugin:jar
 
-# === Pipeline test_add ===
+# === Универсальный pipeline (параметризуемый) ===
 
-# Сгенерировать build/Arithmetic.il из Arithmetic.kt через kotlinc + plugin.
-# Инкрементально: пропускает пересборку если .kt и plugin JAR не менялись.
-il: plugin
+# Внутренний рецепт: сгенерировать <name>.il из .kt файла.
+_gen-il name kt:
     #!/usr/bin/env bash
     source scripts/activate.sh
-    kt=test-projects/00-int-add/Arithmetic.kt
     jar=compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar
-    out=build/Arithmetic.il
-    if [ -f "$out" ] && [ "$out" -nt "$kt" ] && [ "$out" -nt "$jar" ]; then
-        echo "[just] $out up-to-date (kt + plugin unchanged)"
+    out=build/{{name}}.il
+    if [ -f "$out" ] && [ "$out" -nt "{{kt}}" ] && [ "$out" -nt "$jar" ]; then
+        echo "[just] $out up-to-date"
         exit 0
     fi
     echo "[just] generating $out"
     mkdir -p build/kt-out
     rm -f build/ir-dump.txt "$out"
-    kotlinc -Xplugin="$jar" "$kt" -d build/kt-out
+    kotlinc -Xplugin="$jar" "{{kt}}" -d build/kt-out
 
-# Собрать build/Arithmetic.dll через ilasm.
-# Инкрементально: пропускает если .il не менялся.
-dll: il
+# Внутренний рецепт: ilasm → <name>.dll (или .exe если указан /exe).
+_gen-asm name exe="dll":
     #!/usr/bin/env bash
     source scripts/activate.sh
-    il=build/Arithmetic.il
-    out=build/Arithmetic.dll
+    il=build/{{name}}.il
+    out=build/{{name}}.{{exe}}
     if [ -f "$out" ] && [ "$out" -nt "$il" ]; then
-        echo "[just] $out up-to-date (.il unchanged)"
+        echo "[just] $out up-to-date"
         exit 0
     fi
     echo "[just] assembling $out"
-    ilasm /dll /output:"$out" "$il"
+    ilasm /{{exe}} /output:"$out" "$il"
 
-# Запустить C# consumer — должен напечатать 5.
-test: dll
+# === Runtime (KotlinDotnetRuntime) ===
+
+# Собрать KotlinDotnetRuntime.dll (C# class library).
+runtime:
     #!/usr/bin/env bash
     source scripts/activate.sh
-    cd test-projects/00-int-add/csharp-test
-    dotnet run
+    dotnet build runtime/ -c Release
+
+# === Тестовые проекты ===
+
+# 00-int-add: test_add(Int, Int): Int — минимальный pipeline.
+test: test-00-int-add
+    @echo ">>> just test (= test-00-int-add) OK"
+
+test-00-int-add: plugin
+    #!/usr/bin/env bash
+    source scripts/activate.sh
+    just _gen-il Arithmetic test-projects/00-int-add/Arithmetic.kt
+    just _gen-asm Arithmetic dll
+    cd test-projects/00-int-add/csharp-test && dotnet run
+
+# 02-expr: арифметика, локальные переменные, if/when, сравнения, bool, Long/Double.
+test-02-expr: plugin
+    #!/usr/bin/env bash
+    source scripts/activate.sh
+    just _gen-il Expr test-projects/02-expr/Expr.kt
+    just _gen-asm Expr dll
+    cd test-projects/02-expr/csharp-test && dotnet run
+
+# 03-hello: fun main() { println("Hello, .NET!") } — EXE с runtime.
+test-03-hello: plugin runtime
+    #!/usr/bin/env bash
+    source scripts/activate.sh
+    just _gen-il hello test-projects/03-hello/hello.kt
+    just _gen-asm hello exe
+    # Копируем runtime DLL рядом с EXE.
+    cp runtime/bin/Release/net10.0/KotlinDotnetRuntime.dll build/
+    # Генерируем runtimeconfig.json для framework-dependent запуска.
+    printf '%s\n' \
+      '{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.11"},"rollForward":"Major"}}' \
+      > build/hello.runtimeconfig.json
+    dotnet build/hello.exe
+
+# Запустить все тесты.
+test-all: test-00-int-add test-02-expr test-03-hello
+    @echo ">>> all tests OK"
 
 # === Отладка ===
 
-# Показать сгенерированный IL-текст.
+# Показать сгенерированный IL-текст (последний — Arithmetic.il).
 show-il:
     cat build/Arithmetic.il
 
@@ -93,7 +130,7 @@ disasm:
     source scripts/activate.sh
     dotnet-ildasm build/Arithmetic.dll
 
-# Показать IR-дамп из плагина.
+# Показать IR-дамп из плагина (последний).
 show-ir:
     cat build/ir-dump.txt
 
