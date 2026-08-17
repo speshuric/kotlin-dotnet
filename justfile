@@ -43,6 +43,12 @@ plugin:
 
 # === Универсальный pipeline (параметризуемый) ===
 
+# Скомпилировать .kt → .exe (или .dll с флагом -dll).
+# Использование: just compile path/to/file.kt
+#                just compile path/to/file.kt -dll
+compile file:
+    ./scripts/kotlinc-net.sh {{file}}
+
 # Внутренний рецепт: сгенерировать <name>.il из .kt файла.
 _gen-il name kt:
     #!/usr/bin/env bash

@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+### Added — `kotlinc-net.sh` CLI компилятор
+
+- `scripts/kotlinc-net.sh` — единая точка компиляции `.kt` → `.exe`/`.dll`:
+  ```
+  ./scripts/kotlinc-net.sh <file.kt>              # → build/<name>.exe
+  ./scripts/kotlinc-net.sh <file.kt> -dll         # → build/<name>.dll
+  ./scripts/kotlinc-net.sh <file.kt> -o out.exe   # явное имя
+  ./scripts/kotlinc-net.sh <file.kt> --rebuild-plugin
+  ```
+  Копирует `KotlinDotnetRuntime.dll` и генерирует `runtimeconfig.json` для EXE.
+- `just compile <file.kt>` — обёртка над `kotlinc-net.sh`.
+- Демо-секция в README.
+
 ### Added — Phase 8: Runtime + hello world (EXE)
 
 - `runtime/` — KotlinDotnetRuntime (C# class library, net10.0):

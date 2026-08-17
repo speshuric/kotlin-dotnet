@@ -5,10 +5,43 @@ Proof-of-concept компилятора Kotlin → .NET.
 Pipeline: исходник Kotlin → K2 compiler plugin (`IrGenerationExtension`) →
 обход IR-дерева → генерация CIL-текста (`.il`) → `ilasm` → .NET DLL/EXE.
 
+## Демо
+
+```bash
+# 1. Установить окружение (один раз).
+just bootstrap                          # JDK 21, kotlinc, .NET 10, Gradle, ilasm, исходники
+source scripts/activate.sh              # активировать env в текущем шелле (java/kotlinc/dotnet в PATH)
+just plugin && just runtime             # собрать compiler-plugin JAR и KotlinDotnetRuntime.dll
+
+# 2. Написать Kotlin.
+cat > /tmp/demo.kt <<'EOF'
+fun main() {
+    println("Привет из Kotlin→.NET!")
+    println(2 + 3)
+    val x = 10
+    val y = 20
+    println(x * y)
+}
+EOF
+
+# 3. Скомпилировать в .NET EXE.
+#    (kotlinc-net.sh сам активирует env внутри, но для шага 4 нужен source выше)
+./scripts/kotlinc-net.sh /tmp/demo.kt
+# → build/demo.exe (+ KotlinDotnetRuntime.dll, runtimeconfig.json рядом)
+
+# 4. Запустить.
+dotnet build/demo.exe
+# Привет из Kotlin→.NET!
+# 5
+# 200
+```
+
 ## Статус
 
-**Phase 1–6 завершены.** Минимальный pipeline работает end-to-end:
-Kotlin `test_add(Int, Int): Int` → `Arithmetic.dll` → C# consumer печатает `5`.
+**Phase 8 завершена.** Pipeline работает end-to-end:
+- `test_add(Int, Int): Int` → DLL → C# consumer печатает `5`.
+- 16 выражений (арифметика, if/when, локальные переменные, bool, Long/Double) → DLL → C# проверки.
+- `fun main() { println("Hello, .NET!") }` → EXE → печатает `Hello, .NET!`.
 
 ## Быстрый старт
 
