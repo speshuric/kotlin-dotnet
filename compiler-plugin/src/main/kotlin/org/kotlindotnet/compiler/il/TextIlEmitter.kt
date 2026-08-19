@@ -250,6 +250,14 @@ class TextIlEmitter : IlEmitter {
     override fun brtrue(label: String) = opcode(IlOpcode.BRTRUE, label)
     override fun brfalse(label: String) = opcode(IlOpcode.BRFALSE, label)
 
+    // === IlEmitter: box / discard / массивы ===
+
+    override fun box(cilType: String) = opcode(IlOpcode.BOX, cilType)
+    override fun pop() = opcode(IlOpcode.POP)
+    override fun dup() = opcode(IlOpcode.DUP)
+    override fun newarr(cilType: String) = opcode(IlOpcode.NEWARR, cilType)
+    override fun stelemRef() = opcode(IlOpcode.STELEM_REF)
+
     // === IlEmitter: result ===
 
     override fun text(): String {

@@ -1,6 +1,7 @@
 package org.kotlindotnet.compiler
 
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
@@ -22,6 +23,7 @@ import org.jetbrains.kotlin.ir.expressions.IrBranch
 import org.jetbrains.kotlin.ir.expressions.IrBreak
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrClassReference
+import org.jetbrains.kotlin.ir.expressions.IrComposite
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstKind
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
@@ -37,17 +39,20 @@ import org.jetbrains.kotlin.ir.expressions.IrGetField
 import org.jetbrains.kotlin.ir.expressions.IrGetObjectValue
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrInstanceInitializerCall
+import org.jetbrains.kotlin.ir.expressions.IrLoop
 import org.jetbrains.kotlin.ir.expressions.IrPropertyReference
 import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.expressions.IrReturnableBlock
 import org.jetbrains.kotlin.ir.expressions.IrSetField
 import org.jetbrains.kotlin.ir.expressions.IrSetValue
 import org.jetbrains.kotlin.ir.expressions.IrSpreadElement
+import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.IrStringConcatenation
 import org.jetbrains.kotlin.ir.expressions.IrSuspendableExpression
 import org.jetbrains.kotlin.ir.expressions.IrSyntheticBody
 import org.jetbrains.kotlin.ir.expressions.IrThrow
 import org.jetbrains.kotlin.ir.expressions.IrTry
+import org.jetbrains.kotlin.ir.expressions.IrTypeOperator
 import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.IrWhen
@@ -63,13 +68,19 @@ import org.kotlindotnet.compiler.ir.KotlinOperators
 /**
  * Посетитель IR-дерева, эмитящий IL-текст.
  *
- * PoC Phase 7: покрывает:
+ * PoC Phase 7–9: покрывает:
  * - `IrFile → IrSimpleFunction(top-level) → IrBlockBody`
- * - `IrReturn`, `IrCall` (operator + сравнения), `IrGetValue`, `IrConst`
+ * - `IrReturn`, `IrCall` (operator + сравнения + stdlib + user top-level),
+ *   `IrGetValue`, `IrConst`
  * - `IrVariable` (локальные переменные, `val`/`var`)
  * - `IrSetValue` (присваивание локалке)
  * - `IrWhen` + `IrBranch` (if/when/ANDAND/OROR)
- * - `IrBlock` (блок выражений)
+ * - `IrBlock` (блок выражений), `IrComposite`
+ * - **Phase 9:** `IrWhileLoop`, `IrDoWhileLoop`, `IrBreak`, `IrContinue`
+ *   (LoopContext-стек), `IrStringConcatenation` (`string.Concat`),
+ *   `IrTypeOperatorCall` (`IMPLICIT_COERCION_TO_UNIT` — вычислить и отбросить),
+ *   operator `inc`/`dec` (→ `±1` для примитивов), вызовы пользовательских
+ *   top-level функций.
  *
  * B-01: добавлен scaffolding — `override fun visitXxx` для каждого узла
  * из карты (`TODO/B-visitor-scaffolding/B-01-visitor-node-map.md`).
@@ -78,7 +89,9 @@ import org.kotlindotnet.compiler.ir.KotlinOperators
  *
  * Возвращает Unit: IlEmitter накапливает состояние внутри себя.
  *
- * Контекст вызова отслеживается через [MethodContext] (стек методов).
+ * Контекст вызова отслеживается через [MethodContext] (стек методов);
+ * контекст циклов (break/continue) — через [loopContexts] (стек
+ * [LoopContext]).
  *
  * Зависит от абстракции [IlEmitter] (A-03), а не от конкретного
  * [TextIlEmitter]. Опкоды эмитятся через типобезопасные методы:
@@ -92,6 +105,23 @@ class DotnetIrVisitor(
 
     /** Индексы локальных переменных по их символу (в текущем методе). */
     private val variableIndices = mutableMapOf<IrVariable, Int>()
+
+    /**
+     * Стек контекстов циклов для break/continue (Phase 9).
+     *
+     * `continueLabel` — метка, куда прыгает `continue` (начало следующей
+     * итерации: для while это проверка условия, для do-while — тело).
+     * `breakLabel` — метка выхода из цикла.
+     * `loop` — символ [IrLoop], чтобы [IrBreak]/[IrContinue] находили свой
+     * контекст (для labeled break/continue — Phase 9.x, пока unlabeled).
+     */
+    private data class LoopContext(
+        val continueLabel: String,
+        val breakLabel: String,
+        val loop: IrLoop,
+    )
+
+    private val loopContexts = ArrayDeque<LoopContext>()
 
     // =====================================================================
     // Fallback (последний рубеж — совсем неизвестные узлы).
@@ -237,6 +267,18 @@ class DotnetIrVisitor(
     }
 
     override fun visitBlock(expression: IrBlock, data: Nothing?) {
+        // for-loop lowering приходит как IrBlock с origin=FOR_LOOP (см. дамп).
+        // Phase 9 не реализует for (требует итераторы — Phase 11 / G-02).
+        if (expression.origin?.debugName == "FOR_LOOP") {
+            TODO("[B-01] for-loop — Phase 11/G-02 (requires iterators)")
+        }
+        for (stmt in expression.statements) emitStatement(stmt, data)
+    }
+
+    override fun visitComposite(expression: IrComposite, data: Nothing?) {
+        // IrComposite — последовательность выражений, результат = последнее.
+        // В statement-context (циклы, блоки) — эмитим все стейтменты;
+        // значение последнего отбрасывается вызывающим (pop при необходимости).
         for (stmt in expression.statements) emitStatement(stmt, data)
     }
 
@@ -247,7 +289,7 @@ class DotnetIrVisitor(
     }
 
     override fun visitStringConcatenation(expression: IrStringConcatenation, data: Nothing?) {
-        TODO("[B-01] IrStringConcatenation — Phase 9")
+        emitStringConcatenation(expression, data)
     }
 
     override fun visitSpreadElement(spread: IrSpreadElement, data: Nothing?) {
@@ -255,19 +297,19 @@ class DotnetIrVisitor(
     }
 
     override fun visitBreak(jump: IrBreak, data: Nothing?) {
-        TODO("[B-01] IrBreak — Phase 9")
+        emitBreakContinue(jump.loop, isBreak = true, jump.label)
     }
 
     override fun visitContinue(jump: IrContinue, data: Nothing?) {
-        TODO("[B-01] IrContinue — Phase 9")
+        emitBreakContinue(jump.loop, isBreak = false, jump.label)
     }
 
     override fun visitWhileLoop(loop: IrWhileLoop, data: Nothing?) {
-        TODO("[B-01] IrWhileLoop — Phase 9")
+        emitWhileLoop(loop, data)
     }
 
     override fun visitDoWhileLoop(loop: IrDoWhileLoop, data: Nothing?) {
-        TODO("[B-01] IrDoWhileLoop — Phase 9")
+        emitDoWhileLoop(loop, data)
     }
 
     override fun visitReturnableBlock(expression: IrReturnableBlock, data: Nothing?) {
@@ -283,7 +325,7 @@ class DotnetIrVisitor(
     }
 
     override fun visitTypeOperator(expression: IrTypeOperatorCall, data: Nothing?) {
-        TODO("[B-01] IrTypeOperatorCall — POST-9")
+        emitTypeOperator(expression, data)
     }
 
     override fun visitFunctionReference(expression: IrFunctionReference, data: Nothing?) {
@@ -403,6 +445,17 @@ class DotnetIrVisitor(
             is IrGetValue -> Unit
             is IrConst -> Unit
             is IrSetValue -> collectLocals(element.value)
+            is IrWhileLoop -> {
+                collectLocals(element.condition)
+                element.body?.let { collectLocals(it) }
+            }
+            is IrDoWhileLoop -> {
+                element.body?.let { collectLocals(it) }
+                collectLocals(element.condition)
+            }
+            is IrTypeOperatorCall -> collectLocals(element.argument)
+            is IrStringConcatenation -> element.arguments.forEach { collectLocals(it) }
+            is IrComposite -> element.statements.forEach { collectLocals(it) }
             else -> Unit
         }
     }
@@ -427,7 +480,19 @@ class DotnetIrVisitor(
             is IrGetValue -> emitExpr(e, data)
             is IrConst -> emitExpr(e, data)
             is IrWhen -> emitWhenAsStatement(e, data)
+            is IrWhileLoop -> emitWhileLoop(e, data)
+            is IrDoWhileLoop -> emitDoWhileLoop(e, data)
+            is IrBreak -> emitBreakContinue(e.loop, isBreak = true, e.label)
+            is IrContinue -> emitBreakContinue(e.loop, isBreak = false, e.label)
+            is IrTypeOperatorCall -> emitTypeOperator(e, data)
+            is IrStringConcatenation -> emitStringConcatenation(e, data)
             is IrBlock -> {
+                if (e.origin?.debugName == "FOR_LOOP") {
+                    TODO("[B-01] for-loop — Phase 11/G-02 (requires iterators)")
+                }
+                for (stmt in e.statements) emitStatement(stmt, data)
+            }
+            is IrComposite -> {
                 for (stmt in e.statements) emitStatement(stmt, data)
             }
             else -> e.accept(this, data)
@@ -441,9 +506,19 @@ class DotnetIrVisitor(
             is IrConst -> emitConst(e)
             is IrWhen -> emitWhenAsExpression(e, data)
             is IrBlock -> {
+                if (e.origin?.debugName == "FOR_LOOP") {
+                    TODO("[B-01] for-loop — Phase 11/G-02 (requires iterators)")
+                }
+                for (stmt in e.statements) emitStatement(stmt, data)
+            }
+            is IrComposite -> {
                 for (stmt in e.statements) emitStatement(stmt, data)
             }
             is IrSetValue -> emitSetValue(e, data)
+            is IrStringConcatenation -> emitStringConcatenation(e, data)
+            is IrTypeOperatorCall -> emitTypeOperator(e, data)
+            is IrWhileLoop -> emitWhileLoop(e, data)
+            is IrDoWhileLoop -> emitDoWhileLoop(e, data)
             else -> e.accept(this, data)
         }
     }
@@ -536,19 +611,64 @@ class DotnetIrVisitor(
             KotlinOperators.SHL -> emitter.opcode(IlOpcode.SHL)
             KotlinOperators.SHR -> emitter.opcode(IlOpcode.SHR)
             KotlinOperators.USHR -> emitter.opcode(IlOpcode.SHR_UN)
-            KotlinOperators.RANGE_TO -> TODO("[B-01] IrCall RANGE_TO — Phase 9")
+            KotlinOperators.INC -> {
+                // a.inc() → a + 1 (для примитивов). Аргумент <this> уже на стеке.
+                emitter.ldcI4(1)
+                emitter.opcode(IlOpcode.ADD)
+            }
+            KotlinOperators.DEC -> {
+                // a.dec() → a - 1 (для примитивов). Аргумент <this> уже на стеке.
+                emitter.ldcI4(1)
+                emitter.opcode(IlOpcode.SUB)
+            }
+            KotlinOperators.RANGE_TO -> TODO("[B-01] IrCall RANGE_TO — Phase 11 (ranges)")
             else -> {
                 // Не operator-call — значит это пользовательский вызов функции.
                 // dispatchReceiverParameter == null → top-level (Phase 9);
                 // иначе instance/extension (Phase 10).
                 val owner = call.symbol.owner
                 if (owner.dispatchReceiverParameter == null) {
-                    TODO("[B-01] IrCall (user, top-level) — Phase 9")
+                    emitUserTopLevelCall(call, data)
                 } else {
                     TODO("[B-01] IrCall (instance/extension) — Phase 10")
                 }
             }
         }
+    }
+
+    /**
+     * Вызов пользовательской top-level функции (Phase 9, задача 9.4).
+     *
+     * IR: `IrCall` с `origin == null` (или PERC/PLUSEQ-производные, которые уже
+     * обработаны выше), `symbol.owner` — `IrSimpleFunction`, объявленная в
+     * том же файле (или другом). `dispatchReceiverParameter == null`.
+     *
+     * IL: `call <returnType> <namespace>.<FileKt>::<method>(<paramTypes>)`.
+     * Аргументы эмитятся в порядке. Рекурсия работает автоматически
+     * (статический `call` — ссылка вперёд допустима в IL).
+     *
+     * Класс-контейнер и namespace берутся через [NameMapper] из файла-владельца
+     * функции ([IrSimpleFunction].parent → [IrFile]).
+     */
+    private fun emitUserTopLevelCall(call: IrCall, data: Nothing?) {
+        val owner = call.symbol.owner as IrSimpleFunction
+        val file = owner.parent as? IrFile
+            ?: error("User function ${owner.name} is not top-level (parent is not IrFile)")
+        val ns = NameMapper.namespace(file)
+        val cls = NameMapper.containerClass(file)
+        val methodName = NameMapper.methodName(owner)
+        val retCil = TypeMapper.mapType(owner.returnType)
+        val paramCilTypes = owner.parameters
+            .filter { it.kind == IrParameterKind.Regular }
+            .map { TypeMapper.mapType(it.type) }
+        // Внимание: аргументы уже эмитированы в [emitCall] перед вызовом
+        // этого метода (через emitCallArguments). Здесь только формируем
+        // сигнатуру и эмитим `call`. Если предусловие нарушено — на стеке
+        // будет двойной набор аргументов.
+        val container = if (ns.isEmpty()) cls else "$ns.$cls"
+        val paramSig = paramCilTypes.joinToString(", ")
+        val callSig = "$retCil $container::$methodName($paramSig)"
+        emitter.opcode(IlOpcode.CALL, callSig)
     }
 
     private fun emitCallArguments(call: IrCall, data: Nothing?) {
@@ -749,6 +869,204 @@ class DotnetIrVisitor(
             }
             is IrReturn -> emitReturn(result, data)
             else -> emitExpr(result, data)
+        }
+    }
+
+    // =====================================================================
+    // Циклы (Phase 9: while / do-while / break / continue).
+    // =====================================================================
+
+    /**
+     * `while (cond) { body }` → IL:
+     * ```
+     * br IL_COND          // войти в проверку условия
+     * IL_BODY:
+     *   <body>            // statement-context (value-expr → pop)
+     *   br IL_COND
+     * IL_COND:
+     *   <condition>       // bool на стеке
+     *   brtrue IL_BODY
+     * IL_END:
+     * ```
+     *
+     * `continue` → `br IL_COND` (проверка условия следующей итерации).
+     * `break`    → `br IL_END`.
+     */
+    private fun emitWhileLoop(loop: IrWhileLoop, data: Nothing?) {
+        val bodyLabel = emitter.newLabel()
+        val condLabel = emitter.newLabel()
+        val endLabel = emitter.newLabel()
+        loopContexts.addLast(LoopContext(continueLabel = condLabel, breakLabel = endLabel, loop = loop))
+        try {
+            emitter.br(condLabel)
+            emitter.label(bodyLabel)
+            loop.body?.let { emitStatement(it as IrElement, data) }
+            emitter.br(condLabel)
+            emitter.label(condLabel)
+            emitExpr(loop.condition, data)
+            emitter.brtrue(bodyLabel)
+            emitter.label(endLabel)
+        } finally {
+            loopContexts.removeLast()
+        }
+    }
+
+    /**
+     * `do { body } while (cond)` → IL:
+     * ```
+     * IL_BODY:
+     *   <body>
+     *   <condition>
+     *   brtrue IL_BODY
+     * IL_END:
+     * ```
+     *
+     * `continue` → `br IL_BODY` (тело следующей итерации).
+     * `break`    → `br IL_END`.
+     */
+    private fun emitDoWhileLoop(loop: IrDoWhileLoop, data: Nothing?) {
+        val bodyLabel = emitter.newLabel()
+        val endLabel = emitter.newLabel()
+        loopContexts.addLast(LoopContext(continueLabel = bodyLabel, breakLabel = endLabel, loop = loop))
+        try {
+            emitter.label(bodyLabel)
+            loop.body?.let { emitStatement(it as IrElement, data) }
+            emitExpr(loop.condition, data)
+            emitter.brtrue(bodyLabel)
+            emitter.label(endLabel)
+        } finally {
+            loopContexts.removeLast()
+        }
+    }
+
+    /**
+     * `break` / `continue` (Phase 9, задача 9.3).
+     *
+     * Unlabeled: верхний [LoopContext] стека.
+     * Labeled: поиск по `loop.label` — TODO (Phase 9.x, требует метки на
+     * `IrWhileLoop.label`). Пока — unlabeled.
+     *
+     * `break`    → `br <breakLabel>`.
+     * `continue` → `br <continueLabel>`.
+     */
+    private fun emitBreakContinue(loop: IrLoop, isBreak: Boolean, label: String?) {
+        val ctx = if (label == null) {
+            loopContexts.lastOrNull()
+                ?: error("break/continue outside of a loop")
+        } else {
+            // Labeled: ищем контекст с совпадающей меткой цикла.
+            loopContexts.lastOrNull { it.loop.label == label }
+                ?: TODO("[B-01] labeled break/continue (label=$label) — Phase 9.x")
+        }
+        val target = if (isBreak) ctx.breakLabel else ctx.continueLabel
+        emitter.br(target)
+    }
+
+    // =====================================================================
+    // IrTypeOperatorCall (Phase 9: IMPLICIT_COERCION_TO_UNIT).
+    // =====================================================================
+
+    /**
+     * Обработка [IrTypeOperatorCall]. В Phase 9 нужен только
+     * [IrTypeOperator.IMPLICIT_COERCION_TO_UNIT] — обёртка, которая означает
+     * «вычислить expression для побочного эффекта, результат отбросить».
+     * Встречается в телах циклов (`x++` как statement).
+     *
+     * IL: эмитить argument, затем `pop` если argument не Unit.
+     *
+     * Остальные операторы (`CAST`, `INSTANCEOF`, …) — POST-9.
+     */
+    private fun emitTypeOperator(op: IrTypeOperatorCall, data: Nothing?) {
+        when (op.operator) {
+            IrTypeOperator.IMPLICIT_COERCION_TO_UNIT -> {
+                emitExpr(op.argument, data)
+                // argument может оставить значение на стеке (напр. результат
+                // POSTFIX_INCR = int32). Unit уже не оставляет ничего, но
+                // IR-трансформер оборачивает в coercion именно для не-Unit.
+                if (!op.argument.type.isUnit()) {
+                    emitter.pop()
+                }
+            }
+            IrTypeOperator.IMPLICIT_CAST,
+            IrTypeOperator.IMPLICIT_NOTNULL,
+            IrTypeOperator.CAST -> TODO("[B-01] IrTypeOperator ${op.operator} — Phase 12 (casts)")
+            IrTypeOperator.INSTANCEOF,
+            IrTypeOperator.NOT_INSTANCEOF -> TODO("[B-01] IrTypeOperator ${op.operator} — POST-9 (is-check)")
+            else -> TODO("[B-01] IrTypeOperator ${op.operator} — POST-9")
+        }
+    }
+
+    // =====================================================================
+    // IrStringConcatenation (Phase 9, задача 9.5).
+    // =====================================================================
+
+    /**
+     * Строковая интерполяция `"$x ${expr}"` → `System.String.Concat`.
+     *
+     * IR: [IrStringConcatenation] с `.arguments` (List<IrExpression>) — каждый
+     * child вычисляется в строку. Котлиновский lowering уже разбил шаблон на
+     * сегменты (const-string + get-var + …).
+     *
+     * IL (простой, универсальный): эмитить каждый argument, box в `object`
+     * если тип не `string`, затем `call string [mscorlib]System.String::Concat(object[])`.
+     * Массив создаётся через `newarr object` + `stelem.ref`.
+     *
+     * Оптимизация для 2 аргументов (частый случай `"prefix" + var`):
+     * `call string [mscorlib]System.String::Concat(object, object)`.
+     */
+    private fun emitStringConcatenation(expr: IrStringConcatenation, data: Nothing?) {
+        val args = expr.arguments
+        if (args.isEmpty()) {
+            emitter.ldstr("")
+            return
+        }
+        // Оптимизация: для 1-2 аргументов — перегрузки Concat(object) /
+        // Concat(object,object) без создания массива. Частый случай
+        // ("prefix" + var) — как в probe_concat ("x = " + x).
+        if (args.size <= 2) {
+            for (arg in args) {
+                emitExpr(arg, data)
+                boxToObject(arg.type)
+            }
+            val sig = if (args.size == 1) {
+                "string [mscorlib]System.String::Concat(object)"
+            } else {
+                "string [mscorlib]System.String::Concat(object,object)"
+            }
+            emitter.opcode(IlOpcode.CALL, sig)
+            return
+        }
+        // Универсальный путь: создать object[n], заполнить по индексам,
+        // вызвать Concat(object[]).
+        // IL для каждого i (0..n-1):
+        //   dup            // копия array (сохранить для следующей итерации / вызова)
+        //   ldc.i4 i       // индекс
+        //   <emit arg_i>
+        //   box (если value type)
+        //   stelem.ref     // потребляет array+index+value (копию)
+        // stelem.ref съедает копию (dup), оставляя исходный array на стеке.
+        // После цикла на стеке остаётся один array → передаём в Concat(object[]).
+        val n = args.size
+        emitter.ldcI4(n)
+        emitter.newarr("object")
+        for (i in 0 until n) {
+            emitter.dup()
+            emitter.ldcI4(i)
+            emitExpr(args[i], data)
+            boxToObject(args[i].type)
+            emitter.stelemRef()
+        }
+        emitter.opcode(
+            IlOpcode.CALL,
+            "string [mscorlib]System.String::Concat(object[])"
+        )
+    }
+
+    /** Box'ит значение типа [type] (выражение уже на стеке) в object. */
+    private fun boxToObject(type: org.jetbrains.kotlin.ir.types.IrType) {
+        val cilType = TypeMapper.mapType(type)
+        if (cilType != "string" && cilType != "object") {
+            emitter.box(cilType)
         }
     }
 }

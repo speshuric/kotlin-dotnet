@@ -78,5 +78,21 @@ enum class IlOpcode(val il: String) {
     LDLOC("ldloc"),
     /** `stloc <n>` — короткие формы 0..3 выбирает [TextIlEmitter.stloc]. */
     STLOC("stloc"),
+
+    // === Box / unbox / discard ===
+    /** `box <type>` — boxing value type в object (используется в string.Concat). */
+    BOX("box"),
+    /** `pop` — discard значения на вершине стека (statement-context для value-expr). */
+    POP("pop"),
+    /** `dup` — копия значения на вершине стека (для заполнения массива в string.Concat). */
+    DUP("dup"),
+
+    // === Массивы (Phase 9: string.Concat(object[])) ===
+    /** `newarr <type>` — создание массива элементов типа. */
+    NEWARR("newarr"),
+    /** `stelem.ref` — сохранение object-ссылки в массив по индексу на стеке. */
+    STELEM_REF("stelem.ref"),
+    /** `ldelem.ref` — загрузка object-ссылки из массива по индексу. */
+    LDELEM_REF("ldelem.ref"),
     ;
 }

@@ -117,6 +117,23 @@ interface IlEmitter {
     /** `brfalse <label>`. */
     fun brfalse(label: String)
 
+    // === Box / discard / массивы ===
+
+    /** `box <cilType>` (для value type → object). */
+    fun box(cilType: String)
+
+    /** `pop` — discard значения на вершине стека. */
+    fun pop()
+
+    /** `dup` — копия значения на вершине стека. */
+    fun dup()
+
+    /** `newarr <cilType>` — создать массив. */
+    fun newarr(cilType: String)
+
+    /** `stelem.ref` — сохранить object в массив по индексу. */
+    fun stelemRef()
+
     //=== Result ===
 
     /** Возвращает собранный IL-текст (с проверкой, что всё закрыто). */

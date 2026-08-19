@@ -42,4 +42,8 @@ object KotlinOperators {
     const val USHR = "ushr"
     /** `a..b` → `rangeTo` (Phase 9). */
     const val RANGE_TO = "rangeTo"
+    /** `a.inc()` / `a++` → `inc` (operator). Для примитивов → +1. */
+    const val INC = "inc"
+    /** `a.dec()` / `a--` → `dec` (operator). Для примитивов → -1. */
+    const val DEC = "dec"
 }

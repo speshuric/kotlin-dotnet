@@ -446,6 +446,48 @@ kotlin-dotnet/
     команды. Сначала показать `git status` + `git diff --cached` /
     `git add -n` для проверки стейджа. Это правило касается и
     любых других деструктивных/публичных операций над git.
+15. **DSH-изоляция (read-only корневая ФС).** Команды запускаются
+    в песочнице, где корневая файловая система пользователя —
+    read-only (нельзя писать в `~/.local/`, `/run/user/<uid>/`,
+    `~/.gradle/` и т.п.). Из-за этого «из коробки» падают:
+    - `just` — не может создать temp-директорию в
+      `/run/user/<uid>/just/` (read-only).
+    - `kotlinc` / Kotlin daemon — пытается писать маркер в
+      `~/.local/share/kotlin/daemon/` (read-only → исключение
+      `FileSystemException`, но компиляция при этом может
+      пройти — это best-effort warning daemon'а).
+    - `dotnet` CLI (C#-consumer-тесты 00/02) — не может
+      определить домашнюю директорию → «The user's home
+      directory could not be determined».
+    - `./gradlew` — кэш Gradle по умолчанию в `~/.gradle/`
+      (read-only).
+
+    **Обязательный prelude** для любой команды сборки/тестов
+    (иначе `just`/`gradlew` падают на read-only ФС):
+    ```bash
+    cd /home/speshuric/tmp/kotlin-dotnet
+    source scripts/activate.sh
+    export GRADLE_USER_HOME="$PWD/build/tmp/gradle-home"
+    export XDG_RUNTIME_DIR="$PWD/build/tmp/runtime"
+    export HOME="$PWD/build/tmp/home"
+    export DOTNET_CLI_HOME="$HOME"
+    mkdir -p "$GRADLE_USER_HOME" "$XDG_RUNTIME_DIR" "$HOME"
+    ```
+
+    Назначение переменных:
+    - `GRADLE_USER_HOME` — редирект кэша Gradle в writable
+      `build/tmp/gradle-home` (вместо read-only `~/.gradle/`).
+    - `XDG_RUNTIME_DIR` — writable tmp для `just`
+      (`/run/user/<uid>/` — read-only).
+    - `HOME` — writable home для `kotlinc`/Kotlin daemon
+      (`~/.local/share/kotlin/...` → `build/tmp/home/.local/...`).
+    - `DOTNET_CLI_HOME` — writable home для `dotnet` CLI
+      (нужен для C#-consumer-тестов 00-int-add/02-expr, где
+      `dotnet run` разворачивает NuGet-restore в HOME).
+
+    Это не особенность проекта, а особенность среды исполнения
+    (DSH). В «нормальном» окружении (без изоляции) эти
+    переменные не нужны. Но в DSH-сессиях — обязательны.
 
 ## Формат IL-текста
 

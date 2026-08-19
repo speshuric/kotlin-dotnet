@@ -31,6 +31,29 @@ object NameMapper {
         return File(file.fileEntry.name).nameWithoutExtension
     }
 
-    /** Имя метода — verbatim. */
-    fun methodName(function: IrSimpleFunction): String = function.name.asString()
+    /**
+     * Имя метода — verbatim. Если имя совпадает с CIL-опкодом (напр. `box`,
+     * `add`, `pop`), ilasm падает на синтаксической ошибке, поэтому такое
+     * имя заключается в одинарные кавычки: `'box'`. См. Phase 9 spec-тесты
+     * (`fun box(): String`).
+     */
+    fun methodName(function: IrSimpleFunction): String {
+        val name = function.name.asString()
+        return if (isCilReservedWord(name)) "'$name'" else name
+    }
+
+    /**
+     * Проверка, является ли [word] CIL-опкодом/ключевым словом, которое
+     * конфликтует с именем метода. Минимальный набор (расширять по мере
+     * необходимости).
+     */
+    private fun isCilReservedWord(word: String): Boolean = word in RESERVED_CIL_WORDS
+
+    private val RESERVED_CIL_WORDS = setOf(
+        // CIL opcodes, которые могут оказаться именем метода/поля.
+        "box", "unbox", "pop", "dup", "add", "sub", "mul", "div", "rem",
+        "and", "or", "xor", "shl", "shr", "neg", "not", "ret", "call",
+        "br", "brtrue", "brfalse", "ceq", "cgt", "clt", "ldnull", "ldstr",
+        "newobj", "newarr", "ldarga", "ldloca", "stind", "ldind",
+    )
 }

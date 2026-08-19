@@ -4,6 +4,29 @@
 
 ## [Unreleased]
 
+### Added — Phase 9: Циклы (while/do-while) + вызовы функций + интерполяция
+
+- `DotnetIrVisitor`: циклы `while`/`do-while` (IL: `br`/`brtrue`/`brfalse`
+  + метки), `break`/`continue` (через стек `LoopContext`), вызовы
+  пользовательских top-level функций (`call <ns>.<FileKt>::<method>(...)`),
+  `IrStringConcatenation` → `System.String.Concat(object[])` (для 1–2
+  аргументов — перегрузки без массива), `IrTypeOperatorCall`
+  (`IMPLICIT_COERCION_TO_UNIT` — вычислить и `pop`), `IrComposite`,
+  operator `inc`/`dec` (→ `±1` для примитивов, для `x++`/`x--`).
+- `IlOpcode`/`IlEmitter`/`TextIlEmitter`: `BOX`, `POP`, `DUP`, `NEWARR`,
+  `STELEM_REF`, `LDELEM_REF` (для `string.Concat(object[])`).
+- `NameMapper`: экранирование имён методов, совпадающих с CIL-опкодами
+  (`box` → `'box'`), чтобы `fun box()` из spec-тестов не ломал ilasm.
+- `KotlinOperators`: `INC`/`DEC`.
+- `test-projects/04-loops/Loops.kt` — 6 кейсов (while/do-while/break/
+  continue/call/concat) → EXE, верифицируется вывод.
+- `test-projects/04-loops/spec/` — 4 spec-теста while/do-while (адаптировано
+  из `kotlin/tests-spec`), все возвращают "OK".
+- `just test-04-loops`, `just test-04-loops-spec` — добавлены в `justfile`;
+  `just test-all` — теперь включает 04-loops.
+- `for`-loop — оставлен как `TODO("[B-01] for-loop — Phase 11/G-02
+  (requires iterators)")` (требует `IntIterator` — Phase 11 / G-02).
+
 ### Added — `kotlinc-net.sh` CLI компилятор
 
 - `scripts/kotlinc-net.sh` — единая точка компиляции `.kt` → `.exe`/`.dll`:

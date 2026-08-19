@@ -122,8 +122,53 @@ test-03-hello: plugin runtime
       > build/hello.runtimeconfig.json
     dotnet build/hello.exe
 
+# 04-loops: циклы while/do-while, break/continue, вызовы функций, интерполяция (Phase 9).
+test-04-loops: plugin runtime
+    #!/usr/bin/env bash
+    source scripts/activate.sh
+    just _gen-il Loops test-projects/04-loops/Loops.kt
+    just _gen-asm Loops exe
+    cp runtime/bin/Release/net10.0/KotlinDotnetRuntime.dll build/
+    printf '%s\n' \
+      '{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.11"},"rollForward":"Major"}}' \
+      > build/Loops.runtimeconfig.json
+    out="$(dotnet build/Loops.exe)"
+    expected="$(printf '10\n10\n5\n25\n42\nx = 42')"
+    if [ "$out" != "$expected" ]; then
+        echo "FAIL: 04-loops"
+        echo "--- expected ---"
+        echo "$expected"
+        echo "--- got ---"
+        echo "$out"
+        exit 1
+    fi
+    echo ">>> 04-loops OK"
+
+# 04-loops-spec: 4 spec-теста while/do-while (адаптировано из kotlin/tests-spec).
+test-04-loops-spec: plugin runtime
+    #!/usr/bin/env bash
+    source scripts/activate.sh
+    cp runtime/bin/Release/net10.0/KotlinDotnetRuntime.dll build/
+    rcfg() {
+        printf '%s\n' \
+          '{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.11"},"rollForward":"Major"}}' \
+          > "build/$1.runtimeconfig.json"
+    }
+    for kt in test-projects/04-loops/spec/*.kt; do
+        name="$(basename "$kt" .kt)"
+        just _gen-il "$name" "$kt"
+        just _gen-asm "$name" exe
+        rcfg "$name"
+        out="$(dotnet "build/$name.exe")"
+        if [ "$out" != "OK" ]; then
+            echo "FAIL: spec $name (got: $out)"
+            exit 1
+        fi
+        echo ">>> spec $name OK"
+    done
+
 # Запустить все тесты.
-test-all: test-00-int-add test-02-expr test-03-hello
+test-all: test-00-int-add test-02-expr test-03-hello test-04-loops
     @echo ">>> all tests OK"
 
 # === Отладка ===
