@@ -1,6 +1,8 @@
 # Phase 9: Циклы (while/do-while) + вызовы функций + строковая интерполяция
 
-> **Статус:** план. Запуск — следующая сессия.
+> **Статус:** ✅ выполнена (коммит `6a86837`). Задачи 9.1–9.5, 9.7, 9.8 —
+> реализованы; 9.6 (for-loop) — опциональная, оставлена как TODO
+> (Phase 11/G-02). Приёмка — зелёная.
 > **Скоуп:** `IrWhileLoop`, `IrDoWhileLoop`, `IrBreak`, `IrContinue`,
 > пользовательские top-level `IrCall`, `IrStringConcatenation`.
 > **Опционально:** `for` (требует итераторы, см. G-02).
@@ -75,7 +77,7 @@ IL: `call <returnType> <Namespace>.<FileKt>::<methodName>(<paramTypes>)`.
 
 ## Задачи (рекомендуемая последовательность)
 
-### 9.1 IrWhileLoop → IL-цикл (ОБЯЗАТЕЛЬНО)
+### 9.1 IrWhileLoop → IL-цикл (ОБЯЗАТЕЛЬНО) ✅
 - `visitWhileLoop` (сейчас TODO `[B-01] IrWhileLoop — Phase 9`).
 - IL-паттерн:
   ```
@@ -98,7 +100,7 @@ IL: `call <returnType> <Namespace>.<FileKt>::<methodName>(<paramTypes>)`.
   (condition + body).
 - Тест: `while (x < 5) { x++ }` → корректный IL, `x == 5`.
 
-### 9.2 IrDoWhileLoop → IL-цикл с условием в конце (ОБЯЗАТЕЛЬНО)
+### 9.2 IrDoWhileLoop → IL-цикл с условием в конце (ОБЯЗАТЕЛЬНО) ✅
 - `visitDoWhileLoop` (сейчас TODO).
 - IL-паттерн:
   ```
@@ -111,7 +113,7 @@ IL: `call <returnType> <Namespace>.<FileKt>::<methodName>(<paramTypes>)`.
 - Тот же `LoopContext` (continue → `IL_BODY`, break → `IL_END`).
 - Тест: `do { x++ } while (x < 5)` → корректный IL.
 
-### 9.3 IrBreak / IrContinue (ОБЯЗАТЕЛЬНО)
+### 9.3 IrBreak / IrContinue (ОБЯЗАТЕЛЬНО) ✅
 - `visitBreak` / `visitContinue` (сейчас TODO).
 - `IrBreak.loop` → символ целевого цикла; visitor ищет `LoopContext`
   для этого цикла в стеке.
@@ -123,7 +125,7 @@ IL: `call <returnType> <Namespace>.<FileKt>::<methodName>(<paramTypes>)`.
 - `continue` → `br <continueLabel>`.
 - Тест: `while (true) { if (i == 3) break; i++ }` → `i == 3`.
 
-### 9.4 Вызовы пользовательских top-level функций (ОБЯЗАТЕЛЬНО)
+### 9.4 Вызовы пользовательских top-level функций (ОБЯЗАТЕЛЬНО) ✅
 - В `emitCall` (сейчас `IrCall` обрабатывает только operator + stdlib):
   добавить ветку — если `origin == null` и `symbol.owner` —
   `IrSimpleFunction` (не operator, не stdlib), то это пользовательский
@@ -141,7 +143,7 @@ IL: `call <returnType> <Namespace>.<FileKt>::<methodName>(<paramTypes>)`.
 - `dispatchReceiverParameter` != null → instance-метод (Phase 10, TODO).
 - Тест: `fun double(n: Int) = n*2; fun box() = double(5)` → `10`.
 
-### 9.5 IrStringConcatenation → string.Concat (ОБЯЗАТЕЛЬНО)
+### 9.5 IrStringConcatenation → string.Concat (ОБЯЗАТЕЛЬНО) ✅
 - `visitStringConcatenation` (сейчас TODO).
 - IR: `IrStringConcatenation` с `.arguments` (List<IrExpression>).
 - IL-паттерн (простой): эмитить все arguments (каждый — boxed в object
@@ -155,7 +157,7 @@ IL: `call <returnType> <Namespace>.<FileKt>::<methodName>(<paramTypes>)`.
 - `collectLocals`: обновить для `IrStringConcatenation`.
 - Тест: `val x = 42; "Hello, $x!"` → `Hello, 42!`.
 
-### 9.6 (ОПЦИОНАЛЬНО) for-loop через итераторы
+### 9.6 (ОПЦИОНАЛЬНО) for-loop через итераторы ⏳ (TODO — Phase 11/G-02)
 - **НЕ делать в базовой Phase 9** — требует `IntIterator` (runtime,
   Phase 11) или специализированный range-loop (G-02).
 - IR-дамп показывает: `for (i in 0..4)` → `BLOCK origin=FOR_LOOP` →
@@ -167,7 +169,7 @@ IL: `call <returnType> <Namespace>.<FileKt>::<methodName>(<paramTypes>)`.
   `IntRange` → runtime-класс. Это объёмнее, чем остальная Phase 9.
 - Рекомендация: отложить на Phase 9.x или Phase 11.
 
-### 9.7 Тестовый проект 04-loops/ (ОБЯЗАТЕЛЬНО)
+### 9.7 Тестовый проект 04-loops/ (ОБЯЗАТЕЛЬНО) ✅
 - Создать `test-projects/04-loops/Loops.kt` с кейсами:
   ```kotlin
   package org.example.loops
@@ -222,7 +224,7 @@ IL: `call <returnType> <Namespace>.<FileKt>::<methodName>(<paramTypes>)`.
 - `just test-04-loops` — добавить в justfile.
 - `just test-all` — обновить зависимость.
 
-### 9.8 Перенос spec-тестов while/do-while (ОБЯЗАТЕЛЬНО, минимальный)
+### 9.8 Перенос spec-тестов while/do-while (ОБЯЗАТЕЛЬНО, минимальный) ✅
 - Источник: `.sources/kotlin/compiler/tests-spec/testData/codegen/box/linked/statements/loop-statements/`.
 - Подходящие (без коллекций/классов):
   - `while-loop-statement/p-1/pos/2.1.kt` — `while(cond){ x++; if(x==5) cond=false }` → OK.

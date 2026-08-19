@@ -213,8 +213,9 @@ Runtime-библиотека состоит из двух частей:
 
 ## План работ (поэтапный)
 
-> **Статус обновлён: 2026-08-17.** Этапы 0–1 и большая часть этапа 2 выполнены
-> (Phase 0–8 в нумерации коммитов). См. `CHANGELOG.md` и `adr/`.
+> **Статус обновлён: 2026-08-19.** Этапы 0–1 и этап 2 выполнены
+> (Phase 0–9 в нумерации коммитов; `for`-loop — TODO Phase 11/G-02).
+> См. `CHANGELOG.md` и `adr/`.
 
 > **Выравнивающие задачи (не по фазам):** структурированный план
 > рефакторинга и дизайна, не входящего в фиксированные фазы, — в
@@ -271,10 +272,11 @@ Runtime-библиотека состоит из двух частей:
 - [x] Арифметические операции (add, sub, mul, div, rem) → Phase 7
 - [x] Сравнения (clt, cgt, ceq + brtrue/brfalse) → Phase 7
 - [x] If/when expressions → ветвления в IL → Phase 7
-- [ ] Циклы (for, while) → br/brtrue/brfalse циклы → **Phase 9**
-- [ ] Вызовы пользовательских функций: top-level functions → static methods → **Phase 9**
+- [x] Циклы (while/do-while, break/continue) → br/brtrue/brfalse циклы → **Phase 9**
+      (for — TODO, требует итераторы Phase 11/G-02)
+- [x] Вызовы пользовательских функций: top-level functions → static methods → **Phase 9**
 - [x] Возврат значений (ret с значением) → Phase 7
-- [ ] Строковые литералы и интерполяция → string.Concat → **Phase 9** (литералы есть, интерполяция нет)
+- [x] Строковые литералы и интерполяция → string.Concat → **Phase 9**
 - [ ] Специализированные массивы (IntArray, LongArray, и т.д.)
       → int32[], int64[], и т.д. → **Phase 11**
 - [ ] Расширить runtime: Stdio.readLine, базовые строковые операции → **Phase 11**
@@ -338,18 +340,26 @@ Runtime-библиотека состоит из двух частей:
 | **12** | Nullable (`Nullable<T>`) + дженерики (минимальные) | ADR 0003 проверка на реальном дженерике | средний |
 | **13+** | Data classes, companion objects, object declarations, enums, extension functions, коллекции (List/Map/Set через runtime) | runtime расширение | низкий |
 
-**Следующая сессия — Phase 9** (циклы + функции + интерполяция):
+**Phase 9 — выполнена** (циклы + функции + интерполяция, коммит `6a86837`):
 - `IrWhileLoop` / `IrDoWhileLoop` → IL-цикл с метками (`br`/`brfalse`).
-- `for (i in 0..10)` — Kotlin lowering разворачивает в while + iterator (проверить дамп).
+- `IrBreak` / `IrContinue` → `br` к меткам выхода/итерации (стек `LoopContext`).
 - Вызовы пользовательских top-level функций → `call int32 org.example.math.OtherKt::foo(int32)`.
 - Рекурсия (прямая) — работает автоматически (статический `call`).
-- `IrBreak` / `IrContinue` → `br` к меткам выхода/итерации.
-- Строковая интерполяция `"$x ${expr}"` → `string.Concat` (или Kotlin lowering уже в concat — проверить дамп).
+- Строковая интерполяция `"$x ${expr}"` → `string.Concat` (IR — `IrStringConcatenation`).
+- `for (i in 0..10)` — оставлен как TODO (требует итераторов — Phase 11 / G-02).
+- Спец-поддержка: `IrTypeOperatorCall` (`IMPLICIT_COERCION_TO_UNIT` → `pop`),
+  `IrComposite`, operator `inc`/`dec` (→ `±1`), экранирование CIL-опкод-имён
+  (`box` → `'box'`).
 - **Полный план Phase 9** (задачи 9.1–9.8, IR-наблюдения, IL-паттерны,
-  приёмка) — в [`TODO/PHASE-9.md`](TODO/PHASE-9.md). Цикл `for` помечен
-  как опциональный (требует итераторов — Phase 11 / G-02). Перенос
-  spec-тестов while/do-while из kotlin-компилятора — в задаче 9.8.
-- Тестовый проект `04-loops/`.
+  приёмка) — в [`TODO/PHASE-9.md`](TODO/PHASE-9.md). Перенос spec-тестов
+  while/do-while из kotlin-компилятора — задача 9.8 (4 теста, все "OK").
+- Тестовый проект `04-loops/` (+ `just test-04-loops`, `just test-04-loops-spec`).
+
+**Следующая сессия — Phase 10** (классы):
+- `.class`, поля (instance/static), `.ctor` (instance/static), `newobj`.
+- Instance-методы (`callvirt`), `IrConstructorCall`, `IrGetField`/`IrSetField`.
+- `IrClass` → IL `.class`, наследование (`extends`/`implements`).
+- TODO: план `TODO/PHASE-10.md` (предстоит написать).
 
 ## Структура проекта (актуальная)
 
@@ -375,21 +385,33 @@ kotlin-dotnet/
 │   └── src/main/
 │       ├── kotlin/org/kotlindotnet/compiler/
 │       │   ├── DotnetCompilerPluginRegistrar.kt  # CompilerPluginRegistrar (K2)
+│       │   ├── DotnetCommandLineProcessor.kt     # CLI-опция output.dir (ADR 0007)
 │       │   ├── DotnetIrGenerationExtension.kt    # IrGenerationExtension
 │       │   ├── DotnetIrVisitor.kt                # IrVisitor → IL
-│       │   ├── IlEmitter.kt                      # Билдер IL-текста
 │       │   ├── TypeMapper.kt                     # Kotlin → CIL типы
 │       │   ├── NameMapper.kt                     # package → namespace, <File>Kt
-│       │   └── StdlibResolver.kt                 # println/print → runtime
+│       │   ├── StdlibResolver.kt                 # println/print → runtime
+│       │   ├── il/                               # IL-эмиттер (A-03/A-04)
+│       │   │   ├── IlEmitter.kt                  # интерфейс
+│       │   │   ├── TextIlEmitter.kt              # реализация (CIL-текст)
+│       │   │   ├── IlOpcode.kt                   # enum опкодов
+│       │   │   └── IlContext.kt                  # стек контекстов
+│       │   ├── ir/                               # IR-константы (A-05)
+│       │   │   ├── IrOrigins.kt                  # debugName IR-origin
+│       │   │   └── KotlinOperators.kt            # имена operator-функций
+│       │   └── util/
+│       │       └── Log.kt                        # логгер (stderr)
 │       └── resources/META-INF/services/
-│           └── org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
+│           ├── org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
+│           └── org.jetbrains.kotlin.compiler.plugin.CommandLineProcessor
 ├── runtime/                      # KotlinDotnetRuntime (C# class library)
 │   ├── KotlinDotnetRuntime.csproj
 │   └── src/Print.cs              # Kotlin.Runtime.Print (println/print)
 ├── test-projects/                # Тестовые Kotlin-проекты
 │   ├── 00-int-add/               # test_add(Int,Int): Int → DLL + C# consumer
 │   ├── 02-expr/                  # 16 выражений → DLL + C# consumer
-│   └── 03-hello/                 # fun main() { println(...) } → EXE
+│   ├── 03-hello/                 # fun main() { println(...) } → EXE
+│   └── 04-loops/                 # циклы/функции/интерполяция → EXE + spec-тесты
 ├── scripts/
 │   ├── activate.sh               # активация env (JAVA_HOME, DOTNET_ROOT, ...)
 │   ├── deactivate.sh
@@ -397,15 +419,16 @@ kotlin-dotnet/
 │   ├── install-sources.sh        # shallow clones в .sources/
 │   └── kotlinc-net.sh            # CLI: .kt → .exe/.dll
 ├── discussions/                  # Архив чатов и логов (gitignored кроме README)
-├── docs/                         # Документация
-├── TODO/                         # Выравнивающие задачи (не по фазам) — см. TODO/README.md
+├── docs/                         # il-reference.md, references.md, generics-strategy.md
+├── TODO/                         # Выравнивающие задачи + PHASE-9.md (см. TODO/README.md)
 ├── adr/                          # Architecture Decision Records
 │   ├── 0001-pipeline-ir-to-il.md
 │   ├── 0002-runtime-library.md
 │   ├── 0003-ir-state-at-interception.md
 │   ├── 0004-net10-kotlin24-versions.md
 │   ├── 0005-name-mapping.md
-│   └── 0006-just-as-build-runner.md
+│   ├── 0006-just-as-build-runner.md
+│   └── 0007-output-dir-via-cli-option.md
 ├── AGENTS.md                     # Этот файл
 ├── CLAUDE.md -> AGENTS.md        # Симлинк
 ├── CHANGELOG.md
