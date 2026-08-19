@@ -15,12 +15,13 @@ just plugin && just runtime             # собрать compiler-plugin JAR и 
 
 # 2. Написать Kotlin.
 cat > /tmp/demo.kt <<'EOF'
+fun double(n: Int): Int = n * 2
+
 fun main() {
-    println("Привет из Kotlin→.NET!")
-    println(2 + 3)
-    val x = 10
-    val y = 20
-    println(x * y)
+    var x = 0
+    while (x < 5) { x++ }
+    println("x = $x")          // интерполяция
+    println(double(21))        // вызов функции
 }
 EOF
 
@@ -31,17 +32,20 @@ EOF
 
 # 4. Запустить.
 dotnet build/demo.exe
-# Привет из Kotlin→.NET!
-# 5
-# 200
+# x = 5
+# 42
 ```
 
 ## Статус
 
-**Phase 8 завершена.** Pipeline работает end-to-end:
+**Phase 9 завершена.** Pipeline работает end-to-end:
 - `test_add(Int, Int): Int` → DLL → C# consumer печатает `5`.
 - 16 выражений (арифметика, if/when, локальные переменные, bool, Long/Double) → DLL → C# проверки.
 - `fun main() { println("Hello, .NET!") }` → EXE → печатает `Hello, .NET!`.
+- циклы (`while`/`do-while`), `break`/`continue`, вызовы
+  пользовательских top-level функций, строковая интерполяция (`"$x"`) → EXE
+  с верификацией вывода. 4 spec-теста while/do-while (из `kotlin/tests-spec`)
+  возвращают "OK". `for`-loop — TODO (требует итераторов).
 
 ## Быстрый старт
 
@@ -50,6 +54,12 @@ dotnet build/demo.exe
 ```bash
 just bootstrap      # JDK 21, kotlinc 2.4.20-RC, .NET 10, Gradle 9.7.0, ilasm, dotnet-ildasm
                     # + shallow clones исходников (JetBrains/kotlin, dotnet/runtime)
+```
+
+### Все тесты
+
+```bash
+just test-all       # 00-int-add, 02-expr, 03-hello, 04-loops
 ```
 
 ### Сборка `test_add` end-to-end
@@ -73,14 +83,20 @@ just test
 5
 ```
 
+### Тесты циклов и функций (Phase 9)
+
+```bash
+just test-04-loops        # while/do-while/break/continue/call/concat → верификация вывода
+just test-04-loops-spec   # 4 spec-теста while/do-while (из kotlin/tests-spec) → "OK"
+```
+
 ### Пошагово
 
 ```bash
 just list            # показать все рецепты
 just plugin          # собрать compiler-plugin JAR (Gradle)
-just il              # kotlinc + plugin → build/Arithmetic.il
-just dll             # ilasm → build/Arithmetic.dll
-just test            # C# consumer → печатает 5
+just runtime         # собрать KotlinDotnetRuntime.dll (C#, .NET 10)
+just compile <f.kt>  # CLI: .kt → .exe/.dll (через kotlinc-net.sh)
 just show-il         # показать сгенерированный IL
 just disasm          # дизассемблировать Arithmetic.dll
 just show-ir         # показать IR-дамп из плагина
@@ -108,25 +124,33 @@ source scripts/deactivate.sh # снять env
 - `compiler-plugin/` — Kotlin compiler plugin (Gradle, K2 IR)
   - `src/main/kotlin/org/kotlindotnet/compiler/`
     - `DotnetCompilerPluginRegistrar.kt` — регистрация через `CompilerPluginRegistrar`
+    - `DotnetCommandLineProcessor.kt` — CLI-опция `output.dir` (ADR 0007)
     - `DotnetIrGenerationExtension.kt` — точка входа `IrGenerationExtension`
-    - `DotnetIrVisitor.kt` — обход IR-дерева
-    - `IlEmitter.kt` — билдер IL-текста
+    - `DotnetIrVisitor.kt` — обход IR-дерева → IL (Phase 0–9)
     - `TypeMapper.kt` — Kotlin → CIL маппинг примитивных типов
-    - `NameMapper.kt` — Kotlin package → .NET namespace / class / method
+    - `NameMapper.kt` — package → namespace / `<File>Kt` / method (с экранированием CIL-опкод-имён)
+    - `StdlibResolver.kt` — `println`/`print` → KotlinDotnetRuntime
+    - `il/` — `IlEmitter` (интерфейс), `TextIlEmitter`, `IlOpcode`, `IlContext`
+    - `ir/` — `IrOrigins`, `KotlinOperators`
+    - `util/` — `Log`
   - `src/main/resources/META-INF/services/` — ServiceLoader-регистрация
-- `runtime/` — KotlinDotnetRuntime (C#, появится в следующих фазах)
-- `test-projects/00-int-add/` — минимальный тест
-  - `Arithmetic.kt` — исходник Kotlin
-  - `manual.il` — hand-written IL (для отладки ilasm без плагина)
-  - `csharp-test/` — C#-consumer
+- `runtime/` — KotlinDotnetRuntime (C#, .NET 10): `Print.cs` (println/print)
+- `test-projects/`
+  - `00-int-add/` — `test_add(Int,Int): Int` → DLL + C# consumer
+  - `02-expr/` — 16 выражений → DLL + C# consumer
+  - `03-hello/` — `fun main() { println(...) }` → EXE
+  - `04-loops/` — циклы/функции/интерполяция → EXE + spec-тесты
 - `scripts/` — окружение (вызывается из `justfile`)
   - `activate.sh` / `deactivate.sh` — активация локального окружения
   - `install-sdks.sh` — установка JDK/kotlinc/.NET/Gradle в `.sdk/`
   - `install-sources.sh` — shallow clones исходников в `.sources/`
-- `justfile` — единая точка входа (`just bootstrap`, `just test`, `just list`)
+  - `kotlinc-net.sh` — CLI: `.kt` → `.exe`/`.dll`
+- `justfile` — единая точка входа (`just bootstrap`, `just test-all`, `just list`)
 - `.sdk/` (gitignored) — локальные JDK, kotlinc, .NET, Gradle
 - `.sources/` (gitignored, кроме README) — shallow clones JetBrains/kotlin + dotnet/runtime
-- `adr/` — Architecture Decision Records
-- `docs/` — документация
+- `adr/` — Architecture Decision Records (0001–0007)
+- `docs/` — `il-reference.md`, `references.md`, `generics-strategy.md`
+- `TODO/` — план выравнивающих задач + `PHASE-9.md`
+- `AGENTS.md` — полное описание архитектуры, плана, принципов
 
 См. `AGENTS.md` для полного описания архитектуры и плана.
