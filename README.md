@@ -5,6 +5,8 @@ Proof-of-concept компилятора Kotlin → .NET.
 Pipeline: исходник Kotlin → K2 compiler plugin (`IrGenerationExtension`) →
 обход IR-дерева → генерация CIL-текста (`.il`) → `ilasm` → .NET DLL/EXE.
 
+Для управления сборкой и централизованного запуска команд проекта используется [just](https://github.com/casey/just). 
+
 ## Демо
 
 ```bash
@@ -153,4 +155,4 @@ source scripts/deactivate.sh # снять env
 - `TODO/` — план выравнивающих задач + `PHASE-9.md`
 - `AGENTS.md` — полное описание архитектуры, плана, принципов
 
-См. `AGENTS.md` для полного описания архитектуры и плана.
+См. [`AGENTS.md`](AGENTS.md) для полного описания архитектуры и плана.

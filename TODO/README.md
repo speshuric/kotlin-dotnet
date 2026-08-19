@@ -105,6 +105,6 @@ H. Test migration (POST-PoC)       — перенос тестов из kotlin-�
 
 ## Связь с AGENTS.md
 
-- Полный контекст проекта — `AGENTS.md`.
+- Полный контекст проекта — [`AGENTS.md`](AGENTS.md).
 - Этот файл — источник правды для «что делать следующим».
-- Ссылка на `TODO/README.md` добавлена в `AGENTS.md` § «План работ».
+- Ссылка на [`TODO/README.md`](TODO/README.md) добавлена в [`AGENTS.md`](AGENTS.md) § «План работ».
