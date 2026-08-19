@@ -26,6 +26,45 @@
   `just test-all` — теперь включает 04-loops.
 - `for`-loop — оставлен как `TODO("[B-01] for-loop — Phase 11/G-02
   (requires iterators)")` (требует `IntIterator` — Phase 11 / G-02).
+- `AGENTS.md` §15 — **DSH-изоляция (read-only корневая ФС)**: обязательный
+  prelude (`GRADLE_USER_HOME`/`XDG_RUNTIME_DIR`/`HOME`/`DOTNET_CLI_HOME`
+  в writable `build/tmp/`), иначе `just`/`gradlew`/`kotlinc`/`dotnet` падают
+  на read-only ФС. Документация особенностей среды исполнения, не проекта.
+
+### Changed — PRE-9: рефакторинг и выравнивание (коммиты 7d37374…8b7d51d)
+
+- **A-07: разбить `org.kotlindotnet.compiler` на подпакеты** (`il/`, `ir/`,
+  `util/`). `IlEmitter`/`IlContext`/`IlOpcode`/`TextIlEmitter` → `il/`,
+  `IrOrigins`/`KotlinOperators` → `ir/`, `Log` → `util/`.
+  Тесты переехали вместе с исходниками.
+- **PRE-9 выравнивание — 7 задач через 5 волн** (`0b3e7f4`):
+  - `IlEmitter` → интерфейс + контракт «IL корректен» (стек контекстов
+    `IlContext`: `TopLevel` → `ContainerClass` → `Method`). `beginX`/`endX`
+    парны, `opcode`/`label`/`declareLocal` только внутри метода.
+  - `IlOpcode` — enum всех опкодов с `.il`-текстом; единственный источник
+    правды (A-04). Короткие формы инкапсулированы в `TextIlEmitter`.
+  - `IrOrigins` — константы `debugName` IR-origin (`PLUS`/`GT`/`EQEQ`/...).
+  - `KotlinOperators` — имена operator-функций (`plus`/`minus`/`not`/...).
+  - `Log` — обёртка над stderr с уровнями `info`/`warn`.
+  - `DotnetIrVisitor` — B-01 scaffolding: `override fun visitXxx` для всех
+    IR-узлов карты; реализованные делегируют в `emitXxx`, нереализованные
+    бросают `TODO("[B-01] <узел> — Phase N")` (fail-fast, не silent empty .il).
+  - `DotnetCommandLineProcessor` + ADR 0007 — `output.dir` через CLI-опцию
+    (`-P plugin:kotlin.dotnet:output.dir=...`), плагин не хардкодит `build/`.
+  - `DotnetIrGenerationExtension` — ошибка эмиссии фейлит компиляцию
+    (IllegalStateException с контекстом), не best-effort.
+- **TODO-план выравнивающих задач** (`fa2df10`): `TODO/README.md` + 17 файлов
+  задач (A-инфраструктура, B-visitor-scaffolding, C-typemapper,
+  D-stdlib, E-ir-platform, F-annotations, G-internal-design, H-test-migration).
+  Разметка «до/после Phase 9», зависимости, практики исполнителей.
+- **Документация** (`7d37374`):
+  - `docs/il-reference.md` — справочник CIL-синтаксиса и опкодов.
+  - `docs/references.md` — ссылки на kotlin/dotnet-runtime/ilasm/dnlib.
+  - `docs/generics-strategy.md` — reified generics vs erasure, variance.
+  - `AGENTS.md` — cleanup: вынесены docs/, обновлён roadmap, отмечено done.
+- **`TODO/PHASE-9.md`** (`5e8739f`) — полный план Phase 9: задачи 9.1–9.8,
+  IR-наблюдения (дампы while/do-while/break/continue/for/concat),
+  IL-паттерны, критерии приёмки. `for` помечен опциональным (Phase 11/G-02).
 
 ### Added — `kotlinc-net.sh` CLI компилятор
 
