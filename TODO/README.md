@@ -75,7 +75,7 @@
 | 1 | Логирование (фасад) | [A-01-logging.md](A-infrastructure/A-01-logging.md) | PRE-9 | — | TODO |
 | 2 | DotnetIrGenerationExtension: имя файла, onFailure | [A-02-ir-generation-extension.md](A-infrastructure/A-02-ir-generation-extension.md) | PRE-9 | A-01 | TODO |
 | 3 | IlEmitter: интерфейс + контракт AST | [A-03-il-emitter-contract.md](A-infrastructure/A-03-il-emitter-contract.md) | PRE-9 | — | TODO |
-| 4 | IlEmitter: opcodes → enum | [A-04-il-opcodes-enum.md](A-infrastructure/A-04-il-opcodes-enum.md) | PRE-9 | A-03 | TODO |
+| 4 | IlEmitter: opcodes → enum | [A-04-il-opcodes-enum.md](A-infrastructure/A-04-il-opcodes-enum.md) | PRE-9 | A-03 | DONE |
 | 5 | DotnetIrVisitor: убрать хардкод origin/stdlib | [A-05-visitor-hardcode.md](A-infrastructure/A-05-visitor-hardcode.md) | PRE-9 | A-01, A-04 | TODO |
 | 6 | scripts review: вынести общие части | [A-06-scripts-review.md](A-infrastructure/A-06-scripts-review.md) | PRE-9 | A-01 | TODO |
 | 7 | Visitor scaffolding: план-карта обработчиков Ir-узлов | [B-01-visitor-node-map.md](B-visitor-scaffolding/B-01-visitor-node-map.md) | PRE-9 (карта), POST-9 (реализация) | A-05 | TODO |

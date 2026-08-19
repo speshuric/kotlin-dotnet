@@ -3,7 +3,10 @@
 - **Тема:** B. Visitor scaffolding
 - **Разметка:** PRE-9 (карта), POST-9 (реализация по фазам)
 - **Зависимости:** A-05 (visitor без хардкода)
-- **Статус:** TODO
+- **Статус:** scaffolding выполнен (B-01). Карта узлов ниже актуальна;
+  статусы ✅/TODO не изменились — добавлены только `visitXxx`-заглушки с
+  `TODO("[B-01] ...")`. Заметки о несоответствии имён узлов и `visitXxx` —
+  в конце соответствующих таблиц (см. «Заметки о маппинге узлов»).
 
 ## Контекст
 
@@ -189,3 +192,33 @@ Ir-узел, в `visitElement` бросается `TODO`, и кто-то доп�
 - Имена IR-классов можно подсмотреть в `.sources/kotlin/compiler/ir/`
   (`tree/impl/` — `Ir*Impl`).
 - Не реализовывать узлы заранее — только TODO-заглушки.
+
+## Заметки о маппинге узлов → visitXxx (по итогам B-01)
+
+Сверено с `IrVisitor.kt` (`.sources/kotlin/compiler/ir/ir.tree/gen/`).
+Часть узлов из таблиц выше — концептуальные категории, а не отдельные
+IR-классы. Их маппинг:
+
+- **`IrEnumDeclaration`** → отдельного узла нет. Enum — это `IrClass` с
+  enum-флагом (`IrClass` → `visitClass`). Scaffolding: `visitClass`
+  TODO Phase 10 (enum-специфика — Phase 13, см. карту).
+- **`IrNewInstance`** → `IrConstructorCall` (`visitConstructorCall`).
+  Отдельного `IrNewInstance` в IR-дереве Kotlin нет.
+- **`IrNewArray`** → отдельного узла нет. Создание массива идёт через
+  `IrVararg` (`visitVararg`, Phase 11) или `IrConstantArray`
+  (`visitConstantArray`). Scaffolding: `visitVararg` TODO Phase 11.
+- **`IrStringConcat`** (карта) → `IrStringConcatenation`
+  (`visitStringConcatenation`). Scaffolding: TODO Phase 9.
+- **`IrTypeOperatorCall`** → `visitTypeOperator` (IrTypeOperatorCall).
+  AS / AS_DYNAMIC / INSTANCEOF различаются по `operator` внутри узла.
+- **`IrRawString`** → в IR-дереве Kotlin v2.4.20 такого узла нет
+  (`IrRawString`/`visitRawString` отсутствуют). Scaffolding не добавлен.
+- **`IrInstance`/`IrSimpleFunction` (instance/extension)** → тот же
+  `IrSimpleFunction` (`visitSimpleFunction`); отличие — по наличию
+  `dispatchReceiverParameter`. Различение в `emitSimpleFunction`.
+- **`IrCall` (operator/stdlib/user/instance/extension)** → один узел
+  `IrCall` (`visitCall`); категория определяется по `origin` и
+  `symbol.owner`. Различение в `emitCall`.
+- **`IrSetValue` (field)** → тот же `IrSetValue` (`visitSetValue`);
+  отличие — по `symbol.owner` (`IrField` vs `IrVariable`). Различение в
+  `emitSetValue`.

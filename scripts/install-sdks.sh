@@ -3,7 +3,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/common.sh"
 SDK_DIR="$PROJECT_ROOT/.sdk"
 
 mkdir -p "$SDK_DIR"
@@ -15,14 +16,14 @@ KOTLIN_VERSION="2.4.20-RC"
 DOTNET_CHANNEL="10.0"
 GRADLE_VERSION="9.7.0"
 
-echo ">>> Installing local SDKs into $SDK_DIR"
+log_info "Installing local SDKs into $SDK_DIR"
 
 # --- JDK (Temurin 21) ---
 JDK_DIR="$SDK_DIR/jdk"
 if [ -x "$JDK_DIR/bin/java" ]; then
-  echo ">>> JDK already installed: $("$JDK_DIR/bin/java" -version 2>&1 | head -1)"
+  log_info "JDK already installed: $("$JDK_DIR/bin/java" -version 2>&1 | head -1)"
 else
-  echo ">>> Installing Temurin JDK $JDK_VERSION ..."
+  log_info "Installing Temurin JDK $JDK_VERSION ..."
   # Adoptium API: последняя GA сборка для linux x64
   JDK_URL="https://api.adoptium.net/v3/binary/latest/${JDK_VERSION}/ga/linux/x64/jdk/hotspot/normal/eclipse"
   echo "    Download: $JDK_URL"
@@ -37,9 +38,9 @@ fi
 # --- kotlinc ---
 KOTLIN_DIR="$SDK_DIR/kotlinc"
 if [ -x "$KOTLIN_DIR/bin/kotlinc" ]; then
-  echo ">>> kotlinc already installed: $("$KOTLIN_DIR/bin/kotlinc" -version 2>&1 | head -1)"
+  log_info "kotlinc already installed: $("$KOTLIN_DIR/bin/kotlinc" -version 2>&1 | head -1)"
 else
-  echo ">>> Installing kotlinc $KOTLIN_VERSION ..."
+  log_info "Installing kotlinc $KOTLIN_VERSION ..."
   KOTLIN_URL="https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_VERSION}/kotlin-compiler-${KOTLIN_VERSION}.zip"
   echo "    Download: $KOTLIN_URL"
   tmp="$(mktemp -d)"
@@ -55,9 +56,9 @@ fi
 # --- .NET SDK 10 ---
 DOTNET_DIR="$SDK_DIR/dotnet"
 if [ -x "$DOTNET_DIR/dotnet" ]; then
-  echo ">>> .NET SDK already installed: $("$DOTNET_DIR/dotnet" --version 2>&1 | head -1)"
+  log_info ".NET SDK already installed: $("$DOTNET_DIR/dotnet" --version 2>&1 | head -1)"
 else
-  echo ">>> Installing .NET SDK (channel $DOTNET_CHANNEL) ..."
+  log_info "Installing .NET SDK (channel $DOTNET_CHANNEL) ..."
   curl -sSL https://dot.net/v1/dotnet-install.sh -o "$SDK_DIR/dotnet-install.sh"
   chmod +x "$SDK_DIR/dotnet-install.sh"
   "$SDK_DIR/dotnet-install.sh" --channel "$DOTNET_CHANNEL" --install-dir "$DOTNET_DIR" --no-path
@@ -86,9 +87,9 @@ fi
 # --- Gradle ---
 GRADLE_DIR="$SDK_DIR/gradle"
 if [ -x "$GRADLE_DIR/bin/gradle" ]; then
-  echo ">>> Gradle already installed: $("$GRADLE_DIR/bin/gradle" --version 2>&1 | grep -E '^Gradle ' | head -1)"
+  log_info "Gradle already installed: $("$GRADLE_DIR/bin/gradle" --version 2>&1 | grep -E '^Gradle ' | head -1)"
 else
-  echo ">>> Installing Gradle $GRADLE_VERSION ..."
+  log_info "Installing Gradle $GRADLE_VERSION ..."
   GRADLE_URL="https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip"
   echo "    Download: $GRADLE_URL"
   tmp="$(mktemp -d)"
@@ -100,4 +101,4 @@ else
   echo "    Gradle installed: $("$GRADLE_DIR/bin/gradle" --version 2>&1 | grep -E '^Gradle ' | head -1)"
 fi
 
-echo ">>> Done. Activate with: source scripts/activate.sh"
+log_info "Done. Activate with: source scripts/activate.sh"

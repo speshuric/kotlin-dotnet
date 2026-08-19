@@ -61,8 +61,10 @@ _gen-il name kt:
     fi
     echo "[just] generating $out"
     mkdir -p build/kt-out
-    rm -f build/ir-dump.txt "$out"
-    kotlinc -Xplugin="$jar" "{{kt}}" -d build/kt-out
+    rm -f build/ir-dump-*.txt "$out"
+    kotlinc -Xplugin="$jar" \
+        -P "plugin:kotlin.dotnet:output.dir=build" \
+        "{{kt}}" -d build/kt-out
 
 # Внутренний рецепт: ilasm → <name>.dll (или .exe если указан /exe).
 _gen-asm name exe="dll":
@@ -138,7 +140,7 @@ disasm:
 
 # Показать IR-дамп из плагина (последний).
 show-ir:
-    cat build/ir-dump.txt
+    @cat build/ir-dump-*.txt 2>/dev/null || echo "no ir-dump found"
 
 # === Очистка ===
 

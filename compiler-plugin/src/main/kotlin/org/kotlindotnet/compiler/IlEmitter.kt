@@ -1,116 +1,124 @@
 package org.kotlindotnet.compiler
 
 /**
- * Билдер IL-текста (CIL assembly language).
+ * Абстракция IL-эмиттера.
  *
- * PoC: эмитит top-level static-методы в sealed-классе `<File>Kt`.
- * Поддерживает locals, метки, арифметику, сравнения, ветвления.
+ * Контракт «IL корректен» (A-03): реализации гарантируют, что
+ * `beginX`/`endX` парны, тело сбалансировано, заголовок есть.
+ * `opcode`/`ldcI4`/`ldarg`/.../`label`/`declareLocal` разрешены
+ * только внутри метода (`beginStaticMethod` ... `endStaticMethod`).
  *
- * Использует явные begin/end пары вместо лямбд (см. ADR 0005 —
- * this в лямбде IlEmitter.() -> Unit перекрывал бы this@DotnetIrVisitor).
+ * Явные `begin/end` пары вместо лямбд `IlEmitter.() -> Unit`
+ * (ADR 0005 — `this` в лямбде перекрывал бы `this@DotnetIrVisitor`).
+ *
+ * **A-04:** опкоды типизированы через [IlOpcode]. Общий метод
+ * [opcode] покрывает опкод + строковые операнды; типизированные
+ * хелперы ([ldcI4], [ldarg], [ldloc], [stloc], [ldstr], [br], ...)
+ * инкапсулируют выбор коротких форм и экранирование — visitor
+ * не знает про `ldc.i4.0` vs `ldc.i4 0`.
+ *
+ * TODO(BinaryIlEmitter): `IlOpcode → байт` + сериализация операндов.
  */
-class IlEmitter {
+interface IlEmitter {
 
-    private val sb = StringBuilder()
-    private var indent = ""
-    private var labelCounter = 0
-    private var localsCount = 0
-    private val locals = mutableListOf<String>()
+    // === Assembly / module ===
 
-    fun text(): String = sb.toString()
+    /** Эмитит заголовок сборки (.assembly extern, .assembly, .module). */
+    fun assemblyHeader(assemblyName: String, withRuntime: Boolean = false)
 
-    fun line(s: String = ""): IlEmitter {
-        sb.append(indent).append(s).append('\n')
-        return this
-    }
-
-    private fun pushIndent() { indent += "  " }
-    private fun popIndent() { indent = indent.dropLast(2) }
-
-    /** Генерирует уникальную метку IL_<n>. */
-    fun newLabel(): String = "IL_${labelCounter++}"
-
-    /** Эмитит метку (на текущем отступе, без trailing). */
-    fun label(name: String): IlEmitter {
-        sb.append(name).append(":\n")
-        return this
-    }
-
-    /** Регистрирует локальную переменную, возвращает её индекс. */
-    fun declareLocal(cilType: String): Int {
-        locals.add(cilType)
-        return localsCount++
-    }
-
-    /** Эмитит заголовок сборки. */
-    fun assemblyHeader(assemblyName: String, withRuntime: Boolean = false) {
-        line(".assembly extern mscorlib {}")
-        if (withRuntime) {
-            line(".assembly extern KotlinDotnetRuntime {}")
-        }
-        line(".assembly '$assemblyName'")
-        line("{")
-        line("  .ver 0:0:0:0")
-        line("}")
-        line(".module '$assemblyName.dll'")
-        line()
-    }
+    //=== Container class (top-level functions) ===
 
     /** Открывает класс-контейнер для top-level функций. */
-    fun beginContainerClass(namespace: String, className: String) {
-        val full = if (namespace.isEmpty()) className else "$namespace.$className"
-        line(".class public abstract sealed auto ansi $full extends [mscorlib]System.Object")
-        line("{")
-        pushIndent()
-    }
+    fun beginContainerClass(namespace: String, className: String)
 
     /** Закрывает класс-контейнер (+ эмитит default .ctor). */
-    fun endContainerClass() {
-        line(".method public hidebysig specialname rtspecialname")
-        line("        instance void .ctor() cil managed")
-        line("  {")
-        line("    ldarg.0")
-        line("    call instance void [mscorlib]System.Object::.ctor()")
-        line("    ret")
-        line("  }")
-        popIndent()
-        line("}")
-    }
+    fun endContainerClass()
 
-    /** Открывает статический метод. */
+    //=== Static method ===
+
+    /** Открывает статический метод. `isEntrypoint` → `.entrypoint`. */
     fun beginStaticMethod(
         name: String,
         returnType: String,
         params: List<Pair<String, String>>,
         isEntrypoint: Boolean = false
-    ) {
-        val paramStr = params.joinToString(", ") { (t, n) -> "$t $n" }
-        line(".method public hidebysig static $returnType $name($paramStr) cil managed")
-        line("  {")
-        pushIndent()
-        if (isEntrypoint) {
-            line(".entrypoint")
-        }
-    }
+    )
 
-    /** Эмитит `.locals init` если есть локальные переменные. */
-    fun emitLocalsIfAny() {
-        if (locals.isNotEmpty()) {
-            val items = locals.mapIndexed { i, t -> "$t V_$i" }.joinToString(", ")
-            line(".locals init ($items)")
-        }
-    }
+    /** Эмитит `.locals init (...)` если есть зарегистрированные локалки. */
+    fun emitLocalsIfAny()
 
     /** Закрывает статический метод. */
-    fun endStaticMethod() {
-        popIndent()
-        line("  }")
-    }
+    fun endStaticMethod()
 
     /** Сбрасывает состояние локалок/меток между методами. */
-    fun resetMethodState() {
-        locals.clear()
-        localsCount = 0
-        labelCounter = 0
-    }
+    fun resetMethodState()
+
+    //=== Locals / labels ===
+
+    /** Регистрирует локальную переменную, возвращает её индекс. */
+    fun declareLocal(cilType: String): Int
+
+    /** Генерирует уникальную метку IL_<n>. */
+    fun newLabel(): String
+
+    /** Эмитит метку `name:` на текущем отступе. */
+    fun label(name: String)
+
+    //=== Instructions (A-04) ===
+
+    /**
+     * Эмитит опкод [op] с операндами [operands] (через пробел).
+     *
+     * Пример: `opcode(IlOpcode.BR, "IL_0")` → `br IL_0`.
+     * Для опкодов без операндов: `opcode(IlOpcode.ADD)` → `add`.
+     *
+     * Контракт: только внутри [beginStaticMethod] ... [endStaticMethod].
+     * Короткие формы НЕ выбираются здесь — для типизированных
+     * операций (ldc/ldarg/ldloc/stloc) используйте хелперы ниже.
+     */
+    fun opcode(op: IlOpcode, vararg operands: String)
+
+    // --- Загрузка констант ---
+
+    /** `ldc.i4 <value>` с короткими формами 0..8 и M1 для -1. */
+    fun ldcI4(value: Int)
+
+    /** `ldc.i8 <value>` (малые 0..8 и -1 переиспользуют ldc.i4-формы). */
+    fun ldcI8(value: Long)
+
+    /** `ldc.r4 <value>`. */
+    fun ldcR4(value: Float)
+
+    /** `ldc.r8 <value>`. */
+    fun ldcR8(value: Double)
+
+    // --- Загрузка/сохранение ---
+
+    /** `ldarg <index>` с короткими формами 0..3. */
+    fun ldarg(index: Int)
+
+    /** `ldloc <index>` с короткими формами 0..3. */
+    fun ldloc(index: Int)
+
+    /** `stloc <index>` с короткими формами 0..3. */
+    fun stloc(index: Int)
+
+    /** `ldstr "<escaped>"` с экранированием CIL. */
+    fun ldstr(s: String)
+
+    // --- Управление потоком (типизированные по метке) ---
+
+    /** `br <label>`. */
+    fun br(label: String)
+
+    /** `brtrue <label>`. */
+    fun brtrue(label: String)
+
+    /** `brfalse <label>`. */
+    fun brfalse(label: String)
+
+    //=== Result ===
+
+    /** Возвращает собранный IL-текст (с проверкой, что всё закрыто). */
+    fun text(): String
 }

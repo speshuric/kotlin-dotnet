@@ -1,22 +1,57 @@
 package org.kotlindotnet.compiler
 
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
+import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrConstructor
+import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
+import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrParameterKind
+import org.jetbrains.kotlin.ir.declarations.IrProperty
+import org.jetbrains.kotlin.ir.declarations.IrScript
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.declarations.IrTypeAlias
+import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
+import org.jetbrains.kotlin.ir.expressions.IrBody
 import org.jetbrains.kotlin.ir.expressions.IrBranch
+import org.jetbrains.kotlin.ir.expressions.IrBreak
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrClassReference
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstKind
+import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrContinue
+import org.jetbrains.kotlin.ir.expressions.IrDoWhileLoop
+import org.jetbrains.kotlin.ir.expressions.IrErrorExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrExpressionBody
+import org.jetbrains.kotlin.ir.expressions.IrFunctionExpression
+import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
+import org.jetbrains.kotlin.ir.expressions.IrGetEnumValue
+import org.jetbrains.kotlin.ir.expressions.IrGetField
+import org.jetbrains.kotlin.ir.expressions.IrGetObjectValue
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
+import org.jetbrains.kotlin.ir.expressions.IrInstanceInitializerCall
+import org.jetbrains.kotlin.ir.expressions.IrPropertyReference
 import org.jetbrains.kotlin.ir.expressions.IrReturn
+import org.jetbrains.kotlin.ir.expressions.IrReturnableBlock
+import org.jetbrains.kotlin.ir.expressions.IrSetField
 import org.jetbrains.kotlin.ir.expressions.IrSetValue
+import org.jetbrains.kotlin.ir.expressions.IrSpreadElement
+import org.jetbrains.kotlin.ir.expressions.IrStringConcatenation
+import org.jetbrains.kotlin.ir.expressions.IrSuspendableExpression
+import org.jetbrains.kotlin.ir.expressions.IrSyntheticBody
+import org.jetbrains.kotlin.ir.expressions.IrThrow
+import org.jetbrains.kotlin.ir.expressions.IrTry
+import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
+import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.IrWhen
+import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
@@ -32,9 +67,20 @@ import org.jetbrains.kotlin.ir.visitors.IrVisitor
  * - `IrWhen` + `IrBranch` (if/when/ANDAND/OROR)
  * - `IrBlock` (блок выражений)
  *
+ * B-01: добавлен scaffolding — `override fun visitXxx` для каждого узла
+ * из карты (`TODO/B-visitor-scaffolding/B-01-visitor-node-map.md`).
+ * Уже-реализованные узлы делегируют в приватные `emitXxx`; не-реализованные
+ * бросают `TODO("[B-01] <узел> — Phase N")` с указанием фазы.
+ *
  * Возвращает Unit: IlEmitter накапливает состояние внутри себя.
  *
  * Контекст вызова отслеживается через [MethodContext] (стек методов).
+ *
+ * Зависит от абстракции [IlEmitter] (A-03), а не от конкретного
+ * [TextIlEmitter]. Опкоды эмитятся через типобезопасные методы:
+ * `emitter.opcode(IlOpcode.ADD)` для безоперандных, `emitter.ldcI4(n)`,
+ * `emitter.ldarg(idx)`, `emitter.br(label)` — для типизированных
+ * (короткие формы и экранирование инкапсулированы в [TextIlEmitter]).
  */
 class DotnetIrVisitor(
     private val emitter: IlEmitter
@@ -43,9 +89,19 @@ class DotnetIrVisitor(
     /** Индексы локальных переменных по их символу (в текущем методе). */
     private val variableIndices = mutableMapOf<IrVariable, Int>()
 
+    // =====================================================================
+    // Fallback (последний рубеж — совсем неизвестные узлы).
+    // После B-01 почти все узлы имеют специфичный visitXxx, поэтому сюда
+    // попадают только действительно экзотические элементы.
+    // =====================================================================
+
     override fun visitElement(element: IrElement, data: Nothing?) {
         TODO("IR element not supported in PoC: ${element::class.simpleName}")
     }
+
+    // =====================================================================
+    // Декларации (IrDeclaration)
+    // =====================================================================
 
     override fun visitFile(declaration: IrFile, data: Nothing?) {
         val ns = NameMapper.namespace(declaration)
@@ -63,9 +119,229 @@ class DotnetIrVisitor(
         emitter.endContainerClass()
     }
 
+    override fun visitSimpleFunction(declaration: IrSimpleFunction, data: Nothing?) {
+        // top-level function (Phase 4): эмитим.
+        // instance / extension (Phase 10): сейчас emitSimpleFunction бросает
+        // TODO при наличии dispatchReceiverParameter — оставляем как есть.
+        emitSimpleFunction(declaration, data)
+    }
+
+    override fun visitClass(declaration: IrClass, data: Nothing?) {
+        TODO("[B-01] IrClass — Phase 10")
+    }
+
+    override fun visitConstructor(declaration: IrConstructor, data: Nothing?) {
+        TODO("[B-01] IrConstructor — Phase 10")
+    }
+
+    override fun visitField(declaration: IrField, data: Nothing?) {
+        TODO("[B-01] IrField — Phase 10")
+    }
+
+    override fun visitProperty(declaration: IrProperty, data: Nothing?) {
+        TODO("[B-01] IrProperty — Phase 10")
+    }
+
+    override fun visitVariable(declaration: IrVariable, data: Nothing?) {
+        emitVariable(declaration, data)
+    }
+
+    override fun visitValueParameter(declaration: IrValueParameter, data: Nothing?) {
+        // Обрабатывается в emitSimpleFunction (сбор параметров метода) и
+        // в emitGetValue (ldarg по индексу). Самостоятельный обход не нужен.
+    }
+
+    override fun visitTypeParameter(declaration: IrTypeParameter, data: Nothing?) {
+        TODO("[B-01] IrTypeParameter — Phase 12")
+    }
+
+    override fun visitTypeAlias(declaration: IrTypeAlias, data: Nothing?) {
+        TODO("[B-01] IrTypeAlias — POST-PoC")
+    }
+
+    override fun visitEnumEntry(declaration: IrEnumEntry, data: Nothing?) {
+        TODO("[B-01] IrEnumEntry — Phase 13")
+    }
+
+    override fun visitAnonymousInitializer(declaration: IrAnonymousInitializer, data: Nothing?) {
+        TODO("[B-01] IrAnonymousInitializer — Phase 10")
+    }
+
+    // Примечание: IrEnumDeclaration в IR-дереве Kotlin — это IrClass с
+    // enum-флагом (см. IrClass.hasEnumEntries), отдельного узла нет.
+    // Сюда попадает через visitClass (Phase 13).
+
+    override fun visitScript(declaration: IrScript, data: Nothing?) {
+        TODO("[B-01] IrScript — POST-PoC")
+    }
+
+    // =====================================================================
+    // Тела (IrBody)
+    // =====================================================================
+
+    override fun visitBlockBody(body: IrBlockBody, data: Nothing?) {
+        for (stmt in body.statements) {
+            emitStatement(stmt, data)
+        }
+    }
+
+    override fun visitExpressionBody(body: IrExpressionBody, data: Nothing?) {
+        TODO("[B-01] IrExpressionBody — Phase 9")
+    }
+
+    override fun visitSyntheticBody(body: IrSyntheticBody, data: Nothing?) {
+        TODO("[B-01] IrSyntheticBody — Phase 10+")
+    }
+
+    // =====================================================================
+    // Выражения (IrExpression) — основной объём scaffolding.
+    // Уже-реализованные узлы (Phase 7/8) делегируют в emitXxx.
+    // =====================================================================
+
+    override fun visitConst(expression: IrConst, data: Nothing?) {
+        emitConst(expression)
+    }
+
+    override fun visitCall(expression: IrCall, data: Nothing?) {
+        // operator-call (Phase 7) и stdlib-call (Phase 8) — реализованы.
+        // user top-level / instance / extension — TODO внутри emitCall.
+        emitCall(expression, data)
+    }
+
+    override fun visitGetValue(expression: IrGetValue, data: Nothing?) {
+        emitGetValue(expression)
+    }
+
+    override fun visitSetValue(expression: IrSetValue, data: Nothing?) {
+        // locals (Phase 7) — реализованы; field (Phase 10) — TODO внутри emitSetValue.
+        emitSetValue(expression, data)
+    }
+
+    override fun visitReturn(expression: IrReturn, data: Nothing?) {
+        emitReturn(expression, data)
+    }
+
+    override fun visitWhen(expression: IrWhen, data: Nothing?) {
+        // if/when как statement или expression — диспетчеризация в emitStatement/emitExpr.
+        // Прямой обход сюда обычно не доходит, но фреймворк может вызвать.
+        emitWhenDispatch(expression, data)
+    }
+
+    override fun visitBranch(branch: IrBranch, data: Nothing?) {
+        // Часть IrWhen — обрабатывается вместе с ним.
+        TODO("[B-01] IrBranch — handled within IrWhen (Phase 7)")
+    }
+
+    override fun visitBlock(expression: IrBlock, data: Nothing?) {
+        for (stmt in expression.statements) emitStatement(stmt, data)
+    }
+
+    // --- Выражения — TODO-заглушки по фазам ---
+
+    override fun visitVararg(expression: IrVararg, data: Nothing?) {
+        TODO("[B-01] IrVararg — Phase 11")
+    }
+
+    override fun visitStringConcatenation(expression: IrStringConcatenation, data: Nothing?) {
+        TODO("[B-01] IrStringConcatenation — Phase 9")
+    }
+
+    override fun visitSpreadElement(spread: IrSpreadElement, data: Nothing?) {
+        TODO("[B-01] IrSpreadElement — POST-PoC")
+    }
+
+    override fun visitBreak(jump: IrBreak, data: Nothing?) {
+        TODO("[B-01] IrBreak — Phase 9")
+    }
+
+    override fun visitContinue(jump: IrContinue, data: Nothing?) {
+        TODO("[B-01] IrContinue — Phase 9")
+    }
+
+    override fun visitWhileLoop(loop: IrWhileLoop, data: Nothing?) {
+        TODO("[B-01] IrWhileLoop — Phase 9")
+    }
+
+    override fun visitDoWhileLoop(loop: IrDoWhileLoop, data: Nothing?) {
+        TODO("[B-01] IrDoWhileLoop — Phase 9")
+    }
+
+    override fun visitReturnableBlock(expression: IrReturnableBlock, data: Nothing?) {
+        TODO("[B-01] IrReturnableBlock — POST-9")
+    }
+
+    override fun visitThrow(expression: IrThrow, data: Nothing?) {
+        TODO("[B-01] IrThrow — POST-9")
+    }
+
+    override fun visitTry(aTry: IrTry, data: Nothing?) {
+        TODO("[B-01] IrTry — POST-9")
+    }
+
+    override fun visitTypeOperator(expression: IrTypeOperatorCall, data: Nothing?) {
+        TODO("[B-01] IrTypeOperatorCall — POST-9")
+    }
+
+    override fun visitFunctionReference(expression: IrFunctionReference, data: Nothing?) {
+        TODO("[B-01] IrFunctionReference — G-01")
+    }
+
+    override fun visitPropertyReference(expression: IrPropertyReference, data: Nothing?) {
+        TODO("[B-01] IrPropertyReference — POST-PoC")
+    }
+
+    override fun visitClassReference(expression: IrClassReference, data: Nothing?) {
+        TODO("[B-01] IrClassReference — POST-PoC")
+    }
+
+    override fun visitGetField(expression: IrGetField, data: Nothing?) {
+        TODO("[B-01] IrGetField — Phase 10")
+    }
+
+    override fun visitSetField(expression: IrSetField, data: Nothing?) {
+        TODO("[B-01] IrSetField — Phase 10")
+    }
+
+    override fun visitGetObjectValue(expression: IrGetObjectValue, data: Nothing?) {
+        TODO("[B-01] IrGetObjectValue — Phase 13")
+    }
+
+    override fun visitGetEnumValue(expression: IrGetEnumValue, data: Nothing?) {
+        TODO("[B-01] IrGetEnumValue — Phase 13")
+    }
+
+    override fun visitInstanceInitializerCall(expression: IrInstanceInitializerCall, data: Nothing?) {
+        TODO("[B-01] IrInstanceInitializerCall — Phase 10")
+    }
+
+    // Примечание: IrNewInstance в IR-дереве Kotlin — это IrConstructorCall
+    // (visitConstructorCall). Отдельного IrNewInstance-узла нет.
+    override fun visitConstructorCall(expression: IrConstructorCall, data: Nothing?) {
+        TODO("[B-01] IrConstructorCall (newobj) — Phase 10")
+    }
+
+    // Примечание: IrNewArray в IR-дереве Kotlin отсутствует — массивы
+    // создаются через IrVararg (Phase 11) или IrConstantArray. См. карту.
+
+    override fun visitFunctionExpression(expression: IrFunctionExpression, data: Nothing?) {
+        TODO("[B-01] IrFunctionExpression — G-01")
+    }
+
+    override fun visitSuspendableExpression(expression: IrSuspendableExpression, data: Nothing?) {
+        TODO("[B-01] IrSuspendableExpression — POST-PoC")
+    }
+
+    override fun visitErrorExpression(expression: IrErrorExpression, data: Nothing?) {
+        TODO("[B-01] IrErrorExpression — n/a (compile error recovery, skip)")
+    }
+
+    // =====================================================================
+    // Приватные emit-методы (реализация уже-обработанных узлов).
+    // =====================================================================
+
     private fun emitSimpleFunction(declaration: IrSimpleFunction, data: Nothing?) {
         if (declaration.dispatchReceiverParameter != null) {
-            TODO("Instance functions not supported in PoC")
+            TODO("[B-01] IrSimpleFunction (instance) — Phase 10")
         }
 
         // Сброс состояния для нового метода.
@@ -95,7 +371,7 @@ class DotnetIrVisitor(
 
         // Для void-методов без явного ret — добавляем.
         if (retType == "void") {
-            emitter.line("ret")
+            emitter.opcode(IlOpcode.RET)
         }
 
         emitter.endStaticMethod()
@@ -125,10 +401,6 @@ class DotnetIrVisitor(
             is IrSetValue -> collectLocals(element.value)
             else -> Unit
         }
-    }
-
-    override fun visitSimpleFunction(declaration: IrSimpleFunction, data: Nothing?) {
-        emitSimpleFunction(declaration, data)
     }
 
     private fun emitBody(body: IrElement, data: Nothing?) {
@@ -174,10 +446,10 @@ class DotnetIrVisitor(
 
     private fun emitReturn(ret: IrReturn, data: Nothing?) {
         if (ret.value.type.isUnit()) {
-            emitter.line("ret")
+            emitter.opcode(IlOpcode.RET)
         } else {
             emitExpr(ret.value, data)
-            emitter.line("ret")
+            emitter.opcode(IlOpcode.RET)
         }
     }
 
@@ -186,7 +458,7 @@ class DotnetIrVisitor(
             ?: error("Variable ${v.name} not registered in .locals")
         v.initializer?.let { init ->
             emitExpr(init, data)
-            emitter.line("stloc.$idx")
+            emitter.stloc(idx)
         }
     }
 
@@ -197,9 +469,10 @@ class DotnetIrVisitor(
             is IrVariable -> {
                 val idx = variableIndices[owner]
                     ?: error("Variable ${owner.name} not registered in .locals")
-                emitter.line("stloc.$idx")
+                emitter.stloc(idx)
             }
-            else -> TODO("SetValue of ${owner::class.simpleName} not supported in PoC")
+            is IrField -> TODO("[B-01] IrSetValue (field) — Phase 10")
+            else -> TODO("[B-01] IrSetValue of ${owner::class.simpleName} — Phase 10")
         }
     }
 
@@ -209,17 +482,17 @@ class DotnetIrVisitor(
         // Сначала обрабатываем special origins (сравнения, логические),
         // т.к. у них своя IL-семантика.
         when (origin) {
-            "GT", "LT", "GE", "LE" -> {
+            IrOrigins.GT, IrOrigins.LT, IrOrigins.GE, IrOrigins.LE -> {
                 emitBinaryArgs(call, data)
                 emitComparison(origin)
                 return
             }
-            "EQEQ", "EQEQEQ" -> {
+            IrOrigins.EQEQ, IrOrigins.EQEQEQ -> {
                 emitBinaryArgs(call, data)
-                emitter.line("ceq")
+                emitter.opcode(IlOpcode.CEQ)
                 return
             }
-            "ANDAND", "OROR" -> {
+            IrOrigins.ANDAND, IrOrigins.OROR -> {
                 // На самом деле && / || в Kotlin lowering превращается в IrWhen
                 // (см. дамп test_bool). Если всё же пришли как IrCall — fallback.
                 TODO("ANDAND/OROR expected to be IrWhen, got IrCall")
@@ -227,9 +500,8 @@ class DotnetIrVisitor(
         }
 
         // Stdlib-вызовы (println, print) → KotlinDotnetRuntime.
-        val callee = call.symbol.owner
-        val calleeFqName = (callee as? IrSimpleFunction)?.kotlinFqName?.asString()
-        if (calleeFqName == "kotlin.io.println" || calleeFqName == "kotlin.io.print") {
+        // Проверка делегирована в StdlibResolver (A-05, см. D-02).
+        if (StdlibResolver.isStdlibCall(call)) {
             emitStdlibCall(call, data)
             return
         }
@@ -240,33 +512,36 @@ class DotnetIrVisitor(
         // Унарные / бинарные операторы.
         val symbolName = call.symbol.owner.name.asString()
         when (symbolName) {
-            "plus" -> emitter.line("add")
-            "minus" -> emitter.line("sub")
-            "times" -> emitter.line("mul")
-            "div" -> emitter.line("div")
-            "rem" -> emitter.line("rem")
-            "unaryMinus" -> emitter.line("neg")
-            "unaryPlus" -> Unit // nop
-            "not" -> {
+            KotlinOperators.PLUS -> emitter.opcode(IlOpcode.ADD)
+            KotlinOperators.MINUS -> emitter.opcode(IlOpcode.SUB)
+            KotlinOperators.TIMES -> emitter.opcode(IlOpcode.MUL)
+            KotlinOperators.DIV -> emitter.opcode(IlOpcode.DIV)
+            KotlinOperators.REM -> emitter.opcode(IlOpcode.REM)
+            KotlinOperators.UNARY_MINUS -> emitter.opcode(IlOpcode.NEG)
+            KotlinOperators.UNARY_PLUS -> Unit // nop
+            KotlinOperators.NOT -> {
                 // Для Boolean: not это логическое НЕ, не побитовое.
                 // not(true)=1 → 0xFFFFFFFE (побитово), а нужно 0.
                 // Используем ldc.i4.0 + ceq (logical NOT).
-                emitter.line("ldc.i4.0")
-                emitter.line("ceq")
+                emitter.ldcI4(0)
+                emitter.opcode(IlOpcode.CEQ)
             }
-            "and" -> emitter.line("and")
-            "or" -> emitter.line("or")
-            "xor" -> emitter.line("xor")
-            "shl" -> emitter.line("shl")
-            "shr" -> emitter.line("shr")
-            "ushr" -> emitter.line("shr.un")
-            "rangeTo" -> TODO("rangeTo not supported in PoC (Phase 9)")
+            KotlinOperators.AND -> emitter.opcode(IlOpcode.AND)
+            KotlinOperators.OR -> emitter.opcode(IlOpcode.OR)
+            KotlinOperators.XOR -> emitter.opcode(IlOpcode.XOR)
+            KotlinOperators.SHL -> emitter.opcode(IlOpcode.SHL)
+            KotlinOperators.SHR -> emitter.opcode(IlOpcode.SHR)
+            KotlinOperators.USHR -> emitter.opcode(IlOpcode.SHR_UN)
+            KotlinOperators.RANGE_TO -> TODO("[B-01] IrCall RANGE_TO — Phase 9")
             else -> {
-                // Проверим origin ещё раз — может, это PERC (остаток).
-                if (origin == "PERC") {
-                    emitter.line("rem")
+                // Не operator-call — значит это пользовательский вызов функции.
+                // dispatchReceiverParameter == null → top-level (Phase 9);
+                // иначе instance/extension (Phase 10).
+                val owner = call.symbol.owner
+                if (owner.dispatchReceiverParameter == null) {
+                    TODO("[B-01] IrCall (user, top-level) — Phase 9")
                 } else {
-                    TODO("Call to '$symbolName' (origin=$origin) not supported in PoC")
+                    TODO("[B-01] IrCall (instance/extension) — Phase 10")
                 }
             }
         }
@@ -291,7 +566,7 @@ class DotnetIrVisitor(
         }
         val runtimeSig = StdlibResolver.resolveStdlibCall(call, "void", paramCilTypes)
             ?: TODO("Stdlib call $fqName not supported in PoC")
-        emitter.line("call $runtimeSig")
+        emitter.opcode(IlOpcode.CALL, runtimeSig)
     }
 
     private fun emitBinaryArgs(call: IrCall, data: Nothing?) {
@@ -308,18 +583,19 @@ class DotnetIrVisitor(
         // a >= b → clt + ldc.i4.0 + ceq  (NOT (a < b))
         // a <= b → cgt + ldc.i4.0 + ceq  (NOT (a > b))
         when (origin) {
-            "GT" -> emitter.line("cgt")
-            "LT" -> emitter.line("clt")
-            "GE" -> {
-                emitter.line("clt")
-                emitter.line("ldc.i4.0")
-                emitter.line("ceq")
+            IrOrigins.GT -> emitter.opcode(IlOpcode.CGT)
+            IrOrigins.LT -> emitter.opcode(IlOpcode.CLT)
+            IrOrigins.GE -> {
+                emitter.opcode(IlOpcode.CLT)
+                emitter.ldcI4(0)
+                emitter.opcode(IlOpcode.CEQ)
             }
-            "LE" -> {
-                emitter.line("cgt")
-                emitter.line("ldc.i4.0")
-                emitter.line("ceq")
+            IrOrigins.LE -> {
+                emitter.opcode(IlOpcode.CGT)
+                emitter.ldcI4(0)
+                emitter.opcode(IlOpcode.CEQ)
             }
+            else -> TODO("Unsupported comparison origin: $origin (PoC supports GT/LT/GE/EQEQ)")
         }
     }
 
@@ -327,12 +603,12 @@ class DotnetIrVisitor(
         val owner = get.symbol.owner
         when (owner) {
             is IrValueParameter -> {
-                emitter.line("ldarg.${owner.indexInParameters}")
+                emitter.ldarg(owner.indexInParameters)
             }
             is IrVariable -> {
                 val idx = variableIndices[owner]
                     ?: error("Variable ${owner.name} not registered in .locals")
-                emitter.line("ldloc.$idx")
+                emitter.ldloc(idx)
             }
             else -> TODO("GetValue of ${owner::class.simpleName} not supported in PoC")
         }
@@ -340,53 +616,40 @@ class DotnetIrVisitor(
 
     private fun emitConst(c: IrConst) {
         val v = c.value ?: run {
-            emitter.line("ldnull")
+            emitter.opcode(IlOpcode.LDNULL)
             return
         }
         when (c.kind) {
-            IrConstKind.Null -> emitter.line("ldnull")
+            IrConstKind.Null -> emitter.opcode(IlOpcode.LDNULL)
             IrConstKind.Boolean -> {
-                if (v as Boolean) emitter.line("ldc.i4.1") else emitter.line("ldc.i4.0")
+                // Boolean true/false → ldc.i4.1 / ldc.i4.0.
+                if (v as Boolean) emitter.ldcI4(1) else emitter.ldcI4(0)
             }
-            IrConstKind.Int -> {
-                val i = v as Int
-                if (i in -1..8) emitter.line("ldc.i4.$i")
-                else emitter.line("ldc.i4 $i")
-            }
-            IrConstKind.Long -> {
-                val l = v as Long
-                if (l in 0L..8L) emitter.line("ldc.i4.$l")
-                else if (l == -1L) emitter.line("ldc.i4.M1")
-                else emitter.line("ldc.i8 $l")
-            }
-            IrConstKind.Byte -> {
-                val b = v as Byte
-                if (b in -1..8) emitter.line("ldc.i4.$b")
-                else emitter.line("ldc.i4 $b")
-            }
-            IrConstKind.Short -> {
-                val s = v as Short
-                if (s in -1..8) emitter.line("ldc.i4.$s")
-                else emitter.line("ldc.i4 $s")
-            }
-            IrConstKind.Char -> emitter.line("ldc.i4 ${v as Char}")
-            IrConstKind.Float -> emitter.line("ldc.r4 ${v as Float}")
-            IrConstKind.Double -> emitter.line("ldc.r8 ${v as Double}")
-            IrConstKind.String -> {
-                val s = v as String
-                emitter.line("ldstr \"${escapeIlString(s)}\"")
-            }
+            IrConstKind.Int -> emitter.ldcI4(v as Int)
+            IrConstKind.Long -> emitter.ldcI8(v as Long)
+            IrConstKind.Byte -> emitter.ldcI4((v as Byte).toInt())
+            IrConstKind.Short -> emitter.ldcI4((v as Short).toInt())
+            IrConstKind.Char -> emitter.ldcI4((v as Char).code)
+            IrConstKind.Float -> emitter.ldcR4(v as Float)
+            IrConstKind.Double -> emitter.ldcR8(v as Double)
+            IrConstKind.String -> emitter.ldstr(v as String)
         }
     }
 
-    private fun escapeIlString(s: String): String =
-        s.replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t")
-
     // === IrWhen / IrBranch ===
+
+    /**
+     * Диспетчеризация IrWhen: как statement (с RETURN) или как expression.
+     * Вызывается из [visitWhen], если фреймворк обходит напрямую.
+     */
+    private fun emitWhenDispatch(w: IrWhen, data: Nothing?) {
+        // Если результат unit-типа — statement, иначе expression.
+        if (w.type.isUnit()) {
+            emitWhenAsStatement(w, data)
+        } else {
+            emitWhenAsExpression(w, data)
+        }
+    }
 
     private fun emitWhenAsStatement(w: IrWhen, data: Nothing?) {
         // if/when как statement (если ветки содержат RETURN).
@@ -397,15 +660,15 @@ class DotnetIrVisitor(
             if (isTrueConst) {
                 // else-ветка (condition = true): emit result, jump to end.
                 emitBranchResult(branch.result, data)
-                emitter.line("br $endLabel")
+                emitter.br(endLabel)
                 break
             }
             // condition: eval, brfalse nextBranch.
             val nextLabel = emitter.newLabel()
             emitExpr(cond, data)
-            emitter.line("brfalse $nextLabel")
+            emitter.brfalse(nextLabel)
             emitBranchResult(branch.result, data)
-            emitter.line("br $endLabel")
+            emitter.br(endLabel)
             emitter.label(nextLabel)
         }
         emitter.label(endLabel)
@@ -415,8 +678,8 @@ class DotnetIrVisitor(
         // if/when как expression — результат кладётся на стек.
         val origin = w.origin?.debugName
         when (origin) {
-            "ANDAND" -> emitAndAnd(w, data)
-            "OROR" -> emitOrOr(w, data)
+            IrOrigins.ANDAND -> emitAndAnd(w, data)
+            IrOrigins.OROR -> emitOrOr(w, data)
             else -> emitGenericWhenExpression(w, data)
         }
     }
@@ -428,10 +691,10 @@ class DotnetIrVisitor(
         val firstBranch = w.branches[0]
         // condition = a (любое boolean expression), if false → result of 2nd branch (false).
         emitExpr(firstBranch.condition, data)
-        emitter.line("brfalse $falseLabel")
+        emitter.brfalse(falseLabel)
         // a == true → result = firstBranch.result (b).
         emitExpr(firstBranch.result, data)
-        emitter.line("br $endLabel")
+        emitter.br(endLabel)
         emitter.label(falseLabel)
         // false.
         val secondBranch = w.branches[1]
@@ -446,11 +709,11 @@ class DotnetIrVisitor(
         val firstBranch = w.branches[0]
         // condition = a (любое boolean expression), if true → result = firstBranch.result (true).
         emitExpr(firstBranch.condition, data)
-        emitter.line("brtrue $trueLabel")
+        emitter.brtrue(trueLabel)
         // a == false → result of 2nd branch (b).
         val secondBranch = w.branches[1]
         emitExpr(secondBranch.result, data)
-        emitter.line("br $endLabel")
+        emitter.br(endLabel)
         emitter.label(trueLabel)
         emitExpr(firstBranch.result, data)
         emitter.label(endLabel)
@@ -465,11 +728,11 @@ class DotnetIrVisitor(
             val nextLabel = if (isTrueConst) null else emitter.newLabel()
             if (!isTrueConst) {
                 emitExpr(cond, data)
-                emitter.line("brfalse $nextLabel")
+                emitter.brfalse(nextLabel!!)
             }
             // result → push.
             emitExpr(branch.result, data)
-            emitter.line("br $endLabel")
+            emitter.br(endLabel)
             if (nextLabel != null) emitter.label(nextLabel)
         }
         emitter.label(endLabel)

@@ -15,6 +15,19 @@ object StdlibResolver {
     private const val RUNTIME_NS = "Kotlin.Runtime"
 
     /**
+     * Является ли [call] вызовом stdlib-функции, которую мы маппим на
+     * KotlinDotnetRuntime (см. ADR 0002, A-05).
+     *
+     * Единая точка проверки: использовалась вместо дублирования
+     * `fqName == "kotlin.io.println" || ...` в [DotnetIrVisitor].
+     */
+    fun isStdlibCall(call: IrCall): Boolean {
+        val fn = call.symbol.owner as? IrSimpleFunction ?: return false
+        val fqName = fn.kotlinFqName.asString()
+        return fqName == "kotlin.io.println" || fqName == "kotlin.io.print"
+    }
+
+    /**
      * Если [call] — вызов stdlib-функции, которую мы маппим на runtime,
      * возвращает IL-сигнатуру вызова в формате:
      *   `void [KotlinDotnetRuntime]Kotlin.Runtime.Print::println(object)`
@@ -42,12 +55,5 @@ object StdlibResolver {
             }
             else -> null
         }
-    }
-
-    /** Нужно ли эмитить `.assembly extern KotlinDotnetRuntime`. */
-    fun needsRuntime(call: IrCall): Boolean {
-        val fn = call.symbol.owner as? IrSimpleFunction ?: return false
-        val fqName = fn.kotlinFqName.asString()
-        return fqName == "kotlin.io.println" || fqName == "kotlin.io.print"
     }
 }

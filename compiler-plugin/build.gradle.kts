@@ -31,3 +31,12 @@ tasks.jar {
     archiveVersion.set("0.1.0-SNAPSHOT")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
+
+// Тесты контракта IlEmitter (A-03). Компилируются через `:compiler-plugin:compileTestKotlin`,
+// но не входят в plugin JAR. Запускать через `./gradlew :compiler-plugin:test` (когда
+// появится JUnit); пока — отдельный файл с `fun main()` для ручной проверки контракта.
+sourceSets {
+    test {
+        kotlin.srcDir("src/test/kotlin")
+    }
+}

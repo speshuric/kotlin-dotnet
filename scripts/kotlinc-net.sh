@@ -12,6 +12,10 @@
 # (just plugin && just runtime), если не указан --rebuild-plugin.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/common.sh"
+
 # --- Разбор аргументов ---
 kt_file=""
 output=""
@@ -32,36 +36,24 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$kt_file" ]; then
-  echo "usage: $0 <file.kt> [-dll] [-o <out>] [--rebuild-plugin]" >&2
+  log_error "usage: $0 <file.kt> [-dll] [-o <out>] [--rebuild-plugin]"
   exit 1
 fi
 
-if [ ! -f "$kt_file" ]; then
-  echo "error: file not found: $kt_file" >&2
-  exit 1
-fi
+require_file "$kt_file" "error: file not found: $kt_file"
 
 # --- Окружение ---
-# Активируем, если ещё не активировано (KOTLIN_DOTNET_PROJECT_ROOT не задан).
-if [ -z "${KOTLIN_DOTNET_PROJECT_ROOT:-}" ]; then
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  # shellcheck disable=SC1091
-  source "$script_dir/activate.sh"
-fi
+ensure_env
 PROJECT_ROOT="$KOTLIN_DOTNET_PROJECT_ROOT"
 cd "$PROJECT_ROOT"
 
 # --- Plugin JAR ---
 PLUGIN_JAR="compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar"
 if $rebuild_plugin || [ ! -f "$PLUGIN_JAR" ]; then
-  echo "[kotlinc-net] building compiler plugin..."
+  log_info "building compiler plugin..."
   ./gradlew :compiler-plugin:jar -q
 fi
-if [ ! -f "$PLUGIN_JAR" ]; then
-  echo "error: plugin JAR not found: $PLUGIN_JAR" >&2
-  echo "       run 'just plugin' or pass --rebuild-plugin" >&2
-  exit 1
-fi
+require_file "$PLUGIN_JAR" "plugin JAR not found: $PLUGIN_JAR (run 'just plugin' or pass --rebuild-plugin)"
 
 # --- Имя выхода ---
 name="$(basename "$kt_file" .kt)"
@@ -73,28 +65,23 @@ mkdir -p "$out_dir"
 
 # --- Шаг 1: kotlinc + plugin → .il ---
 il_file="build/${name}.il"
-echo "[kotlinc-net] compiling $kt_file → $il_file"
+log_info "compiling $kt_file → $il_file"
 mkdir -p build/kt-out
-rm -f build/ir-dump.txt "$il_file"
-kotlinc -Xplugin="$PLUGIN_JAR" "$kt_file" -d build/kt-out
+rm -f "build/ir-dump-"*.txt "$il_file"
+kotlinc -Xplugin="$PLUGIN_JAR" \
+  -P "plugin:kotlin.dotnet:output.dir=build" \
+  "$kt_file" -d build/kt-out
 
-if [ ! -f "$il_file" ]; then
-  echo "error: plugin did not produce $il_file" >&2
-  exit 1
-fi
+require_file "$il_file" "plugin did not produce $il_file"
 
 # --- Шаг 2: ilasm → .exe/.dll ---
-echo "[kotlinc-net] assembling → $output"
+log_info "assembling → $output"
 ilasm "/${mode}" "/output:$output" "$il_file"
 
 # --- Шаг 3 (только EXE): runtime DLL + runtimeconfig.json ---
 if [ "$mode" = "exe" ]; then
   runtime_dll="runtime/bin/Release/net10.0/KotlinDotnetRuntime.dll"
-  if [ ! -f "$runtime_dll" ]; then
-    echo "error: KotlinDotnetRuntime.dll not found at $runtime_dll" >&2
-    echo "       run 'just runtime' first" >&2
-    exit 1
-  fi
+  require_file "$runtime_dll" "KotlinDotnetRuntime.dll not found at $runtime_dll (run 'just runtime' first)"
   # Копируем runtime DLL рядом с EXE (для разрешения сборок).
   cp "$runtime_dll" "$out_dir/"
   # Генерируем runtimeconfig.json (framework-dependent, rollForward Major).
@@ -102,10 +89,10 @@ if [ "$mode" = "exe" ]; then
   printf '%s\n' \
     '{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.11"},"rollForward":"Major"}}' \
     > "$out_dir/$config_name"
-  echo "[kotlinc-net] runtime: $(basename "$runtime_dll") + $config_name"
+  log_info "runtime: $(basename "$runtime_dll") + $config_name"
 fi
 
-echo "[kotlinc-net] done: $output"
+log_info "done: $output"
 if [ "$mode" = "exe" ]; then
-  echo "[kotlinc-net] run:    dotnet $output"
+  log_info "run:    dotnet $output"
 fi
