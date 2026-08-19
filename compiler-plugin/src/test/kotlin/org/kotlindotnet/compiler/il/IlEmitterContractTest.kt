@@ -1,4 +1,4 @@
-package org.kotlindotnet.compiler
+package org.kotlindotnet.compiler.il
 
 /**
  * Контрактный тест IlEmitter (A-03/A-04).

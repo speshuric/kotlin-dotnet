@@ -1,4 +1,4 @@
-package org.kotlindotnet.compiler
+package org.kotlindotnet.compiler.il
 
 /**
  * Текстовый IL-эмиттер (CIL assembly language) — реализация [IlEmitter].

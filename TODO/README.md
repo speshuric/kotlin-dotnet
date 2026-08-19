@@ -72,13 +72,14 @@
 
 | # | Тема/задача | Файл | Разметка | Зависимости | Статус |
 |---|---|---|---|---|---|
-| 1 | Логирование (фасад) | [A-01-logging.md](A-infrastructure/A-01-logging.md) | PRE-9 | — | TODO |
-| 2 | DotnetIrGenerationExtension: имя файла, onFailure | [A-02-ir-generation-extension.md](A-infrastructure/A-02-ir-generation-extension.md) | PRE-9 | A-01 | TODO |
-| 3 | IlEmitter: интерфейс + контракт AST | [A-03-il-emitter-contract.md](A-infrastructure/A-03-il-emitter-contract.md) | PRE-9 | — | TODO |
+| 1 | Логирование (фасад) | [A-01-logging.md](A-infrastructure/A-01-logging.md) | PRE-9 | — | DONE |
+| 2 | DotnetIrGenerationExtension: имя файла, onFailure | [A-02-ir-generation-extension.md](A-infrastructure/A-02-ir-generation-extension.md) | PRE-9 | A-01 | DONE |
+| 3 | IlEmitter: интерфейс + контракт AST | [A-03-il-emitter-contract.md](A-infrastructure/A-03-il-emitter-contract.md) | PRE-9 | — | DONE |
 | 4 | IlEmitter: opcodes → enum | [A-04-il-opcodes-enum.md](A-infrastructure/A-04-il-opcodes-enum.md) | PRE-9 | A-03 | DONE |
-| 5 | DotnetIrVisitor: убрать хардкод origin/stdlib | [A-05-visitor-hardcode.md](A-infrastructure/A-05-visitor-hardcode.md) | PRE-9 | A-01, A-04 | TODO |
-| 6 | scripts review: вынести общие части | [A-06-scripts-review.md](A-infrastructure/A-06-scripts-review.md) | PRE-9 | A-01 | TODO |
-| 7 | Visitor scaffolding: план-карта обработчиков Ir-узлов | [B-01-visitor-node-map.md](B-visitor-scaffolding/B-01-visitor-node-map.md) | PRE-9 (карта), POST-9 (реализация) | A-05 | TODO |
+| 5 | DotnetIrVisitor: убрать хардкод origin/stdlib | [A-05-visitor-hardcode.md](A-infrastructure/A-05-visitor-hardcode.md) | PRE-9 | A-01, A-04 | DONE |
+| 6 | scripts review: вынести общие части | [A-06-scripts-review.md](A-infrastructure/A-06-scripts-review.md) | PRE-9 | A-01 | DONE |
+| 6b | Разбить org.kotlindotnet.compiler на подпакеты | [A-07-package-split.md](A-infrastructure/A-07-package-split.md) | PRE-9 | A-01–A-05, B-01 | DONE |
+| 7 | Visitor scaffolding: план-карта обработчиков Ir-узлов | [B-01-visitor-node-map.md](B-visitor-scaffolding/B-01-visitor-node-map.md) | PRE-9 (карта), POST-9 (реализация) | A-05 | DONE |
 | 8 | TypeMapper: Unit vs void, рефакторинг | [C-01-typemapper-unit-void.md](C-typemapper/C-01-typemapper-unit-void.md) | PRE-10 | — | TODO |
 | 9 | kotlin-dotnet-stdlib: каркас + неявный импорт | [D-01-stdlib-skeleton.md](D-stdlib/D-01-stdlib-skeleton.md) | PRE-10 (каркас), POST-9 (механика) | A-01, A-05 | TODO |
 | 10 | StdlibResolver → разрешение через stdlib | [D-02-resolve-stdlib-call.md](D-stdlib/D-02-resolve-stdlib-call.md) | POST-9 | D-01 | TODO |

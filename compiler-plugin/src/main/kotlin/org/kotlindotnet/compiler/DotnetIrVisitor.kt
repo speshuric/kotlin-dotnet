@@ -55,6 +55,10 @@ import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
+import org.kotlindotnet.compiler.il.IlEmitter
+import org.kotlindotnet.compiler.il.IlOpcode
+import org.kotlindotnet.compiler.ir.IrOrigins
+import org.kotlindotnet.compiler.ir.KotlinOperators
 
 /**
  * Посетитель IR-дерева, эмитящий IL-текст.

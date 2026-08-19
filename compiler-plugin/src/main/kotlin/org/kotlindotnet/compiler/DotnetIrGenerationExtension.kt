@@ -5,6 +5,9 @@ import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.util.dump
 import java.io.File
+import org.kotlindotnet.compiler.il.IlEmitter
+import org.kotlindotnet.compiler.il.TextIlEmitter
+import org.kotlindotnet.compiler.util.Log
 
 /**
  * Точечный вход плагина: перехватывает IR модуля после фронтенда (K2).

@@ -1,4 +1,4 @@
-package org.kotlindotnet.compiler
+package org.kotlindotnet.compiler.il
 
 /**
  * Перечисление всех IL-опкодов, используемых компилятором (PoC).

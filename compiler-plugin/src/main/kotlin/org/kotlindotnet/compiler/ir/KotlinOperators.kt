@@ -1,4 +1,4 @@
-package org.kotlindotnet.compiler
+package org.kotlindotnet.compiler.ir
 
 /**
  * Имена operator-функций Kotlin stdlib (`IrFunction.name.asString()`),

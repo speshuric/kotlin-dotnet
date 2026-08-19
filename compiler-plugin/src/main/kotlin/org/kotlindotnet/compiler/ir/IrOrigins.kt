@@ -1,4 +1,4 @@
-package org.kotlindotnet.compiler
+package org.kotlindotnet.compiler.ir
 
 /**
  * Отладочные имена [org.jetbrains.kotlin.ir.IrElement.origin] для IR-узлов,

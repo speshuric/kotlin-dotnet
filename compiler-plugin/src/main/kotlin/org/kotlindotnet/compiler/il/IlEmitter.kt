@@ -1,4 +1,4 @@
-package org.kotlindotnet.compiler
+package org.kotlindotnet.compiler.il
 
 /**
  * Абстракция IL-эмиттера.
