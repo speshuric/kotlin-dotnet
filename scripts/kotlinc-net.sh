@@ -2,19 +2,30 @@
 # scripts/kotlinc-net.sh — компилятор Kotlin → .NET (PoC).
 #
 # Использование:
-#   ./scripts/kotlinc-net.sh <file.kt>              # → build/<name>.exe
-#   ./scripts/kotlinc-net.sh <file.kt> -dll         # → build/<name>.dll
+#   ./scripts/kotlinc-net.sh <file.kt>              # → build/<name>/<name>.exe
+#   ./scripts/kotlinc-net.sh <file.kt> -dll         # → build/<name>/<name>.dll
 #   ./scripts/kotlinc-net.sh <file.kt> -o out.exe   # явное имя выхода
 #   ./scripts/kotlinc-net.sh <file.kt> --rebuild-plugin  # пересобрать плагин
 #
-# Требует: source scripts/activate.sh (или переменные окружения).
-# Plugin JAR и KotlinDotnetRuntime.dll должны быть собраны заранее
-# (just plugin && just runtime), если не указан --rebuild-plugin.
+# Артефакты (.il, ir-dump, .exe/.dll) складываются в build/<name>/
+# (per-test layout). Plugin JAR и KotlinDotnetRuntime.dll должны быть
+# собраны заранее (just plugin && just runtime), если не указан
+# --rebuild-plugin.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/common.sh"
+
+# --- DSH prelude: writable HOME/GRADLE/XDG (read-only корневая ФС) ---
+ensure_env
+PROJECT_ROOT="${KOTLIN_DOTNET_PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+export GRADLE_USER_HOME="$PROJECT_ROOT/build/tmp/gradle-home"
+export XDG_RUNTIME_DIR="$PROJECT_ROOT/build/tmp/runtime"
+export HOME="$PROJECT_ROOT/build/tmp/home"
+export DOTNET_CLI_HOME="$HOME"
+mkdir -p "$GRADLE_USER_HOME" "$XDG_RUNTIME_DIR" "$HOME"
+cd "$PROJECT_ROOT"
 
 # --- Разбор аргументов ---
 kt_file=""
@@ -42,11 +53,6 @@ fi
 
 require_file "$kt_file" "error: file not found: $kt_file"
 
-# --- Окружение ---
-ensure_env
-PROJECT_ROOT="$KOTLIN_DOTNET_PROJECT_ROOT"
-cd "$PROJECT_ROOT"
-
 # --- Plugin JAR ---
 PLUGIN_JAR="compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar"
 if $rebuild_plugin || [ ! -f "$PLUGIN_JAR" ]; then
@@ -55,22 +61,22 @@ if $rebuild_plugin || [ ! -f "$PLUGIN_JAR" ]; then
 fi
 require_file "$PLUGIN_JAR" "plugin JAR not found: $PLUGIN_JAR (run 'just plugin' or pass --rebuild-plugin)"
 
-# --- Имя выхода ---
+# --- Имя выхода + per-test outdir ---
 name="$(basename "$kt_file" .kt)"
+outdir="build/${name}"
 if [ -z "$output" ]; then
-  output="build/${name}.${mode}"
+  output="$outdir/${name}.${mode}"
 fi
 out_dir="$(dirname "$output")"
-mkdir -p "$out_dir"
+mkdir -p "$out_dir" "$outdir/kt-out"
 
-# --- Шаг 1: kotlinc + plugin → .il ---
-il_file="build/${name}.il"
+# --- Шаг 1: kotlinc + plugin → .il (в $outdir) ---
+il_file="$outdir/${name}.il"
 log_info "compiling $kt_file → $il_file"
-mkdir -p build/kt-out
-rm -f "build/ir-dump-"*.txt "$il_file"
+rm -f "$outdir"/ir-dump-*.txt "$il_file"
 kotlinc -Xplugin="$PLUGIN_JAR" \
-  -P "plugin:kotlin.dotnet:output.dir=build" \
-  "$kt_file" -d build/kt-out
+  -P "plugin:kotlin.dotnet:output.dir=$outdir" \
+  "$kt_file" -d "$outdir/kt-out"
 
 require_file "$il_file" "plugin did not produce $il_file"
 

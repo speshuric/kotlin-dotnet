@@ -262,7 +262,7 @@ Runtime-библиотека состоит из двух частей:
 - [x] Сгенерировать IL-текст (заголовок, класс, метод, `.entrypoint`)
 - [x] Создать минимальный KotlinDotnetRuntime с Print.println → `runtime/src/Print.cs`
 - [x] Вызвать ilasm для компиляции .il → .exe → `scripts/kotlinc-net.sh`
-- [x] Проверить, что EXE запускается и печатает "Hello" → `just test-03-hello`
+- [x] Проверить, что EXE запускается и печатает "Hello" → `just test 03-hello`
 - [x] Зафиксировать pipeline в скрипте → `kotlinc-net.sh`, `justfile`
 
 ### Этап 2: Базовые конструкции (частично ✅)
@@ -353,7 +353,7 @@ Runtime-библиотека состоит из двух частей:
 - **Полный план Phase 9** (задачи 9.1–9.8, IR-наблюдения, IL-паттерны,
   приёмка) — в [`TODO/PHASE-9.md`](TODO/PHASE-9.md). Перенос spec-тестов
   while/do-while из kotlin-компилятора — задача 9.8 (4 теста, все "OK").
-- Тестовый проект `04-loops/` (+ `just test-04-loops`, `just test-04-loops-spec`).
+- Тестовый проект `04-loops/` (+ `just test 04-loops`, `just test 04-loops-spec`).
 
 **Следующая сессия — Phase 10** (классы):
 - `.class`, поля (instance/static), `.ctor` (instance/static), `newobj`.
@@ -413,11 +413,18 @@ kotlin-dotnet/
 │   ├── 03-hello/                 # fun main() { println(...) } → EXE
 │   └── 04-loops/                 # циклы/функции/интерполяция → EXE + spec-тесты
 ├── scripts/
-│   ├── activate.sh               # активация env (JAVA_HOME, DOTNET_ROOT, ...)
+│   ├── common.sh               # общие функции (source-only)
+│   ├── activate.sh             # активация env (JAVA_HOME, DOTNET_ROOT, ...)
 │   ├── deactivate.sh
-│   ├── install-sdks.sh           # установка JDK/kotlinc/.NET/Gradle в .sdk/
-│   ├── install-sources.sh        # shallow clones в .sources/
-│   └── kotlinc-net.sh            # CLI: .kt → .exe/.dll
+│   ├── install-sdks.sh         # установка JDK/kotlinc/.NET/Gradle в .sdk/
+│   ├── install-sources.sh      # shallow clones в .sources/
+│   ├── kotlinc-net.sh          # CLI: .kt → .exe/.dll (per-test layout)
+│   ├── tests.sh                # реестр тестов (source-only, ADR 0008)
+│   ├── build-test.sh           # сборка + верификация одного теста
+│   ├── build.sh                # диспетчер: plugin | runtime | all
+│   ├── test.sh                 # диспетчер тестов: selector → id → build-test.sh
+│   ├── show.sh                 # il | ir | disasm × last | all | <testid> | <glob>
+│   └── clean.sh                # all | build | sdk | sources
 ├── discussions/                  # Архив чатов и логов (gitignored кроме README)
 ├── docs/                         # il-reference.md, references.md, generics-strategy.md
 ├── TODO/                         # Выравнивающие задачи + PHASE-9.md (см. TODO/README.md)
@@ -428,7 +435,8 @@ kotlin-dotnet/
 │   ├── 0004-net10-kotlin24-versions.md
 │   ├── 0005-name-mapping.md
 │   ├── 0006-just-as-build-runner.md
-│   └── 0007-output-dir-via-cli-option.md
+│   ├── 0007-output-dir-via-cli-option.md
+│   └── 0008-justfile-refactor-per-test-layout.md
 ├── AGENTS.md                     # Этот файл
 ├── CLAUDE.md -> AGENTS.md        # Симлинк
 ├── CHANGELOG.md
@@ -511,6 +519,16 @@ kotlin-dotnet/
     Это не особенность проекта, а особенность среды исполнения
     (DSH). В «нормальном» окружении (без изоляции) эти
     переменные не нужны. Но в DSH-сессиях — обязательны.
+
+    > **Примечание (ADR 0008):** сборочные скрипты
+    > (`scripts/build-test.sh`, `build.sh`, `test.sh`, `show.sh`,
+    > `clean.sh`, `kotlinc-net.sh`) инкапсулируют этот prelude
+    > внутри себя (`source common.sh` + экспорт
+    > `GRADLE_USER_HOME`/`XDG_RUNTIME_DIR`/`HOME`/`DOTNET_CLI_HOME`
+    > в writable `build/tmp/`). Поэтому `just build`/`just test`/
+    > и т.д. работают без ручного prelude. Ручной prelude (выше)
+    > нужен только при запуске `just`/`gradlew`/`kotlinc`/`dotnet`
+    > напрямую из шелла в обход скриптов.
 
 ## Формат commit message
 

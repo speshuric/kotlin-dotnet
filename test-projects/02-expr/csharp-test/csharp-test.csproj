@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <Reference Include="Expr">
-      <HintPath>..\..\..\build\Expr.dll</HintPath>
+      <HintPath>..\..\..\build\02-expr\Expr.dll</HintPath>
     </Reference>
   </ItemGroup>
 

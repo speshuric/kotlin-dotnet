@@ -4,6 +4,52 @@
 
 ## [Unreleased]
 
+### Changed — рефакторинг `justfile` (ADR 0008)
+
+- **Per-test layout артефактов:** все сборочные артефакты теперь в
+  `build/<testid>/` (раньше плоско в `build/`). Плагину передаётся
+  `output.dir=build/<testid>` через CLI-опцию (ADR 0007). Для spec-тестов
+  `04-loops-spec` — поддиректория на каждый `.kt` (`build/04-loops-spec/<basename>/`).
+- **`scripts/tests.sh`** — source-only bash-библиотека: реестр тестов
+  (id → .kt, kind, consumer, описание), функции `test_exists`/`test_kt`/
+  `test_kind`/`tests_list`/`resolve_selector` (`all`/`last`/`<glob>` → id).
+  Единый источник правды о тестах.
+- **Dispatch-скрипты** в `scripts/` (тяжёлая логика уехала из `justfile`):
+  - `scripts/build-test.sh` — сборка + верификация одного теста
+    (gen-il → ilasm → run/verify), mtime-инкрементальность, флаги
+    `--debug`/`--release`/`--no-test`.
+  - `scripts/build.sh` — диспетчер: `plugin` | `runtime` | `all` + config.
+  - `scripts/test.sh` — диспетчер: selector → список id → `build-test.sh`.
+  - `scripts/show.sh` — `il` | `ir` | `disasm` × `last` | `all` | `<testid>` | `<glob>`.
+  - `scripts/clean.sh` — `all` | `build` | `sdk` | `sources`.
+- **`justfile` переписан** как тонкая обёртка: каждый рецепт — 1 строка
+  (вызов `scripts/*.sh`), ~90 строк вместо ~200. Новые рецепты:
+  - `build [config="debug"]` / `build-no-test [config="debug"]` — сборка
+    целиком (plugin + runtime + все тесты).
+  - `test [selector="all"]` — variadic: `just test` == `test-all`,
+    `just test 04-loops` — один тест.
+  - `test-smoke` == `test-short` == `just test 00-int-add`.
+  - `show-il`/`disasm`/`show-ir` — параметризуемые selector'ом
+    (`last`/`all`/`<testid>`/`<glob>`), вместо захардкоженного `Arithmetic.il`.
+  - `clean [category="all"]` — bare `clean` = `clean all` (требует
+    пере-bootstrap!), `clean build` — только артефакты, `clean sdk`/`sources`.
+  - `runtime [config="release"]` — конфигурация.
+- **`scripts/kotlinc-net.sh`** — per-test layout (`build/<name>/` вместо
+  плоского `build/`), DSH-prelude (GRADLE_USER_HOME/XDG/HOME).
+- **C# consumer `.csproj`** — `HintPath` обновлены: `build\00-int-add\Arithmetic.dll`,
+  `build\02-expr\Expr.dll` (per-test layout).
+- **`scripts/README.md`** — таблица обновлена (6 новых скриптов).
+
+### Fixed — баг `output.dir` (ADR 0007/0008)
+
+- `DotnetCommandLineProcessor.outputDirKey` перенесён в `companion object`.
+  `CompilerConfigurationKey.create` создаёт `com.intellij.openapi.util.Key`
+  с identity-`equals`; как instance-`val`, ключ в `DotnetCompilerPluginRegistrar`
+  получался *другим* `Key` → `configuration.get(...)` возвращал null →
+  fallback на `File("build")`. После фикса `output.dir=build/<testid>`
+  корректно перенаправляет артефакты. Референс: allopen
+  `AllOpenConfigurationKeys` (singleton `object`).
+
 ### Added — Phase 9: Циклы (while/do-while) + вызовы функций + интерполяция
 
 - `DotnetIrVisitor`: циклы `while`/`do-while` (IL: `br`/`brtrue`/`brfalse`

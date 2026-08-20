@@ -12,7 +12,13 @@
 | `deactivate.sh`   | Снятие env, установленного `activate.sh`.              |
 | `install-sdks.sh` | Установка JDK/kotlinc/.NET/Gradle в `.sdk/`.            |
 | `install-sources.sh` | Shallow-clone исходников в `.sources/`.              |
-| `kotlinc-net.sh`  | CLI: `.kt` → `.exe`/`.dll`.                             |
+| `kotlinc-net.sh`  | CLI: `.kt` → `.exe`/`.dll` (per-test layout `build/<name>/`). |
+| `tests.sh`        | Реестр тестов (source-only, id → .kt/kind/consumer).    |
+| `build-test.sh`   | Сборка + верификация одного теста (`--debug`/`--release`/`--no-test`). |
+| `build.sh`        | Диспетчер сборки: `plugin` \| `runtime` \| `all` + config. |
+| `test.sh`         | Диспетчер тестов: selector → список id → `build-test.sh`. |
+| `show.sh`         | `il` \| `ir` \| `disasm` × `last` \| `all` \| `<testid>` \| `<glob>`. |
+| `clean.sh`        | Очистка: `all` \| `build` \| `sdk` \| `sources`.       |
 
 ## common.sh
 
@@ -53,5 +59,11 @@ log_info "готово"
   (chicken-egg: `common.sh::ensure_env` вызывает `activate.sh`).
 - `deactivate.sh` симметричен `activate.sh` и тоже не зависит
   от `common.sh`.
-- `justfile` использует `source scripts/activate.sh` в рецептах
-  напрямую (явно и просто); миграция на `common.sh` не обязательна.
+- `justfile` использует `source scripts/activate.sh` в рецепте `bootstrap`
+  (для verify-вывода). Сборочные рецепты делегируют в `scripts/build.sh`/
+  `test.sh`/`show.sh`/`clean.sh`, которые сами вызывают `ensure_env`
+  (через `common.sh`) + DSH-prelude (GRADLE_USER_HOME/XDG/HOME).
+- `scripts/tests.sh` — source-only реестр тестов. При добавлении теста
+  регистрировать его здесь (id → .kt, kind, consumer, описание).
+- `scripts/build-test.sh` — mtime-инкрементальность (как `_gen-il`/`_gen-asm`
+  в старом `justfile`), per-test layout (`build/<testid>/`).

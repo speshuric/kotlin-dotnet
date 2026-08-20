@@ -14,7 +14,7 @@
        Путь относительный к .csproj. -->
   <ItemGroup>
     <Reference Include="Arithmetic">
-      <HintPath>..\..\..\build\Arithmetic.dll</HintPath>
+      <HintPath>..\..\..\build\00-int-add\Arithmetic.dll</HintPath>
     </Reference>
   </ItemGroup>
 

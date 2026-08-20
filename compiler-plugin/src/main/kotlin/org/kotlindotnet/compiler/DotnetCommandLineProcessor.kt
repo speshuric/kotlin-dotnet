@@ -27,9 +27,25 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
      * Хранится как `String` (а не `File`) — плагин сам строит `File`
      * в точке использования. Дефолт (`build/`) — тоже в точке
      * использования, чтобы registrar/processor не знали про него.
+     *
+     * **Singleton (companion object):** [CompilerConfigurationKey.create]
+     * внутри создаёт [com.intellij.openapi.util.Key], чей `equals` —
+     * identity-сравнение (подтверждено байткодом `Key.create`/`Key.equals`).
+     * Если ключ — instance-`val`, то `DotnetCompilerPluginRegistrar`,
+     * создавая `DotnetCommandLineProcessor()` для доступа к ключу,
+     * получит *другой* `Key` → `configuration.get(...)` вернёт null
+     * → fallback на `File("build")`. Помещение ключа в companion
+     * гарантирует один и тот же `Key`-объект в `processOption`
+     * и в `registerExtensions`. См. ADR 0007, референс: allopen
+     * `AllOpenConfigurationKeys` (object).
      */
     internal val outputDirKey: CompilerConfigurationKey<String> =
-        CompilerConfigurationKey.create("output.dir")
+        Companion.outputDirKey
+
+    companion object {
+        internal val outputDirKey: CompilerConfigurationKey<String> =
+            CompilerConfigurationKey.create("output.dir")
+    }
 
     override val pluginOptions: Collection<AbstractCliOption> = listOf(
         CliOption(

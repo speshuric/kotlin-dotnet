@@ -25,7 +25,11 @@ class DotnetCompilerPluginRegistrar : CompilerPluginRegistrar() {
         // output.dir — из CLI (-P plugin:kotlin.dotnet:output.dir=...),
         // дефолт `build/` — для совместимости с предыдущим поведением.
         // Плагин не хардкодит `build/` в путях: только этот fallback.
-        val outputDir = configuration.get(DotnetCommandLineProcessor().outputDirKey)
+        // Ключ берётся из companion-объекта [DotnetCommandLineProcessor]:
+        // `CompilerConfigurationKey.create` создаёт `Key` с identity-`equals`,
+        // поэтому один и тот же экземпляр ключа нужен и в `processOption`,
+        // и здесь (см. ADR 0007).
+        val outputDir = configuration.get(DotnetCommandLineProcessor.outputDirKey)
             ?.let(::File)
             ?: File("build")
         IrGenerationExtension.registerExtension(DotnetIrGenerationExtension(outputDir))

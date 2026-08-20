@@ -30,10 +30,10 @@ EOF
 # 3. Скомпилировать в .NET EXE.
 #    (kotlinc-net.sh сам активирует env внутри, но для шага 4 нужен source выше)
 ./scripts/kotlinc-net.sh /tmp/demo.kt
-# → build/demo.exe (+ KotlinDotnetRuntime.dll, runtimeconfig.json рядом)
+# → build/demo/demo.exe (+ KotlinDotnetRuntime.dll, runtimeconfig.json рядом)
 
 # 4. Запустить.
-dotnet build/demo.exe
+dotnet build/demo/demo.exe
 # x = 5
 # 42
 ```
@@ -61,49 +61,70 @@ just bootstrap      # JDK 21, kotlinc 2.4.20-RC, .NET 10, Gradle 9.7.0, ilasm, d
 ### Все тесты
 
 ```bash
-just test-all       # 00-int-add, 02-expr, 03-hello, 04-loops
+just test           # все тесты (00-int-add, 02-expr, 03-hello, 04-loops, 04-loops-spec)
+just test 04-loops  # один тест по id
+just test 04*       # по glob-маске
+just test-smoke     # == just test-short == just test 00-int-add (дымовой)
+```
+
+### Сборка целиком
+
+```bash
+just build          # plugin + runtime + все тесты (config=debug по умолчанию)
+just build release  # то же в Release-конфигурации runtime
+just build-no-test  # собрать без верификации (IL + DLL/EXE + runtime-copy)
 ```
 
 ### Сборка `test_add` end-to-end
 
 ```bash
-just test
+just test 00-int-add
 ```
 
 Ожидаемый вывод:
 ```
-[just] generating build/Arithmetic.il
+[kotlin-dotnet] compiling test-projects/00-int-add/Arithmetic.kt → build/00-int-add/Arithmetic.il
 ...
-[just] assembling build/Arithmetic.dll
+[kotlin-dotnet] assembling → build/00-int-add/Arithmetic.dll
 ...
-5
+>>> 00-int-add/Arithmetic OK
 ```
 
-Повторный `just test` пропустит пересборку (mtime-инкрементальность):
+Повторный `just test 00-int-add` пропустит пересборку (mtime-инкрементальность):
 ```
-[just] build/Arithmetic.dll up-to-date (.il unchanged)
-5
+[just] build/00-int-add/Arithmetic.il up-to-date
+[just] build/00-int-add/Arithmetic.dll up-to-date
+>>> 00-int-add/Arithmetic OK
 ```
 
 ### Тесты циклов и функций (Phase 9)
 
 ```bash
-just test-04-loops        # while/do-while/break/continue/call/concat → верификация вывода
-just test-04-loops-spec   # 4 spec-теста while/do-while (из kotlin/tests-spec) → "OK"
+just test 04-loops        # while/do-while/break/continue/call/concat → верификация вывода
+just test 04-loops-spec   # 4 spec-теста while/do-while (из kotlin/tests-spec) → "OK"
 ```
 
 ### Пошагово
 
 ```bash
-just list            # показать все рецепты
-just plugin          # собрать compiler-plugin JAR (Gradle)
-just runtime         # собрать KotlinDotnetRuntime.dll (C#, .NET 10)
-just compile <f.kt>  # CLI: .kt → .exe/.dll (через kotlinc-net.sh)
-just show-il         # показать сгенерированный IL
-just disasm          # дизассемблировать Arithmetic.dll
-just show-ir         # показать IR-дамп из плагина
-just clean           # удалить build/
+just list             # показать все рецепты
+just plugin           # собрать compiler-plugin JAR (Gradle)
+just runtime          # собрать KotlinDotnetRuntime.dll (C#, .NET 10)
+just compile <f.kt>   # CLI: .kt → .exe/.dll (через kotlinc-net.sh)
+just show-il          # показать последний сгенерированный IL
+just show-il all      # все IL-файлы
+just show-il 04-loops # IL конкретного теста
+just disasm last      # дизассемблировать последнюю DLL (dotnet-ildasm)
+just show-ir          # показать последний IR-дамп из плагина
+just clean build      # удалить только сборочные артефакты (build/, runtime/bin)
+just clean sdk        # удалить .sdk/ (требует пере-bootstrap)
+just clean             # удалить всё — build + .sdk + .sources (требует пере-bootstrap!)
 ```
+
+> **Структура `build/`:** артефакты изолированы по тестам — `build/<testid>/`
+> (напр. `build/04-loops/Loops.il`, `build/04-loops-spec/while_2_1/while_2_1.exe`).
+> `show-il`/`disasm`/`show-ir` принимают selector: `last` (по умолчанию) |
+> `all` | `<testid>` | `<glob>`.
 
 ### Ручной IL (без компилятора Kotlin, для отладки ilasm)
 
@@ -142,15 +163,23 @@ source scripts/deactivate.sh # снять env
   - `02-expr/` — 16 выражений → DLL + C# consumer
   - `03-hello/` — `fun main() { println(...) }` → EXE
   - `04-loops/` — циклы/функции/интерполяция → EXE + spec-тесты
-- `scripts/` — окружение (вызывается из `justfile`)
+- `scripts/` — окружение и сборочные скрипты (вызывается из `justfile`, ADR 0008)
   - `activate.sh` / `deactivate.sh` — активация локального окружения
   - `install-sdks.sh` — установка JDK/kotlinc/.NET/Gradle в `.sdk/`
   - `install-sources.sh` — shallow clones исходников в `.sources/`
+  - `common.sh` — общие функции (source-only)
   - `kotlinc-net.sh` — CLI: `.kt` → `.exe`/`.dll`
-- `justfile` — единая точка входа (`just bootstrap`, `just test-all`, `just list`)
+  - `tests.sh` — реестр тестов (source-only, id → .kt/kind/consumer)
+  - `build-test.sh` — сборка + верификация одного теста
+  - `build.sh` — диспетчер сборки (`plugin` | `runtime` | `all`)
+  - `test.sh` — диспетчер тестов (selector → список id)
+  - `show.sh` — `il`/`ir`/`disasm` × `last`/`all`/`<testid>`/`<glob>`
+  - `clean.sh` — очистка (`all` | `build` | `sdk` | `sources`)
+- `justfile` — единая точка входа: `just bootstrap`, `just build`, `just test`, `just list`
+- `build/` (gitignored) — per-test артефакты: `build/<testid>/{*.il,*.dll,*.exe,...}`
 - `.sdk/` (gitignored) — локальные JDK, kotlinc, .NET, Gradle
 - `.sources/` (gitignored, кроме README) — shallow clones JetBrains/kotlin + dotnet/runtime
-- `adr/` — Architecture Decision Records (0001–0007)
+- `adr/` — Architecture Decision Records (0001–0008)
 - `docs/` — `il-reference.md`, `references.md`, `generics-strategy.md`
 - `TODO/` — план выравнивающих задач + `PHASE-9.md`
 - `AGENTS.md` — полное описание архитектуры, плана, принципов
