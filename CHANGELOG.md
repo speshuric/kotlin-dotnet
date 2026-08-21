@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+### Changed — реорганизация: JDK-область `kotlin-dotnet-engine/`
+
+- Gradle-корень перенесён из корня репозитория в `kotlin-dotnet-engine/`
+  (build.gradle.kts, settings.gradle.kts, gradle.properties, wrapper).
+- `compiler-plugin/` переехал в `kotlin-dotnet-engine/compiler-plugin/`.
+- Новый модуль `kotlin-dotnet-engine/dotnetutils/` — скелет порта
+  write-path System.Reflection.Metadata на Kotlin
+  (`org.kotlindotnet.dotnetutils.system.reflection.metadata`); собирается,
+  содержимое — в следующих итерациях.
+- Скрипты обновлены под новые пути (`scripts/{build,build-test,test,
+  kotlinc-net,clean}.sh`, justfile bootstrap). Toolchain JDK:
+  `../.sdk/jdk` относительно корня engine.
+
 ### Changed — рефакторинг `justfile` (ADR 0008)
 
 - **Per-test layout артефактов:** все сборочные артефакты теперь в

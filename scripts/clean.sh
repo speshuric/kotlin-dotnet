@@ -23,7 +23,8 @@ cd "$PROJECT_ROOT"
 category="${1:-all}"
 
 clean_build() {
-    rm -rf build/ compiler-plugin/build/ runtime/bin/ runtime/obj/
+    rm -rf build/ runtime/bin/ runtime/obj/ \
+        kotlin-dotnet-engine/compiler-plugin/build/ kotlin-dotnet-engine/dotnetutils/build/
     echo ">>> Removed build artifacts only. SDK and sources preserved."
 }
 

@@ -27,7 +27,7 @@ bootstrap: sdks sources
     echo "dotnet:  $(dotnet --version 2>&1 | head -1)"
     echo "ilasm:   $(command -v ilasm 2>&1 || echo NOT FOUND)"
     echo "ildasm:  $(command -v dotnet-ildasm 2>&1 || echo NOT FOUND)"
-    echo "gradle:  $(./gradlew --version 2>&1 | grep '^Gradle ' | head -1)"
+    echo "gradle:  $(cd kotlin-dotnet-engine && ./gradlew --version 2>&1 | grep '^Gradle ' | head -1)"
     echo ""
     echo ">>> Bootstrap complete. Run 'just test' to verify pipeline."
 

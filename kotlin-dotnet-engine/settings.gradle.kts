@@ -5,6 +5,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = "kotlin-dotnet-compiler"
+rootProject.name = "kotlin-dotnet-engine"
 
 include(":compiler-plugin")
+include(":dotnetutils")

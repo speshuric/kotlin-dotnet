@@ -51,9 +51,10 @@ case "$config" in
 esac
 
 build_plugin() {
+    local engine="$PROJECT_ROOT/kotlin-dotnet-engine"
     log_info "build: plugin (gradlew :compiler-plugin:jar)"
-    ./gradlew :compiler-plugin:jar
-    local jar="compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar"
+    (cd "$engine" && ./gradlew :compiler-plugin:jar)
+    local jar="kotlin-dotnet-engine/compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar"
     require_file "$jar" "plugin JAR not found: $jar"
     log_info ">>> plugin OK ($jar)"
 }

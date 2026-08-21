@@ -39,10 +39,10 @@ if [ -z "$ids" ]; then
 fi
 
 # --- Гарантируем, что plugin + runtime собраны (пропускаем если уже есть) ---
-PLUGIN_JAR="compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar"
+PLUGIN_JAR="kotlin-dotnet-engine/compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar"
 if [ ! -f "$PLUGIN_JAR" ]; then
     log_info "plugin JAR missing, building..."
-    ./gradlew :compiler-plugin:jar -q
+    (cd "$PROJECT_ROOT/kotlin-dotnet-engine" && ./gradlew :compiler-plugin:jar -q)
 fi
 require_file "$PLUGIN_JAR" "plugin JAR not found: $PLUGIN_JAR"
 

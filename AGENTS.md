@@ -374,37 +374,42 @@ kotlin-dotnet/
 │   ├── kotlin/                   # shallow clone JetBrains/kotlin @ v2.4.20-RC
 │   └── dotnet-runtime/           # shallow clone dotnet/runtime @ release/10.0
 ├── .gitignore                    # .sdk/, .sources/, build/, *.dll, *.exe, .kotlin/
-├── build.gradle.kts              # Gradle root (плагин в :compiler-plugin)
-├── settings.gradle.kts
-├── gradle.properties             # toolchain: .sdk/jdk
-├── gradle/wrapper/               # Gradle wrapper 9.7.0
-├── gradlew, gradlew.bat
-├── justfile                      # Единая точка входа: just bootstrap/test/compile
-├── compiler-plugin/              # Kotlin compiler plugin (K2 IR)
-│   ├── build.gradle.kts
-│   └── src/main/
-│       ├── kotlin/org/kotlindotnet/compiler/
-│       │   ├── DotnetCompilerPluginRegistrar.kt  # CompilerPluginRegistrar (K2)
-│       │   ├── DotnetCommandLineProcessor.kt     # CLI-опция output.dir (ADR 0007)
-│       │   ├── DotnetIrGenerationExtension.kt    # IrGenerationExtension
-│       │   ├── DotnetIrVisitor.kt                # IrVisitor → IL
-│       │   ├── TypeMapper.kt                     # Kotlin → CIL типы
-│       │   ├── NameMapper.kt                     # package → namespace, <File>Kt
-│       │   ├── StdlibResolver.kt                 # println/print → runtime
-│       │   ├── il/                               # IL-эмиттер (A-03/A-04)
-│       │   │   ├── IlEmitter.kt                  # интерфейс
-│       │   │   ├── TextIlEmitter.kt              # реализация (CIL-текст)
-│       │   │   ├── IlOpcode.kt                   # enum опкодов
-│       │   │   └── IlContext.kt                  # стек контекстов
-│       │   ├── ir/                               # IR-константы (A-05)
-│       │   │   ├── IrOrigins.kt                  # debugName IR-origin
-│       │   │   └── KotlinOperators.kt            # имена operator-функций
-│       │   └── util/
-│       │       └── Log.kt                        # логгер (stderr)
-│       └── resources/META-INF/services/
-│           ├── org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
-│           └── org.jetbrains.kotlin.compiler.plugin.CommandLineProcessor
-├── runtime/                      # KotlinDotnetRuntime (C# class library)
+├── kotlin-dotnet-engine/         # Gradle-корень JDK-области (проекты на Kotlin)
+│   ├── build.gradle.kts            # корневой build
+│   ├── settings.gradle.kts         # include: :compiler-plugin, :dotnetutils
+│   ├── gradle.properties           # toolchain: ../.sdk/jdk (от корня engine)
+│   ├── gradle/wrapper/             # Gradle wrapper 9.7.0
+│   ├── gradlew, gradlew.bat
+│   ├── compiler-plugin/            # Kotlin compiler plugin (K2 IR)
+│   │   ├── build.gradle.kts
+│   │   └── src/main/
+│   │       ├── kotlin/org/kotlindotnet/compiler/
+│   │       │   ├── DotnetCompilerPluginRegistrar.kt  # CompilerPluginRegistrar (K2)
+│   │       │   ├── DotnetCommandLineProcessor.kt     # CLI-опция output.dir (ADR 0007)
+│   │       │   ├── DotnetIrGenerationExtension.kt    # IrGenerationExtension
+│   │       │   ├── DotnetIrVisitor.kt                # IrVisitor → IL
+│   │       │   ├── TypeMapper.kt                     # Kotlin → CIL типы
+│   │       │   ├── NameMapper.kt                     # package → namespace, <File>Kt
+│   │       │   ├── StdlibResolver.kt                 # println/print → runtime
+│   │       │   ├── il/                               # IL-эмиттер (A-03/A-04)
+│   │       │   │   ├── IlEmitter.kt                  # интерфейс
+│   │       │   │   ├── TextIlEmitter.kt              # реализация (CIL-текст)
+│   │       │   │   ├── IlOpcode.kt                   # enum опкодов
+│   │       │   │   └── IlContext.kt                  # стек контекстов
+│   │       │   ├── ir/                               # IR-константы (A-05)
+│   │       │   │   ├── IrOrigins.kt                  # debugName IR-origin
+│   │       │   │   └── KotlinOperators.kt            # имена operator-функций
+│   │       │   └── util/
+│   │       │       └── Log.kt                        # логгер (stderr)
+│   │       └── resources/META-INF/services/
+│   │           ├── org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
+│   │           └── org.jetbrains.kotlin.compiler.plugin.CommandLineProcessor
+│   └── dotnetutils/                # Порт write-path SRM → Kotlin (без ilasm)
+│       ├── build.gradle.kts          # чистый kotlin-stdlib, без java.* в исходниках
+│       └── src/main/kotlin/org/kotlindotnet/dotnetutils/
+│           └── system/reflection/metadata/   # MetadataBuilder и окружение (ADR 0009)
+├── justfile                        # Единая точка входа: just bootstrap/test/compile
+├── runtime/                        # KotlinDotnetRuntime (C# class library)
 │   ├── KotlinDotnetRuntime.csproj
 │   └── src/Print.cs              # Kotlin.Runtime.Print (println/print)
 ├── test-projects/                # Тестовые Kotlin-проекты

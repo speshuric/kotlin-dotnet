@@ -144,19 +144,22 @@ source scripts/deactivate.sh # снять env
 
 ## Структура
 
-- `compiler-plugin/` — Kotlin compiler plugin (Gradle, K2 IR)
-  - `src/main/kotlin/org/kotlindotnet/compiler/`
-    - `DotnetCompilerPluginRegistrar.kt` — регистрация через `CompilerPluginRegistrar`
-    - `DotnetCommandLineProcessor.kt` — CLI-опция `output.dir` (ADR 0007)
-    - `DotnetIrGenerationExtension.kt` — точка входа `IrGenerationExtension`
-    - `DotnetIrVisitor.kt` — обход IR-дерева → IL (Phase 0–9)
-    - `TypeMapper.kt` — Kotlin → CIL маппинг примитивных типов
-    - `NameMapper.kt` — package → namespace / `<File>Kt` / method (с экранированием CIL-опкод-имён)
-    - `StdlibResolver.kt` — `println`/`print` → KotlinDotnetRuntime
-    - `il/` — `IlEmitter` (интерфейс), `TextIlEmitter`, `IlOpcode`, `IlContext`
-    - `ir/` — `IrOrigins`, `KotlinOperators`
-    - `util/` — `Log`
-  - `src/main/resources/META-INF/services/` — ServiceLoader-регистрация
+- `kotlin-dotnet-engine/` — Gradle-корень JDK-области (все Kotlin-проекты)
+  - `compiler-plugin/` — Kotlin compiler plugin (K2 IR)
+    - `src/main/kotlin/org/kotlindotnet/compiler/`
+      - `DotnetCompilerPluginRegistrar.kt` — регистрация через `CompilerPluginRegistrar`
+      - `DotnetCommandLineProcessor.kt` — CLI-опция `output.dir` (ADR 0007)
+      - `DotnetIrGenerationExtension.kt` — точка входа `IrGenerationExtension`
+      - `DotnetIrVisitor.kt` — обход IR-дерева → IL (Phase 0–9)
+      - `TypeMapper.kt` — Kotlin → CIL маппинг примитивных типов
+      - `NameMapper.kt` — package → namespace / `<File>Kt` / method (с экранированием CIL-опкод-имён)
+      - `StdlibResolver.kt` — `println`/`print` → KotlinDotnetRuntime
+      - `il/` — `IlEmitter` (интерфейс), `TextIlEmitter`, `IlOpcode`, `IlContext`
+      - `ir/` — `IrOrigins`, `KotlinOperators`
+      - `util/` — `Log`
+    - `src/main/resources/META-INF/services/` — ServiceLoader-регистрация
+  - `dotnetutils/` — порт write-path System.Reflection.Metadata → Kotlin
+    (создание .NET-сборок без ilasm; чистый kotlin-stdlib; ADR 0009)
 - `runtime/` — KotlinDotnetRuntime (C#, .NET 10): `Print.cs` (println/print)
 - `test-projects/`
   - `00-int-add/` — `test_add(Int,Int): Int` → DLL + C# consumer
