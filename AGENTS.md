@@ -441,7 +441,8 @@ kotlin-dotnet/
 │   ├── 0005-name-mapping.md
 │   ├── 0006-just-as-build-runner.md
 │   ├── 0007-output-dir-via-cli-option.md
-│   └── 0008-justfile-refactor-per-test-layout.md
+│   ├── 0008-justfile-refactor-per-test-layout.md
+│   └── 0009-srm-port-to-kotlin.md
 ├── AGENTS.md                     # Этот файл
 ├── CLAUDE.md -> AGENTS.md        # Симлинк
 ├── CHANGELOG.md
