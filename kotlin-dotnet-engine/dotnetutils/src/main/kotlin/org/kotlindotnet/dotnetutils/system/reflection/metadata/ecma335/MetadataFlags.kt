@@ -150,3 +150,53 @@ internal object TokenTypeIds {
     fun isValidRowId(rowId: Int): Boolean =
         (rowId and RID_MASK.toInt().inv()) == 0
 }
+
+internal object HeapHandleType {
+    // Heap offset values are limited to 29 bits (max compressed integer)
+    val OFFSET_BIT_COUNT: Int = 29
+    val OFFSET_MASK: UInt = (1u shl OFFSET_BIT_COUNT) - 1u
+    val VIRTUAL_BIT: UInt = 0x80000000u
+
+    fun isValidHeapOffset(offset: UInt): Boolean = (offset and OFFSET_MASK.inv()) == 0u
+}
+
+internal object StringHandleType {
+    // The 3 high bits above the offset that specify the full string type (including virtual bit)
+    val TYPE_MASK: UInt = HeapHandleType.OFFSET_MASK.inv()
+
+    // The string type bits excluding the virtual bit.
+    val NON_VIRTUAL_TYPE_MASK: UInt = TYPE_MASK and HeapHandleType.VIRTUAL_BIT.inv()
+
+    // NUL-terminated UTF8 string on a #String heap.
+    val STRING: UInt = 0u shl HeapHandleType.OFFSET_BIT_COUNT
+
+    // String on #String heap whose terminator is NUL and '.', whichever comes first.
+    val DOT_TERMINATED_STRING: UInt = 1u shl HeapHandleType.OFFSET_BIT_COUNT
+
+    // Reserved values that can be used for future strings:
+    val RESERVED_STRING_1: UInt = 2u shl HeapHandleType.OFFSET_BIT_COUNT
+    val RESERVED_STRING_2: UInt = 3u shl HeapHandleType.OFFSET_BIT_COUNT
+
+    // Virtual string identified by a virtual index
+    val VIRTUAL_STRING: UInt = HeapHandleType.VIRTUAL_BIT or (0u shl HeapHandleType.OFFSET_BIT_COUNT)
+
+    // Virtual string whose value is a "<WinRT>" prefixed string found at the specified heap offset.
+    val WIN_RT_PREFIXED_STRING: UInt = HeapHandleType.VIRTUAL_BIT or (1u shl HeapHandleType.OFFSET_BIT_COUNT)
+
+    // Reserved virtual strings that can be used in future:
+    val RESERVED_VIRTUAL_STRING_1: UInt = HeapHandleType.VIRTUAL_BIT or (2u shl HeapHandleType.OFFSET_BIT_COUNT)
+    val RESERVED_VIRTUAL_STRING_2: UInt = HeapHandleType.VIRTUAL_BIT or (3u shl HeapHandleType.OFFSET_BIT_COUNT)
+}
+
+internal enum class StringKind(val value: UByte) {
+    PLAIN(0u),
+    DOT_TERMINATED(1u),
+    VIRTUAL(4u),
+    WIN_RT_PREFIXED(5u);
+
+    companion object {
+        private val byValue: Map<UByte, StringKind> = entries.associateBy { it.value }
+
+        internal fun fromRaw(raw: UByte): StringKind? = byValue[raw]
+    }
+}

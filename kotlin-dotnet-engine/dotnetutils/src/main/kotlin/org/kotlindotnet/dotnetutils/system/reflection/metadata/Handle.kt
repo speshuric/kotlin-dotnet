@@ -100,6 +100,12 @@ data class Handle internal constructor(
     override fun toString(): String = "Handle(0x%08X)".format(token)
 
     companion object {
+        /** The module definition handle (row 1 of the Module table). */
+        val MODULE_DEFINITION: Handle = Handle(HandleType.MODULE.toUByte(), 1)
+
+        /** The assembly definition handle (row 1 of the Assembly table). */
+        val ASSEMBLY_DEFINITION: Handle = Handle(HandleType.ASSEMBLY.toUByte(), 1)
+
         /**
          * Creates a [Handle] from a token or a token combined with a virtual flag.
          */

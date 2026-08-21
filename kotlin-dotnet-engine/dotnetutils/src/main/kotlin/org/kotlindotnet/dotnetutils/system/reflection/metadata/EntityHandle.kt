@@ -6,9 +6,7 @@
 //
 // Deviations from the original:
 //  - implicit/explicit conversion operators are ported as functions
-//    [toHandle]/[companion fromHandle];
-//  - static fields ModuleDefinition/AssemblyDefinition are deferred
-//    until the typed-handle structs iteration.
+//    [toHandle]/[companion fromHandle].
 
 package org.kotlindotnet.dotnetutils.system.reflection.metadata
 
@@ -69,6 +67,10 @@ value class EntityHandle internal constructor(
     override fun toString(): String = "EntityHandle(0x%08X)".format(vToken.toInt())
 
     companion object {
+        val MODULE_DEFINITION: EntityHandle = EntityHandle(TokenTypeIds.MODULE or 1u)
+
+        val ASSEMBLY_DEFINITION: EntityHandle = EntityHandle(TokenTypeIds.ASSEMBLY or 1u)
+
         /** Port of the C# explicit conversion operator `(EntityHandle)handle`. */
         fun fromHandle(handle: Handle): EntityHandle {
             check(!handle.isHeapHandle) { "heap handle cannot be converted to EntityHandle" }
