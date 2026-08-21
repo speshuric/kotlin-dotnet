@@ -33,24 +33,32 @@
 
 ## Итерации
 
+> Поправка 2026-08-22: после I0 обнаружен пропущенный блок типизированных
+> хэндлов (analysis/01 §9) — вставлена итерация I1, нумерация обновлена.
+
 | # | Блок | Строк C# | Зависит от | Ключевые тесты оригинала |
 |---|---|--:|---|---|
-| I0 | **Калибровочная: enum'ы и простые структуры** — `ILOpCode`, `TableIndex`, `HeapIndex`, `HandleKind`, `ExceptionRegionKind`, `MethodBodyAttributes`, `FunctionPointerAttributes`, `CorFlags`, `Machine`, `Characteristics/PEMagic`; value/data классы: `Handle`, `EntityHandle`, `LabelHandle`, `ExceptionRegion`, `SectionLocation`, `DirectoryEntry` | ~830 | — | `HandleTests` |
-| I1 | Internal utils + Blob-ядро: `BitArithmetic`, `BlobUtilities`, `Hash`, `ExceptionUtilities`, `Blob`, `BlobBuilder`(+Enum), `ReservedBlob`, `BlobWriter`, `BlobWriterImpl`, `BlobContentId` | ~2820 | I0 (частично: Uuid/guid-типы) | `BlobTests`, `BlobUtilitiesTests`, `BlobContentIdTests` |
-| I2 | Токены и IL: `CodedIndex`(+tags), `MetadataTokens`, `ILOpCodeExtensions` | ~1070 | I0 | `TagToTokenTests`, `CodedIndexTests`, `MetadataTokensTests` |
-| I3 | Ядро метаданных: `MetadataSizes`, `SerializedMetadataHeaps`, `BlobDictionary`, `MetadataBuilder`(×3 файла), `MetadataRootBuilder` | ~4530 | I1, I2 | `MetadataBuilderTests`, `MetadataRootBuilderTests`, `LargeTablesAndHeapsTests`¹ |
-| I4 | Encoding (без BlobEncoders): `InstructionEncoder`, `MethodBodyStreamEncoder`, `ControlFlowBuilder`, `ExceptionRegionEncoder`, `SwitchInstructionEncoder` | ~1560 | I3 | тесты Encoding из `tests/Metadata/Ecma335` |
-| I5 | PE write-path: `PEHeader(+Builder)`, `CoffHeader`, `CorHeader`, `PEDirectoriesBuilder`, `SectionHeader`, `ManagedTextSection`, `PEBuilder`(+Section), `ManagedPEBuilder`, `ResourceSectionBuilder`² | ~2360 | I1, I3 | `PEHeaderBuilderTests`, `PEBuilderTests`³ |
-| **M1** | **Майлстон: первый EXE целиком Kotlin-кодом** | — | I1–I5 | C#-harness + `dotnet-ildasm` + e2e |
-| I6 | `Encoding/BlobEncoders` (24 encoder-структуры) | ~1390 | I1, I3 | тесты custom attribute encoding |
-| I7 | (отдельное решение) минимальный `MetadataReader` для самопроверки | ~3000–4000 | M1 | родные reader-тесты⁴ |
+| I0 | **Калибровочная: enum'ы и простые структуры** — `ILOpCode`, `TableIndex`, `HeapIndex`, `HandleKind`, `ExceptionRegionKind`, `MethodBodyAttributes`, `CorFlags`, `Machine`, `Characteristics/PEMagic/Subsystem/DllCharacteristics/SectionCharacteristics`; value/data классы: `Handle`, `EntityHandle`, `LabelHandle`, `ExceptionRegion`, `SectionLocation`, `DirectoryEntry`; константы `HandleType`/`TokenTypeIds` | ~980 | — | `HandleTests` (адаптированный) |
+| I1 | **Типизированные хэндлы**: `TypeSystem/Handles.TypeSystem.cs` (~30 struct'ов), `HandleCollections.TypeSystem.cs`; возврат companion-констант `Handle.ModuleDefinition`, `EntityHandle.{ModuleDefinition,AssemblyDefinition}`; хвост `MetadataFlags.cs` (StringHandleType, HeapHandleType, StringKind, TableCounts, HeapSizes) по потребителям | ~4690 | I0 | факты из `HandleTests`, `TagToTokenTests` (подмножества) |
+| I2 | Internal utils + Blob-ядро: `BitArithmetic`, `BlobUtilities`, `Hash`, `ExceptionUtilities`, `Blob`, `BlobBuilder`(+Enum), `ReservedBlob`, `BlobWriter`, `BlobWriterImpl`, `BlobContentId` | ~2820 | I1 (heap-хэндлы для BlobHandle/GuidHandle) | `BlobTests`, `BlobUtilitiesTests`, `BlobContentIdTests` |
+| I3 | Токены и IL: `CodedIndex`(+tags), `MetadataTokens`, `ILOpCodeExtensions` | ~1070 | I1 | `TagToTokenTests`, `CodedIndexTests`, `MetadataTokensTests` |
+| I4 | Ядро метаданных: `MetadataSizes`, `SerializedMetadataHeaps`, `BlobDictionary`, `MetadataBuilder`(×3 файла), `MetadataRootBuilder` | ~4530 | I2, I3 | `MetadataBuilderTests`, `MetadataRootBuilderTests`, `LargeTablesAndHeapsTests`¹ |
+| I5 | Encoding (без BlobEncoders): `InstructionEncoder`, `MethodBodyStreamEncoder`, `ControlFlowBuilder`, `ExceptionRegionEncoder`, `SwitchInstructionEncoder` | ~1560 | I4 | тесты Encoding из `tests/Metadata/Ecma335` |
+| I6 | PE write-path: `PEHeader(+Builder)`, `CoffHeader`, `CorHeader`, `PEDirectoriesBuilder`, `SectionHeader`, `ManagedTextSection`, `PEBuilder`(+Section), `ManagedPEBuilder`, `ResourceSectionBuilder`² | ~2360 | I2, I4 | `PEHeaderBuilderTests`, `PEBuilderTests`³ |
+| **M1** | **Майлстон: первый EXE целиком Kotlin-кодом** | — | I2–I6 | C#-harness + `dotnet-ildasm` + e2e |
+| I7 | `Encoding/BlobEncoders` (24 encoder-структуры + `FunctionPointerAttributes`) | ~1390 | I2, I4 | тесты custom attribute encoding |
+| I8 | (отдельное решение) минимальный `MetadataReader` для самопроверки | ~3000–4000 | M1 | родные reader-тесты⁴ |
 
 **I0 — цель:** отладить конвертацию на материале без функциональной
 нагрузки: соглашения именования (PascalCase классов, lowerCamelCase
 членов, UPPER_SNAKE enum-entries), маппинг `static enum`→Kotlin `enum`,
 `readonly struct`→`@JvmInline value class`/`data class`, wiring
 kotlin-test/JUnit5 в модуле. Результат — зафиксированные конвенции на
-живом коде + зелёные `HandleTests`.
+живом коде + зелёный адаптированный `HandleTests`. **[DONE]**
+
+Зафиксированные в I0 отклонения: `Handle.kind` бросает исключение на
+неопределённых kind'ах (reader-fidelity отложена до I8); статические
+поля ModuleDefinition/AssemblyDefinition у Handle/EntityHandle — в I1.
 
 ¹ `LargeTablesAndHeapsTests` — частично (большие кучи не приоритет PoC).
 ² Заглушка: protected abstract serialize без реализаций native resources.
@@ -71,8 +79,8 @@ EXE «hello world», собранный Kotlin-кодом модуля (без i
 
 ## Параллелизация (агенты с ограниченным контекстом)
 
-- Секвенция зависимостей: I0 → I1 → I2 → I3 → I4 → I5 → M1; I6 может идти
-  параллельно с I4/I5 (нужны только I1+I3).
+- Секвенция зависимостей: I0 → I1 → I2 → I3 → I4 → I5 → I6 → M1;
+  I7 может идти параллельно с I5/I6 (нужны только I2+I4).
 - Внутри итерации параллелятся: перенос сигнатур ↔ перенос тестов
   (разные файлы), затем мясо одним агентом (чтобы не спорить за тела).
 - Каждый агент получает: этот план + analysis/03 (API-surface своего

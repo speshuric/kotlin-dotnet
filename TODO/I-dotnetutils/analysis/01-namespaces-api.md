@@ -133,3 +133,26 @@ ControlFlowBuilder — ~3000 строк), которая ранее не был�
    (b) чисто-Kotlin библиотека [`kotlincrypto/hash`](https://github.com/KotlinCrypto/hash)
    (`org.kotlincrypto.hash:sha1`). Окончательный выбор и критерий
    «чистоты» зависимостей — в Analysis 02 (карта зависимостей).
+
+## 9. Поправка (2026-08-22, по итогам итерации I0)
+
+В исходной инвентаризации был пропущен блок **типизированных хэндлов**:
+`Metadata/TypeSystem/Handles.TypeSystem.cs` (2746 строк, ~30 struct'ов —
+ModuleDefinitionHandle, TypeDefinitionHandle, MethodDefinitionHandle, …) и
+`Metadata/TypeSystem/HandleCollections.TypeSystem.cs` (1941 строка,
+handle-коллекции). Это чистые data-структуры, но они необходимы:
+`MetadataBuilder.Add*` возвращают типизированные хэндлы.
+
+- Остальное содержимое `TypeSystem/` (AssemblyDefinition.cs,
+  MethodDefinition.cs, … ~2900 строк) — read-path row-view'ы, остаётся
+  отсечённым.
+- `FunctionPointerAttributes` переносится в итерацию BlobEncoders
+  (зависит от SignatureAttributes из Internal/MetadataFlags.cs).
+- Внутренние константы `Internal/MetadataFlags.cs` (HandleType,
+  TokenTypeIds) перенесены в калибровочную итерацию I0.
+- Хвост `MetadataFlags.cs` (StringHandleType, HeapHandleType, StringKind,
+  TableCounts, HeapSizes) идёт вместе со своими потребителями.
+
+**Скорректированный объём write-path: ~18.9 тыс. строк C#**
+(было ~14.25 тыс.). ADR 0009 («12–15 тыс.») устарел по верхней границе;
+суть решения не меняется.
