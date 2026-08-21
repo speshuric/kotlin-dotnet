@@ -50,3 +50,11 @@
 - Тесты оригинала: `.../System.Reflection.Metadata/tests/`
 - Спека: `docs/ECMA-335_6th_edition_june_2012.pdf`
 - Лицензия: MIT, .NET Foundation (положить LICENSE + указание версии-коммита)
+
+## Открытые вопросы на будущее ревью
+
+- **DebugDirectory** (~700 строк C#, `PortableExecutable/DebugDirectory/*`):
+  отложено при утверждении инвентаризации (analysis/01). Вернуться к
+  вопросу на этапе внедрения в compiler-plugin — нужен ли debug-каталог
+  (PDB-ссылки, embedded sources) для наших сборок. До тех пор
+  `ManagedPEBuilder` вызывается с `debugDirectoryBuilder = null`.
