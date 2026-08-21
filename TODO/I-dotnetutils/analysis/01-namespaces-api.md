@@ -96,9 +96,10 @@ MemoryBlocks/*, ObjectPool, PinnedObject/Buffer, StringUtils, PathUtilities,
 DecimalUtilities, CriticalDisposableObject — **не переносим** (read-path или
 замещаются kotlin-аналогами).
 
-⚠️ `Hash` использует `System.Security.Cryptography.SHA1/SHA256` — единственная
-содержательная BCL-зависимость write-path. Обработка — в Analysis 02
-(карта зависимостей).
+⚠️ ~~`Hash` использует `System.Security.Cryptography.SHA1/SHA256` — единственная
+содержательная BCL-зависимость write-path.~~ **Исправлено (analysis/02 §G):
+криптографических зависимостей в write-path нет** — `Internal.Hash` это
+FNV-1a/Combine, `BlobContentId` берёт делегат с `Guid.NewGuid()`.
 
 ## 7. Итог по объёму переноса
 
