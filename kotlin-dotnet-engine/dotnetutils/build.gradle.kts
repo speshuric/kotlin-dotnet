@@ -13,6 +13,18 @@ repositories {
 
 kotlin {
     jvmToolchain(21)
+    compilerOptions {
+        // kotlin.uuid.Uuid is experimental (analysis/02 §E)
+        freeCompilerArgs.add("-opt-in=kotlin.uuid.ExperimentalUuidApi")
+    }
+}
+
+dependencies {
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.jar {

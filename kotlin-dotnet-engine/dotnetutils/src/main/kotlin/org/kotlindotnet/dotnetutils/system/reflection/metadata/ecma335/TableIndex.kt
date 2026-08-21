@@ -1,0 +1,65 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// Ported from System.Reflection.Metadata (Ecma335/TableIndex.cs).
+// Origin: dotnet/runtime release/10.0, MIT License (c) .NET Foundation
+// See adr/0009-srm-port-to-kotlin.md for porting conventions.
+
+package org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335
+
+enum class TableIndex(val value: Int) {
+    MODULE(0x00),
+    TYPE_REF(0x01),
+    TYPE_DEF(0x02),
+    FIELD_PTR(0x03),
+    FIELD(0x04),
+    METHOD_PTR(0x05),
+    METHOD_DEF(0x06),
+    PARAM_PTR(0x07),
+    PARAM(0x08),
+    INTERFACE_IMPL(0x09),
+    MEMBER_REF(0x0A),
+    CONSTANT(0x0B),
+    CUSTOM_ATTRIBUTE(0x0C),
+    FIELD_MARSHAL(0x0D),
+    DECL_SECURITY(0x0E),
+    CLASS_LAYOUT(0x0F),
+    FIELD_LAYOUT(0x10),
+    STAND_ALONE_SIG(0x11),
+    EVENT_MAP(0x12),
+    EVENT_PTR(0x13),
+    EVENT(0x14),
+    PROPERTY_MAP(0x15),
+    PROPERTY_PTR(0x16),
+    PROPERTY(0x17),
+    METHOD_SEMANTICS(0x18),
+    METHOD_IMPL(0x19),
+    MODULE_REF(0x1A),
+    TYPE_SPEC(0x1B),
+    IMPL_MAP(0x1C),
+    FIELD_RVA(0x1D),
+    ENC_LOG(0x1E),
+    ENC_MAP(0x1F),
+    ASSEMBLY(0x20),
+    ASSEMBLY_PROCESSOR(0x21),
+    ASSEMBLY_OS(0x22),
+    ASSEMBLY_REF(0x23),
+    ASSEMBLY_REF_PROCESSOR(0x24),
+    ASSEMBLY_REF_OS(0x25),
+    FILE(0x26),
+    EXPORTED_TYPE(0x27),
+    MANIFEST_RESOURCE(0x28),
+    NESTED_CLASS(0x29),
+    GENERIC_PARAM(0x2A),
+    METHOD_SPEC(0x2B),
+    GENERIC_PARAM_CONSTRAINT(0x2C),
+
+    // debug tables:
+    DOCUMENT(0x30),
+    METHOD_DEBUG_INFORMATION(0x31),
+    LOCAL_SCOPE(0x32),
+    LOCAL_VARIABLE(0x33),
+    LOCAL_CONSTANT(0x34),
+    IMPORT_SCOPE(0x35),
+    STATE_MACHINE_METHOD(0x36),
+    CUSTOM_DEBUG_INFORMATION(0x37),
+}
