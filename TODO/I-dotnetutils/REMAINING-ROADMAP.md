@@ -97,10 +97,34 @@ BlobEncodersTests.cs; enum-кейсы C# с невалидными raw-знач�
 198 тестов, все зелёные. Может идти после M1: HelloWorldImage теперь
 может заменить рукописные сигнатуры на BlobEncoder'ы.
 
-### B.4. I8: Минимальный MetadataReader (~3000–4000 строк)
+### B.4. I8: Минимальный MetadataReader — **[DONE] 2026-08-22** (вариант B, ADR 0011)
 
-Отдельное решение после M1. Заменит C#-harness для самопроверки
-и откроет round-trip тесты (TagToTokenTests, MethodBodyBlock.Create).
+Портировано в `...metadata/reader/` + `BlobReader`:
+- BlobReader (compressed unsigned/signed — точное зеркало SRM
+  PeekCompressedInteger/TryReadCompressedSignedInteger, UTF8/UTF16,
+  примитивы);
+- MetadataReader: парс root/streams, кучи #Strings/#US/#Blob/#Guid,
+  строки наших 11 таблиц (Module, TypeRef, TypeDef, Field, MethodDef,
+  Param, MemberRef, StandAloneSig, TypeSpec, Assembly, AssemblyRef);
+- PEReader-lite: DOS/PE/COFF/optional header + section map
+  (rva→offset) + MethodBody (tiny/fat, exception regions small/fat).
+
+Найдено при отладке (зафиксировано):
+- coded index widths: ResolutionScope и TypeDefOrRef — **2 бита**
+  (4 и 3 тега), MemberRefParent — 3 бита (5 тегов), II.24.2.6;
+- TypeDef/TypeRef физический порядок полей: Name затем Namespace;
+- compressed signed: знак — LSB всего raw-значения, декодирование
+  raw>>1 со знакорасширением масками 0xffffffc0 / 0xffffe000 /
+  0xf0000000 (не инверсия знакового бита!).
+
+Тесты: полный порт CompressedIntegerTests.cs (спековые байтовые
+примеры II.23.2, граничные значения, invalid-префиксы) + поднабор
+BlobReaderTests.cs + 6 round-trip тестов. Отклонение: C# sentinel
+InvalidCompressedInteger → у нас исключения (IllegalArgumentException
+для битых префиксов — аналог BadImageFormatException; ISE — out of
+data); readBoolean добавлен в BlobReader (byte != 0).
+C#-harness остаётся финальным оракулом в e2e (ADR 0011).
+Итого в модуле 220 тестов, все зелёные.
 
 ## C. Внедрение в compiler-plugin
 
@@ -128,6 +152,20 @@ BlobEncodersTests.cs; enum-кейсы C# с невалидными raw-знач�
       build-test.sh фиксирует backend=il для il-ветки явно;
       TextIlEmitter помечен @Deprecated (удаление — отдельный коммит,
       по плану); AGENTS.md обновлён
+
+## C2. Долг качества кода reader'а (I8) — ревью после стабилизации
+
+Отмечено при ревью I8 (не блокирует, но вычистить до выхода из PoC):
+
+- [ ] **MetadataReader.kt**: паттерн `major = readUInt16(q); q += 2`
+      заменить на потоковое чтение (`major = something.read()`) —
+      ручное продвижение курсора рассыпается по всему файлу;
+- [ ] **MetadataReader.kt**: много дублирующегося кода между
+      таблицами (декодирование полей, widths, rowStart) — найти пути
+      рефакторинга (генерация? единый row-decoder DSL?);
+- [ ] **MetadataReader.kt / BlobReader.kt**: `companion object` с
+      константами выглядит неидиоматично — пересмотреть (top-level
+      const val / объекты с говорящими именами).
 
 ## D. Идеи (отложенные)
 
