@@ -55,3 +55,7 @@ discussions/*
 !discussions/README.md
 !discussions/.gitkeep
 !discussions/chat-export-1786958489540.json
+
+# JVM crash logs
+hs_err_pid*.log
+replay_pid*.log

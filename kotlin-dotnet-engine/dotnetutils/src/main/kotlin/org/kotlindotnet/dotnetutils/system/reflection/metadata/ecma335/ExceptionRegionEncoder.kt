@@ -12,7 +12,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.EntityHandle
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ExceptionRegionKind
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.HandleKind
 
-class ExceptionRegionEncoder private constructor(
+class ExceptionRegionEncoder internal constructor(
     val builder: BlobBuilder,
     val hasSmallFormat: Boolean,
 ) {
@@ -31,7 +31,7 @@ class ExceptionRegionEncoder private constructor(
             4 + 4 + 4 + 4 + 4 + 4
 
         private const val THREE_BYTES_MAX_VALUE = 0xffffff
-        internal const val MAX_SMALL_EXCEPTION_REGIONS = (Byte.MAX_VALUE - TABLE_HEADER_SIZE) / SMALL_REGION_SIZE
+        internal const val MAX_SMALL_EXCEPTION_REGIONS = (0xff - TABLE_HEADER_SIZE) / SMALL_REGION_SIZE // byte is unsigned in metadata
         internal const val MAX_EXCEPTION_REGIONS = (THREE_BYTES_MAX_VALUE - TABLE_HEADER_SIZE) / FAT_REGION_SIZE
 
         private const val EH_TABLE_FLAG = 0x01
@@ -142,9 +142,9 @@ class ExceptionRegionEncoder private constructor(
     ): ExceptionRegionEncoder {
         if (hasSmallFormat) {
             if (tryOffset.toUShort().toInt() != tryOffset) throw IllegalArgumentException("tryOffset out of range")
-            if (tryLength.toByte().toInt() != tryLength) throw IllegalArgumentException("tryLength out of range")
+            if (tryLength and 0xFF != tryLength) throw IllegalArgumentException("tryLength out of range")
             if (handlerOffset.toUShort().toInt() != handlerOffset) throw IllegalArgumentException("handlerOffset out of range")
-            if (handlerLength.toByte().toInt() != handlerLength) throw IllegalArgumentException("handlerLength out of range")
+            if (handlerLength and 0xFF != handlerLength) throw IllegalArgumentException("handlerLength out of range")
         } else {
             require(tryOffset >= 0) { "tryOffset out of range" }
             require(tryLength >= 0) { "tryLength out of range" }
