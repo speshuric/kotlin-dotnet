@@ -128,9 +128,10 @@ C#-harness остаётся финальным оракулом в e2e (ADR 0011
 
 ## C. Внедрение в compiler-plugin
 
-Отдельная задача после стабилизации модуля (все блоки I1–I6 + M1).
-План и декомпозиция — [plan/COMPILER-INTEGRATION.md](plan/COMPILER-INTEGRATION.md),
-решение — ADR 0010.
+**[DONE] 2026-08-22** (S1–S6, PE-бэкенд — дефолт). План и декомпозиция —
+[plan/COMPILER-INTEGRATION.md](plan/COMPILER-INTEGRATION.md), решение — ADR 0010.
+Остаток: удаление `TextIlEmitter` + ilasm-ветки — **после Phase 10**
+(основной фазовый путь), отдельным коммитом.
 
 - [x] S1: вертикальный срез — `backend=pe` в CLI плагина, `PeIlEmitter`
       (парсинг текстовых member-ref'ов → метаданные, отложенное

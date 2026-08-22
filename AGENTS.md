@@ -339,7 +339,7 @@ Runtime-библиотека состоит из двух частей:
 | Phase | Что | Зависимости | Приоритет |
 |---|---|---|---|
 | **9** | Циклы (for/while) + вызовы пользовательских функций + строковая интерполяция | — | высокий |
-| **10** | Классы (минимальные): `.class`, поля, `.ctor`, instance-методы, `newobj` | — | высокий |
+| **10** ← текущая | Классы (минимальные): `.class`, поля, `.ctor`, instance-методы, `newobj`. План: TODO/PHASE-10.md | — | высокий |
 | **11** | Массивы (`int32[]`) + `readLine` + базовые строки (length, substring, +) | runtime расширение | средний |
 | **12** | Nullable (`Nullable<T>`) + дженерики (минимальные) | ADR 0003 проверка на реальном дженерике | средний |
 | **13+** | Data classes, companion objects, object declarations, enums, extension functions, коллекции (List/Map/Set через runtime) | runtime расширение | низкий |
@@ -363,7 +363,13 @@ Runtime-библиотека состоит из двух частей:
 - `.class`, поля (instance/static), `.ctor` (instance/static), `newobj`.
 - Instance-методы (`callvirt`), `IrConstructorCall`, `IrGetField`/`IrSetField`.
 - `IrClass` → IL `.class`, наследование (`extends`/`implements`).
-- TODO: план `TODO/PHASE-10.md` (предстоит написать).
+- План: `TODO/PHASE-10.md` — **написан**; ключевые решения: классы только
+  на pe-бэкенде (`test_backends` в реестре), il-путь заморожен на Phase 9;
+  сначала наблюдения IR (10.0), затем эмиттеры.
+- После фазы: удаление TextIlEmitter + ilasm-ветки (отдельный коммит).
+- Затем по порядку: **interop** (имена PascalCase/camelCase, аннотации
+  трансляции имён, аналог `JVMName`/`JSName`) → **базовая расширяемая
+  прокладка stdlib** → возврат к фичам языка (по необходимости).
 
 ## Структура проекта (актуальная)
 
