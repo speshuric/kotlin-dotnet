@@ -44,7 +44,7 @@
 | I3 | Токены и IL: `CodedIndex`(+tags), `MetadataTokens`, `ILOpCodeExtensions`, `TableMask`. **[DONE]** (`TagToTokenTests` непереносим — reader-side reflection; покрытие векторами `CodedIndexTests`) | ~1360 | I1 | `CodedIndexTests`, `MetadataTokensTests` |
 | I4 | Ядро метаданных: `MetadataSizes`, `SerializedMetadataHeaps`, `BlobDictionary`, `MetadataBuilder`(×3 файла), `MetadataRootBuilder`. **[DONE]** | ~4600 | I2, I3 | `MetadataBuilderTests`, `MetadataRootBuilderTests`, `LargeTablesAndHeapsTests`¹ |
 | I5 | Encoding (без BlobEncoders): `InstructionEncoder`, `MethodBodyStreamEncoder`, `ControlFlowBuilder`, `ExceptionRegionEncoder`, `SwitchInstructionEncoder` | ~1560 | I4 | тесты Encoding из `tests/Metadata/Ecma335` |
-| I6 | PE write-path: `PEHeader(+Builder)`, `CoffHeader`, `CorHeader`, `PEDirectoriesBuilder`, `SectionHeader`, `ManagedTextSection`, `PEBuilder`(+Section), `ManagedPEBuilder`, `ResourceSectionBuilder`² | ~2360 | I2, I4 | `PEHeaderBuilderTests`, `PEBuilderTests`³ |
+| I6 | PE write-path: `PEHeader(+Builder)`, `CoffHeader`, `CorHeader`, `PEDirectoriesBuilder`, `SectionHeader`, `ManagedTextSection`, `PEBuilder`(+Section), `ManagedPEBuilder`, `ResourceSectionBuilder`². **[DONE]** (2026-08-22; DebugDirectoryBuilder отсечён, тесты PEReader/RSA → M1) | ~2360 | I2, I4 | `PEHeaderBuilderTests`, `PEBuilderTests`³ |
 | **M1** | **Майлстон: первый EXE целиком Kotlin-кодом** | — | I2–I6 | C#-harness + `dotnet-ildasm` + e2e |
 | I7 | `Encoding/BlobEncoders` (24 encoder-структуры + `FunctionPointerAttributes`) | ~1390 | I2, I4 | тесты custom attribute encoding |
 | I8 | (отдельное решение) минимальный `MetadataReader` для самопроверки | ~3000–4000 | M1 | родные reader-тесты⁴ |

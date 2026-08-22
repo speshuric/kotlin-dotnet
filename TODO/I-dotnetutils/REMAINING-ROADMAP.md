@@ -23,13 +23,27 @@
 
 ## B. Итерации порта (из IMPLEMENTATION-PLAN.md)
 
-### B.1. I6: PE write-path (~2360 строк C#) — следующий блок
+### B.1. I6: PE write-path (~2360 строк C#) — **[DONE] 2026-08-22**
 
 Файлы: `PEHeader(+Builder)`, `CoffHeader`, `CorHeader`,
 `PEDirectoriesBuilder`, `SectionHeader`, `ManagedTextSection`,
 `PEBuilder`(+Section), `ManagedPEBuilder`, `ResourceSectionBuilder`.
 
-Тесты: `PEHeaderBuilderTests`, `PEBuilderTests`.
+Порт выполнен в `...system/reflection/portableexecutable/`. Ключевые
+отклонения (в шапках файлов): [Flags]-enum'ы → raw Int/UInt;
+DebugDirectoryBuilder отсечён (параметр `debugDirectoryBuilder` у
+ManagedPEBuilder отсутствует, debugDataSize всегда 0); time-based
+content id provider берёт время из `PEBuilder.TIME_PROVIDER`
+(по умолчанию 0; pure-Kotlin stdlib без wall-clock); C#
+`protected internal` ResourceSectionBuilder.Serialize → Kotlin
+`internal abstract`.
+
+Тесты: 11 новых (I6PEHeaderBuilderTests, I6PEBuilderTests) —
+переносимое подмножество PEHeaderBuilderTests + PEBuilderTests
+(GetContentToSign×3, GetPrefixBlob/GetSuffixBlob, NativeResources
+через парсинг сырого image, ошибки ctor). PEReader/MetadataReader
+и RSA-signing тесты отложены на M1 (harness). Итого в модуле 154
+теста, все зелёные.
 
 Блокирует M1.
 
