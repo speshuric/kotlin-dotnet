@@ -17,9 +17,9 @@ write-path в порт.
 
 | Файл | Фактов C# | Сейчас | Осталось | Приоритет |
 |---|--:|--:|--:|---|
-| BlobTests.cs | 41 | ~15 | ~26 | **высокий** |
-| BlobUtilitiesTests.cs | 1 | ~3 | добивка | низкий |
-| BlobContentIdTests.cs | 4 | ~2 | ~2 | низкий |
+| BlobTests.cs | 41 | 41 (BlobCore+BlobBuilder) | 0 — закрыто | ✅ |
+| BlobUtilitiesTests.cs | 1 | ~3 + UTF8-факты из BlobTests | добивка минимальна | ✅ |
+| BlobContentIdTests.cs | 4 | ~2 | ~2 (низкий, отложено) | низкий |
 | LargeTablesAndHeapsTests.cs | ? | 0 | частично (большие кучи не приоритет PoC) | отложено |
 
 Заметки:

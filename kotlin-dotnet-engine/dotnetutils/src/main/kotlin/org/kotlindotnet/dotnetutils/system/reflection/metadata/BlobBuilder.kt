@@ -121,7 +121,7 @@ open class BlobBuilder(capacity: Int = DEFAULT_CHUNK_SIZE) {
         get() = buffer.size - length
 
     // internal for testing
-    protected val chunkCapacity: Int
+    val chunkCapacity: Int
         get() = buffer.size
 
     // internal for testing
