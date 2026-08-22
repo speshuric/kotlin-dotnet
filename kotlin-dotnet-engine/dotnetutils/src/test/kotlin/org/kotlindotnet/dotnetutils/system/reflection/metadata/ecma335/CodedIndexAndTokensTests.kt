@@ -29,7 +29,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class I3CodedIndexAndTokensTests {
+class CodedIndexAndTokensTests {
 
     // --- Errors (all families reject a CustomAttribute row handle) ---
 

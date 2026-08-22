@@ -5,7 +5,7 @@
 // See adr/0009-srm-port-to-kotlin.md for porting conventions.
 //
 // Deviations:
-//  - PEReader/MetadataReader-dependent tests are deferred to M1;
+//  - PEReader/MetadataReader-dependent tests are deferred to the C# harness (kotlin-dotnet-utils/verifier);
 //  - NativeResources verification parses the raw image with the
 //    SectionHeader layout instead of PEReader.
 
@@ -20,7 +20,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-class I6PEBuilderTests {
+class PEBuilderTests {
     private class TestResourceSectionBuilder : ResourceSectionBuilder() {
         override fun serialize(builder: org.kotlindotnet.dotnetutils.system.reflection.metadata.BlobBuilder, location: SectionLocation) {
             builder.writeInt32(0x12345678)

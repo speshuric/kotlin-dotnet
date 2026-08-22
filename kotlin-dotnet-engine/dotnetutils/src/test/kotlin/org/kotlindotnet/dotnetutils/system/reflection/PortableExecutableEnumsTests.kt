@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-class I0EnumsCalibrationTests {
+class PortableExecutableEnumsTests {
 
     @Test
     fun tableIndexes_matchSpec() {

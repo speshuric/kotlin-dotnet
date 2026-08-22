@@ -18,7 +18,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.uuid.Uuid
 
-class I4MetadataBuilderTests {
+class MetadataBuilderAddTests {
 
     private fun newBuilder(): MetadataBuilder = MetadataBuilder()
 

@@ -7,7 +7,8 @@
 //
 // Deviations:
 //  - tests that require PEReader/MetadataReader (reader-side) are deferred
-//    to M1 (C#-harness); BasicValidation/Complex/FieldRVAAlignmentVerify,
+//    to the C# harness (kotlin-dotnet-utils/verifier);
+//    BasicValidation/Complex/FieldRVAAlignmentVerify,
 //    signing (RSA) and checksum-vs-FX-assemblies tests are not ported;
 //  - NativeResources verification is done by parsing the raw image bytes
 //    with SectionHeader layout instead of PEReader;
@@ -21,7 +22,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
-class I6PEHeaderBuilderTests {
+class PEHeaderBuilderTests {
     @Test
     fun ctorErrors() {
         assertFailsWith<IllegalArgumentException> { PEHeaderBuilder(sectionAlignment = 0) }

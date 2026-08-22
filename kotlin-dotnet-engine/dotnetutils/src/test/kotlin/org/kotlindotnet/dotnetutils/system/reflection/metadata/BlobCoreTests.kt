@@ -15,7 +15,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.uuid.Uuid
 
-class I2BlobCoreTests {
+class BlobCoreTests {
 
     // --- CompressUnsignedIntegersFromSpecExamples ---
 
