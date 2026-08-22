@@ -186,7 +186,15 @@ class PeIlEmitter : IlEmitter {
     ) {
         labelIds.clear()
         nextLabelId = 0
-        val rec = MethodRec(name, returnType, params.map { it.second }, isEntrypoint)
+        // Pair<String, String> = cilType to paramName (см. IlEmitter.beginStaticMethod).
+        // Имя может быть в CIL-экранировании ('box') — снимаем кавычки:
+        // в метаданных пишем сырое имя.
+        val rec = MethodRec(
+            name.removeSurrounding("'"),
+            returnType,
+            params.map { it.first },
+            isEntrypoint,
+        )
         methods.add(rec)
         current = rec
     }
@@ -355,8 +363,9 @@ class PeIlEmitter : IlEmitter {
                 is MarkOp -> encoder.markLabel(labelHandle(op.labelId))
                 is CallOp -> encoder.call(resolveCallTarget(op.ref))
                 is TypeOp -> {
-                    encoder.token(boxedTypeToken(op.cilType))
+                    // IL-порядок: сначала байт опкода, затем токен-операнд.
                     encoder.opCode(op.code)
+                    encoder.token(boxedTypeToken(op.cilType))
                 }
                 is LdcI4Op -> encoder.loadConstantI4(op.value)
                 is LdcI8Op -> encoder.loadConstantI8(op.value)
@@ -480,12 +489,14 @@ class PeIlEmitter : IlEmitter {
             assembly = null
         }
 
-        val sigMatch = Regex("""^(.+?)::([A-Za-z_][\w.$<>]*)\s*\((.*)\)\s*$""").find(rest)
+        val sigMatch = Regex("""^(.+?)::(.+?)\s*\((.*)\)\s*$""").find(rest)
             ?: throw IllegalStateException("Cannot parse call ref member: '$ref'")
-        val qualified = sigMatch.groupValues[1].trim()
-        val methodName = sigMatch.groupValues[2]
+        // Имена могут приходить в CIL-экранировании ('box') — оно нужно
+        // только ilasm-тексту; в метаданных пишем сырое имя.
+        val methodName = sigMatch.groupValues[2].trim().removeSurrounding("'")
         val paramsRaw = sigMatch.groupValues[3].trim()
 
+        val qualified = sigMatch.groupValues[1].trim().removeSurrounding("'")
         val dotIdx = qualified.lastIndexOf('.')
         val ns = if (dotIdx >= 0) qualified.substring(0, dotIdx) else ""
         val typeName = if (dotIdx >= 0) qualified.substring(dotIdx + 1) else qualified

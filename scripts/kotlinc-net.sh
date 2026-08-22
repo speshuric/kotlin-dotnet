@@ -81,6 +81,14 @@ if $pe_backend; then
     -P "plugin:kotlin.dotnet:backend=pe" \
     -P "plugin:kotlin.dotnet:output.kind=$mode" \
     "$kt_file" -d "$outdir/kt-out"
+  # Плагин пишет в per-test layout ($outdir/$name.$kind); при явном
+  # -o переносим на запрошенный путь.
+  if [ "$output" != "$outdir/${name}.${mode}" ]; then
+    require_file "$outdir/${name}.${mode}" "plugin did not produce $outdir/${name}.${mode}"
+    mkdir -p "$out_dir"
+    mv "$outdir/${name}.${mode}" "$output"
+  fi
+  require_file "$output" "plugin did not produce $output"
 else
   il_file="$outdir/${name}.il"
   log_info "compiling $kt_file → $il_file"

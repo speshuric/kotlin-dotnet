@@ -112,9 +112,13 @@ BlobEncodersTests.cs; enum-кейсы C# с невалидными raw-знач�
       (парсинг текстовых member-ref'ов → метаданные, отложенное
       кодирование тел), `kotlinc-net.sh -pe` без ilasm;
       03-hello зелёный обоими путями (запуск + verifier);
-- [ ] S2: пользовательские функции и локальные переменные (00-int-add)
-- [ ] S3: ветвления/выражения через ControlFlowBuilder (02-expr)
-- [ ] S4: циклы break/continue (04-loops, 04-loops-spec)
+- [x] S2: пользовательские функции и локальные переменные — 00-int-add:
+      pe-DLL потреблена C#-consumer'ом, test_add(2,3)=5;
+- [x] S3: ветвления/выражения — 02-expr: consumer печатает все строки;
+- [x] S4: циклы break/continue — 04-loops (6 строк, точное совпадение)
+      и 4 spec-теста печатают OK; попутно: порядок opcode/token в
+      box/newarr, снятие CIL-кавычек с имён ('box'), копирование
+      артефакта при -o в kotlinc-net.sh
 - [ ] S5: прогон всей сетки на обоих бэкендах (`just test all`)
 - [ ] S6: переключение дефолта на pe, удаление TextIlEmitter/ilasm
 
