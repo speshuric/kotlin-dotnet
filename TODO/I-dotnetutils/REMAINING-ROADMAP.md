@@ -119,8 +119,15 @@ BlobEncodersTests.cs; enum-кейсы C# с невалидными raw-знач�
       и 4 spec-теста печатают OK; попутно: порядок opcode/token в
       box/newarr, снятие CIL-кавычек с имён ('box'), копирование
       артефакта при -o в kotlinc-net.sh
-- [ ] S5: прогон всей сетки на обоих бэкендах (`just test all`)
-- [ ] S6: переключение дефолта на pe, удаление TextIlEmitter/ilasm
+- [x] S5: `just test all` гоняет оба бэкенда: build-test.sh после il-прогона
+      собирает и проверяет pe-вариант (запуск с теми же ожиданиями +
+      verifier на каждый pe-артефакт); для dll-тестов pe-DLL временно
+      подменяет il-DLL по пути из HintPath consumer'а
+- [x] S6: дефолт `backend=pe` (il — fallback через флаг);
+      kotlinc-net.sh без флагов пишет PE, `-il` — старый путь;
+      build-test.sh фиксирует backend=il для il-ветки явно;
+      TextIlEmitter помечен @Deprecated (удаление — отдельный коммит,
+      по плану); AGENTS.md обновлён
 
 ## D. Идеи (отложенные)
 

@@ -1,7 +1,7 @@
 # ADR 0010: Прямая генерация PE в compiler-plugin (замена IL-текста + ilasm)
 
 - **Дата:** 2026-08-22
-- **Статус:** Proposed
+- **Статус:** Accepted
 - **Связанные:** ADR 0001 (заменяемый pipeline), ADR 0009 (порт dotnetutils),
   [COMPILER-INTEGRATION.md](../TODO/I-dotnetutils/plan/COMPILER-INTEGRATION.md)
 

@@ -5,8 +5,10 @@
 #   ./scripts/kotlinc-net.sh <file.kt>              # → build/<name>/<name>.exe
 #   ./scripts/kotlinc-net.sh <file.kt> -dll         # → build/<name>/<name>.dll
 #   ./scripts/kotlinc-net.sh <file.kt> -o out.exe   # явное имя выхода
-#   ./scripts/kotlinc-net.sh <file.kt> -pe            # backend=pe (без ilasm, ADR 0010)
+#   ./scripts/kotlinc-net.sh <file.kt> -il            # старый путь (IL-текст + ilasm)
 #   ./scripts/kotlinc-net.sh <file.kt> --rebuild-plugin  # пересобрать плагин
+#
+# Дефолт с S6/ADR 0010 — backend=pe (прямая запись PE без ilasm).
 #
 # Артефакты (.il, ir-dump, .exe/.dll) складываются в build/<name>/
 # (per-test layout). Plugin JAR и KotlinDotnetRuntime.dll должны быть
@@ -33,13 +35,14 @@ kt_file=""
 output=""
 mode="exe"
 rebuild_plugin=false
-pe_backend=false
+pe_backend=true   # S6/ADR 0010: дефолт
 
 while [ $# -gt 0 ]; do
   case "$1" in
     -dll)      mode="dll"; shift ;;
     -exe)      mode="exe"; shift ;;
     -pe)       pe_backend=true; shift ;;
+    -il)       pe_backend=false; shift ;;
     -o)        output="$2"; shift 2 ;;
     --rebuild-plugin) rebuild_plugin=true; shift ;;
     -h|--help)

@@ -74,7 +74,7 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
         CliOption(
             optionName = "backend",
             valueDescription = "<il|pe>",
-            description = "Code generation backend: il (IL text + ilasm, default) or pe (direct PE via dotnetutils).",
+            description = "Code generation backend: pe (direct PE via dotnetutils, default since S6/ADR-0010) or il (IL text + ilasm fallback).",
             required = false,
             allowMultipleOccurrences = false,
         ),

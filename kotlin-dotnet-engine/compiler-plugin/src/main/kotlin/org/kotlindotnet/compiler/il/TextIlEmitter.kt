@@ -22,6 +22,11 @@ package org.kotlindotnet.compiler.il
  *
  * TODO(BinaryIlEmitter): `IlOpcode → байт` + сериализация операндов.
  */
+@Deprecated(
+    message = "IL-текст + ilasm заменены PE-бэкендом (ADR 0010, S6). " +
+        "Используется только fallback-путём backend=il; будет удалён.",
+    replaceWith = ReplaceWith("org.kotlindotnet.compiler.pe.PeIlEmitter"),
+)
 class TextIlEmitter : IlEmitter {
 
     private val sb = StringBuilder()

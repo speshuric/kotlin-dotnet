@@ -147,6 +147,7 @@ _build_one() {
         rm -f "$outdir"/ir-dump-*.txt "$il"
         kotlinc -Xplugin="$PLUGIN_JAR" \
             -P "plugin:kotlin.dotnet:output.dir=$outdir" \
+            -P "plugin:kotlin.dotnet:backend=il" \
             "$kt" -d "$outdir/kt-out"
     fi
     require_file "$il" "plugin did not produce $il"
@@ -260,6 +261,109 @@ _verify() {
     echo ">>> $tid/$name OK"
 }
 
+# --- S5 (ADR 0010): второй прогон на pe-бэкенде ---
+# Артефакты — в build/<tid>/pe/, ожидания те же, что на il-пути.
+# Для dll-тестов (00-int-add, 02-expr) pe-DLL временно подменяет
+# il-DLL по пути из HintPath consumer'а, затем восстанавливается.
+
+_pe_build_one() {
+    local kt="$1"
+    local tid="$2"
+    local kind="$3"
+    local name outdir
+    name="$(basename "$kt" .kt)"
+    outdir="build/$tid/pe"
+    mkdir -p "$outdir/kt-out"
+
+    log_info "pe: compiling $kt → $outdir/$name.$kind"
+    kotlinc -Xplugin="$PLUGIN_JAR" \
+        -P "plugin:kotlin.dotnet:output.dir=$outdir" \
+        -P "plugin:kotlin.dotnet:backend=pe" \
+        -P "plugin:kotlin.dotnet:output.kind=$kind" \
+        "$kt" -d "$outdir/kt-out"
+
+    local asm="$outdir/$name.$kind"
+    require_file "$asm" "pe backend did not produce $asm"
+
+    if [ "$kind" = "exe" ]; then
+        local runtime_dll=""
+        for cand in \
+            runtime/bin/Release/net10.0/KotlinDotnetRuntime.dll \
+            runtime/bin/Debug/net10.0/KotlinDotnetRuntime.dll; do
+            if [ -f "$cand" ]; then runtime_dll="$cand"; break; fi
+        done
+        [ -n "$runtime_dll" ] || { log_error "KotlinDotnetRuntime.dll not found (run 'just runtime')"; exit 1; }
+        cp "$runtime_dll" "$outdir/"
+        printf '%s\n' "$RUNTIMECONFIG_JSON" > "$outdir/$name.runtimeconfig.json"
+    fi
+
+    # C#-harness: pe-артефакт должен открываться настоящим SRM.
+    ( cd kotlin-dotnet-utils/verifier && timeout 120 dotnet run --no-launch-profile -- \
+        "$PROJECT_ROOT/$asm" | grep -q "VERIFIER OK" ) \
+        || { echo "FAIL: $tid pe (verifier)"; exit 1; }
+}
+
+_verify_pe_exe() {
+    local tid="$1" name="$2" expected="$3"
+    local out
+    out="$(timeout 30 dotnet "build/$tid/pe/$name.exe" 2>/dev/null || true)"
+    if [ "$out" != "$expected" ]; then
+        echo "FAIL: $tid pe"
+        echo "--- expected ---"; echo "$expected"
+        echo "--- got ---"; echo "$out"
+        exit 1
+    fi
+}
+
+_verify_pe() {
+    local tid="$1"
+    local kind kt name
+    kind="$(test_kind "$tid")"
+
+    case "$tid" in
+        04-loops-spec)
+            shopt -s nullglob
+            for kt in test-projects/04-loops/spec/*.kt; do
+                _pe_build_one "$kt" "$tid" "$kind"
+                _verify_pe_exe "$tid" "$(basename "$kt" .kt)" "OK"
+            done
+            shopt -u nullglob
+            ;;
+        00-int-add|02-expr)
+            kt="$(test_kt "$tid")"
+            name="$(basename "$kt" .kt)"
+            _pe_build_one "$kt" "$tid" "$kind"
+
+            # Подмена dll по пути из HintPath consumer'а с восстановлением.
+            local consumer_dll="build/$tid/$name.dll"
+            local backup="build/$tid/${name}.il-dll.bak"
+            cp "$consumer_dll" "$backup"
+            cp "build/$tid/pe/$name.dll" "$consumer_dll"
+            local out
+            out="$( cd "$(test_consumer "$tid")" && timeout 180 dotnet run 2>/dev/null || true )"
+            mv -f "$backup" "$consumer_dll"
+
+            case "$tid" in
+                00-int-add)
+                    [ "$out" = "5" ] || { echo "FAIL: $tid pe (got: $out)"; exit 1; } ;;
+                02-expr)
+                    [ -n "$out" ] || { echo "FAIL: $tid pe (empty output)"; exit 1; } ;;
+            esac
+            ;;
+        03-hello)
+            _pe_build_one "$(test_kt "$tid")" "$tid" "$kind"
+            _verify_pe_exe "$tid" "hello" "Hello, .NET!" ;;
+        04-loops)
+            _pe_build_one "$(test_kt "$tid")" "$tid" "$kind"
+            _verify_pe_exe "$tid" "Loops" "$(printf '10\n10\n5\n25\n42\nx = 42')" ;;
+        *)
+            log_error "_verify_pe: unknown test id '$tid'"
+            exit 1
+            ;;
+    esac
+    echo ">>> $tid pe OK"
+}
+
 # --- Тело: 04-loops-spec цикл по 4 spec .kt, обычный — один .kt ---
 if [ "$testid" = "04-loops-spec" ]; then
     shopt -s nullglob
@@ -271,6 +375,7 @@ if [ "$testid" = "04-loops-spec" ]; then
         log_info "done: $testid (no-test)"
         exit 0
     fi
+    _verify_pe "$testid"
     log_info ">>> $testid OK"
     exit 0
 fi
@@ -280,5 +385,6 @@ _build_one "$kt" "$testid"
 if $no_test; then
     log_info "done: $testid (no-test)"
 else
+    _verify_pe "$testid"
     log_info ">>> $testid OK"
 fi

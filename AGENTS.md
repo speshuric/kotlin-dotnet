@@ -7,23 +7,27 @@
 
 ## Архитектура
 
-### Общий подход: IR → IL-текст → ilasm → .NET-сборка
+### Общий подход (с S6/ADR 0010): IR → метаданные + IL → PE (без ilasm)
 
-Pipeline:
+Pipeline (backend=pe, дефолт):
   исходный код Kotlin (.kt)
     → компилятор Kotlin (K2, bleeding edge версия)
     → Kotlin compiler plugin с IrGenerationExtension
-    → обход IR-дерева, генерация CIL-текста (.il файл)
-    → вызов ilasm (утилита из .NET SDK) как подпроцесс
-    → .NET EXE/DLL
+    → обход IR-дерева, генерация метаданных и IL
+      через org.kotlindotnet.dotnetutils.system.reflection
+      (MetadataBuilder + InstructionEncoder + ManagedPEBuilder)
+    → .NET EXE/DLL напрямую из JVM
 
-### Почему так
-1. Не нужно реализовывать бинарный PE/CIL формат на Java —
-   ilasm делает это за нас.
-2. IL-текст человекочитаем — критично для отладки на этапе PoC.
-3. Весь pipeline работает в одном процессе (JVM) + один вызов
-   внешней утилиты (ilasm).
-4. ilasm доступен в .NET SDK на всех платформах (Windows, Linux, macOS).
+Fallback (backend=il, legacy): IR → CIL-текст (.il) → ilasm.
+TextIlEmitter помечен @Deprecated, будет удалён.
+
+### Почему так (исторически: ilasm-путь, ADR 0001)
+1. Не нужно было реализовывать бинарный PE/CIL формат — ilasm делал
+   это за нас. С портом dotnetutils (ADR 0009) необходимость отпала.
+2. IL-текст человекочитаем — критично для отладки на этапе PoC
+   (осталось актуальным для fallback-пути).
+3. Весь pipeline в одном процессе (JVM).
+4. ilasm доступен в .NET SDK на всех платформах.
 
 ### Запасной вариант
 Если перехват IR через compiler plugin окажется невозможным или
@@ -391,11 +395,13 @@ kotlin-dotnet/
 │   │       │   ├── TypeMapper.kt                     # Kotlin → CIL типы
 │   │       │   ├── NameMapper.kt                     # package → namespace, <File>Kt
 │   │       │   ├── StdlibResolver.kt                 # println/print → runtime
-│   │       │   ├── il/                               # IL-эмиттер (A-03/A-04)
-│   │       │   │   ├── IlEmitter.kt                  # интерфейс
-│   │       │   │   ├── TextIlEmitter.kt              # реализация (CIL-текст)
+│   │       │   ├── il/                               # legacy IL-текст (backend=il, @Deprecated)
+│   │       │   │   ├── IlEmitter.kt                  # интерфейс (реализуют оба бэкенда)
+│   │       │   │   ├── TextIlEmitter.kt              # CIL-текст + ilasm (будет удалён)
 │   │       │   │   ├── IlOpcode.kt                   # enum опкодов
 │   │       │   │   └── IlContext.kt                  # стек контекстов
+│   │       │   ├── pe/                               # PE-бэкенд (ADR 0010, дефолт)
+│   │       │   │   └── PeIlEmitter.kt                # dotnetutils → бинарный PE
 │   │       │   ├── ir/                               # IR-константы (A-05)
 │   │       │   │   ├── IrOrigins.kt                  # debugName IR-origin
 │   │       │   │   └── KotlinOperators.kt            # имена operator-функций
