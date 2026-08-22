@@ -10,10 +10,14 @@ import org.jetbrains.kotlin.config.CompilerConfigurationKey
  * Обработка CLI-опций плагина `kotlin.dotnet` (передаются через
  * `kotlinc -Xplugin=... -P plugin:kotlin.dotnet:<option>=<value>`).
  *
- * Опции (см. ADR 0007):
+ * Опции (см. ADR 0007, ADR 0010):
  * - `output.dir` — директория, куда плагин пишет артефакты
  *   (IR-dump, `.il`-файлы). Дефолт — `build/` (задаётся в
  *   [DotnetIrGenerationExtension], а не здесь).
+ * - `backend` — бэкенд генерации: `il` (дефолт, IL-текст + ilasm) или
+ *   `pe` (прямая запись PE через dotnetutils).
+ * - `output.kind` — тип сборки для backend=pe: `exe` | `dll`
+ *   (для il-пути не используется — режим выбирает ilasm).
  *
  * Принцип: плагин не хардкодит `build/` — путь получает через
  * [CompilerConfiguration]. Один фокус — одна опция (A-02).
@@ -42,9 +46,21 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
     internal val outputDirKey: CompilerConfigurationKey<String> =
         Companion.outputDirKey
 
+    internal val backendKey: CompilerConfigurationKey<String> =
+        Companion.backendKey
+
+    internal val outputKindKey: CompilerConfigurationKey<String> =
+        Companion.outputKindKey
+
     companion object {
         internal val outputDirKey: CompilerConfigurationKey<String> =
             CompilerConfigurationKey.create("output.dir")
+
+        internal val backendKey: CompilerConfigurationKey<String> =
+            CompilerConfigurationKey.create("backend")
+
+        internal val outputKindKey: CompilerConfigurationKey<String> =
+            CompilerConfigurationKey.create("output.kind")
     }
 
     override val pluginOptions: Collection<AbstractCliOption> = listOf(
@@ -54,7 +70,21 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
             description = "Directory for plugin artifacts (IR dump, .il files). Default: build/",
             required = false,
             allowMultipleOccurrences = false,
-        )
+        ),
+        CliOption(
+            optionName = "backend",
+            valueDescription = "<il|pe>",
+            description = "Code generation backend: il (IL text + ilasm, default) or pe (direct PE via dotnetutils).",
+            required = false,
+            allowMultipleOccurrences = false,
+        ),
+        CliOption(
+            optionName = "output.kind",
+            valueDescription = "<exe|dll>",
+            description = "Assembly kind for backend=pe. Default: exe.",
+            required = false,
+            allowMultipleOccurrences = false,
+        ),
     )
 
     override fun processOption(
@@ -64,6 +94,14 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
     ) {
         when (option.optionName) {
             "output.dir" -> configuration.put(outputDirKey, value)
+            "backend" -> {
+                check(value in setOf("il", "pe")) { "Unknown backend: $value (expected il|pe)" }
+                configuration.put(backendKey, value)
+            }
+            "output.kind" -> {
+                check(value in setOf("exe", "dll")) { "Unknown output.kind: $value (expected exe|dll)" }
+                configuration.put(outputKindKey, value)
+            }
             else -> error("Unknown option: ${option.optionName}")
         }
     }

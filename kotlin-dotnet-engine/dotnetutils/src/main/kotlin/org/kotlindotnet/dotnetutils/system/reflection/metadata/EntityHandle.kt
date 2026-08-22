@@ -67,6 +67,9 @@ value class EntityHandle internal constructor(
     override fun toString(): String = "EntityHandle(0x%08X)".format(vToken.toInt())
 
     companion object {
+        /** Nil-хэндл (аналог C# default(EntityHandle)). */
+        val NIL: EntityHandle = EntityHandle(0u)
+
         val MODULE_DEFINITION: EntityHandle = EntityHandle(TokenTypeIds.MODULE or 1u)
 
         val ASSEMBLY_DEFINITION: EntityHandle = EntityHandle(TokenTypeIds.ASSEMBLY or 1u)

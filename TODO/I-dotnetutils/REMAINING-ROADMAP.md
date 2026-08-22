@@ -104,14 +104,19 @@ BlobEncodersTests.cs; enum-кейсы C# с невалидными raw-знач�
 
 ## C. Внедрение в compiler-plugin
 
-Отдельная задача после стабилизации модуля (все блоки I1–I6 + M1):
+Отдельная задача после стабилизации модуля (все блоки I1–I6 + M1).
+План и декомпозиция — [plan/COMPILER-INTEGRATION.md](plan/COMPILER-INTEGRATION.md),
+решение — ADR 0010.
 
-- [ ] Заменить IL-текстовый эмиттер (`TextIlEmitter`) на вызовы
-      `InstructionEncoder` / `MethodBodyStreamEncoder` из dotnetutils;
-- [ ] Заменить ilasm-шаг в `kotlinc-net.sh` на прямую запись PE
-      через `MetadataRootBuilder` + `ManagedPEBuilder`;
-- [ ] Перевести существующие e2e-тесты (`just test`) на новый путь;
-- [ ] Зафиксировать ADR-0010: замена ilasm на прямой PE-эмиттер.
+- [x] S1: вертикальный срез — `backend=pe` в CLI плагина, `PeIlEmitter`
+      (парсинг текстовых member-ref'ов → метаданные, отложенное
+      кодирование тел), `kotlinc-net.sh -pe` без ilasm;
+      03-hello зелёный обоими путями (запуск + verifier);
+- [ ] S2: пользовательские функции и локальные переменные (00-int-add)
+- [ ] S3: ветвления/выражения через ControlFlowBuilder (02-expr)
+- [ ] S4: циклы break/continue (04-loops, 04-loops-spec)
+- [ ] S5: прогон всей сетки на обоих бэкендах (`just test all`)
+- [ ] S6: переключение дефолта на pe, удаление TextIlEmitter/ilasm
 
 ## D. Идеи (отложенные)
 

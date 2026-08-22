@@ -32,6 +32,11 @@ class DotnetCompilerPluginRegistrar : CompilerPluginRegistrar() {
         val outputDir = configuration.get(DotnetCommandLineProcessor.outputDirKey)
             ?.let(::File)
             ?: File("build")
-        IrGenerationExtension.registerExtension(DotnetIrGenerationExtension(outputDir))
+        // backend (ADR 0010): il (дефолт) | pe
+        val backend = configuration.get(DotnetCommandLineProcessor.backendKey) ?: "il"
+        val outputKind = configuration.get(DotnetCommandLineProcessor.outputKindKey) ?: "exe"
+        IrGenerationExtension.registerExtension(
+            DotnetIrGenerationExtension(outputDir, backend, outputKind)
+        )
     }
 }

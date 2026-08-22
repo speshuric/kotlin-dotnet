@@ -24,6 +24,8 @@ import org.kotlindotnet.compiler.util.Log
  */
 class DotnetIrGenerationExtension(
     private val outputDir: File,
+    private val backend: String = "il",
+    private val outputKind: String = "exe",
 ) : IrGenerationExtension {
 
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
@@ -41,11 +43,31 @@ class DotnetIrGenerationExtension(
             Log.warn("IR dump failed ($dumpName): ${e.message}")
         }
 
-        // IL-генерация — НЕ best-effort: ошибка эмиссии летит наружу и
+        // Генерация — НЕ best-effort: ошибка эмиссии летит наружу и
         // фейлит компиляцию. visitor бросает TODO на неподдержанных узлах
         // — это нужное поведение (fail-fast, не silent empty .il).
         for (irFile in moduleFragment.files) {
             val asmName = NameMapper.assemblyName(irFile)
+
+            if (backend == "pe") {
+                // ADR 0010: прямая генерация PE через dotnetutils.
+                val outFile = File(outputDir, "$asmName.$outputKind")
+                try {
+                    val emitter = org.kotlindotnet.compiler.pe.PeIlEmitter()
+                    val visitor = DotnetIrVisitor(emitter)
+                    irFile.accept(visitor, null)
+                    emitter.writeAssemblyTo(outFile, outputKind == "exe")
+                    Log.info("PE ($outputKind): ${outFile.absolutePath}")
+                } catch (e: Throwable) {
+                    outFile.delete()
+                    throw IllegalStateException(
+                        "PE emission failed for '${irFile.fileEntry.name}' → ${outFile.name}: ${e.message}",
+                        e,
+                    )
+                }
+                continue
+            }
+
             val ilFile = File(outputDir, "$asmName.il")
             try {
                 val emitter: IlEmitter = TextIlEmitter()

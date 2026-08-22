@@ -5,6 +5,7 @@
 #   ./scripts/kotlinc-net.sh <file.kt>              # → build/<name>/<name>.exe
 #   ./scripts/kotlinc-net.sh <file.kt> -dll         # → build/<name>/<name>.dll
 #   ./scripts/kotlinc-net.sh <file.kt> -o out.exe   # явное имя выхода
+#   ./scripts/kotlinc-net.sh <file.kt> -pe            # backend=pe (без ilasm, ADR 0010)
 #   ./scripts/kotlinc-net.sh <file.kt> --rebuild-plugin  # пересобрать плагин
 #
 # Артефакты (.il, ir-dump, .exe/.dll) складываются в build/<name>/
@@ -32,11 +33,13 @@ kt_file=""
 output=""
 mode="exe"
 rebuild_plugin=false
+pe_backend=false
 
 while [ $# -gt 0 ]; do
   case "$1" in
     -dll)      mode="dll"; shift ;;
     -exe)      mode="exe"; shift ;;
+    -pe)       pe_backend=true; shift ;;
     -o)        output="$2"; shift 2 ;;
     --rebuild-plugin) rebuild_plugin=true; shift ;;
     -h|--help)
@@ -70,19 +73,28 @@ fi
 out_dir="$(dirname "$output")"
 mkdir -p "$out_dir" "$outdir/kt-out"
 
-# --- Шаг 1: kotlinc + plugin → .il (в $outdir) ---
-il_file="$outdir/${name}.il"
-log_info "compiling $kt_file → $il_file"
-rm -f "$outdir"/ir-dump-*.txt "$il_file"
-kotlinc -Xplugin="$PLUGIN_JAR" \
-  -P "plugin:kotlin.dotnet:output.dir=$outdir" \
-  "$kt_file" -d "$outdir/kt-out"
+# --- Шаг 1: kotlinc + plugin → .il (il-путь) или .exe/.dll (pe-путь, ADR 0010) ---
+if $pe_backend; then
+  log_info "compiling $kt_file → $output (backend=pe)"
+  kotlinc -Xplugin="$PLUGIN_JAR" \
+    -P "plugin:kotlin.dotnet:output.dir=$outdir" \
+    -P "plugin:kotlin.dotnet:backend=pe" \
+    -P "plugin:kotlin.dotnet:output.kind=$mode" \
+    "$kt_file" -d "$outdir/kt-out"
+else
+  il_file="$outdir/${name}.il"
+  log_info "compiling $kt_file → $il_file"
+  rm -f "$outdir"/ir-dump-*.txt "$il_file"
+  kotlinc -Xplugin="$PLUGIN_JAR" \
+    -P "plugin:kotlin.dotnet:output.dir=$outdir" \
+    "$kt_file" -d "$outdir/kt-out"
 
-require_file "$il_file" "plugin did not produce $il_file"
+  require_file "$il_file" "plugin did not produce $il_file"
 
-# --- Шаг 2: ilasm → .exe/.dll ---
-log_info "assembling → $output"
-ilasm "/${mode}" "/output:$output" "$il_file"
+  # --- Шаг 2: ilasm → .exe/.dll ---
+  log_info "assembling → $output"
+  ilasm "/${mode}" "/output:$output" "$il_file"
+fi
 
 # --- Шаг 3 (только EXE): runtime DLL + runtimeconfig.json ---
 if [ "$mode" = "exe" ]; then
