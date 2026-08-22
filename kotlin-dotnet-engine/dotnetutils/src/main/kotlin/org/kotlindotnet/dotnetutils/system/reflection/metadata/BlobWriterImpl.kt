@@ -69,8 +69,24 @@ internal object BlobWriterImpl {
      * Null encodes the nullref value for FieldInit.
      */
     fun writeConstant(builder: BlobBuilder, value: Any?) {
-        with(builder) {
-            writeConstant(value)
+        when (value) {
+            null ->
+                // The encoding of Type for the nullref value for FieldInit is
+                // ELEMENT_TYPE_CLASS with a Value of a 32-bit zero.
+                builder.writeUInt32(0u)
+            is Boolean -> builder.writeBoolean(value)
+            is Int -> builder.writeInt32(value)
+            is String -> builder.writeUTF16(value)
+            is Byte -> builder.writeByte(value)
+            is Char -> builder.writeUInt16(value.code.toUShort())
+            is Double -> builder.writeDouble(value)
+            is Short -> builder.writeInt16(value)
+            is Long -> builder.writeInt64(value)
+            is Float -> builder.writeSingle(value)
+            is UShort -> builder.writeUInt16(value)
+            is UInt -> builder.writeUInt32(value)
+            is ULong -> builder.writeUInt64(value)
+            else -> throw IllegalArgumentException("invalid constant value of type ${value::class.qualifiedName}")
         }
     }
 }
