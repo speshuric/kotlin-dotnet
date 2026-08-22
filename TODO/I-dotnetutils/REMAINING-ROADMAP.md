@@ -4,6 +4,15 @@
 (I0–I5 выполнены и закоммичены; см. IMPLEMENTATION-PLAN.md для
 истории). Пункты идут в рекомендуемом порядке выполнения.
 
+## Upstream pin (база порта)
+
+Порт выполнялся от dotnet/runtime `release/10.0`, коммит
+`4a4758eb06bc1fa42fb69442af63f30026a23c9e` (2026-08-19), путь
+`src/libraries/System.Reflection.Metadata/src/`. Дублируется в
+ADR 0009 и README модуля (`kotlin-dotnet-engine/dotnetutils/README.md`).
+Проверка обновлений: дифф апстрима от этого коммита, перенос дельты
+write-path в порт.
+
 ## A. Тесты: добивка непортированных фактов
 
 | Файл | Фактов C# | Сейчас | Осталось | Приоритет |

@@ -91,9 +91,21 @@ Gradle-модуль `kotlin-dotnet-engine/dotnetutils`
 
 ### Лицензия
 
-SRM — MIT (.NET Foundation). В модуле размещается LICENSE-файл +
-указание источника и версии (коммит dotnet/runtime, откуда выполнялся
-перевод).
+SRM — MIT (.NET Foundation). В шапках файлов порта указывается origin;
+условия лицензии — MIT, унаследованные от апстрима.
+
+### Зафиксированная база порта (upstream pin)
+
+Порт выполнялся от следующего состояния апстрима:
+
+- репозиторий: https://github.com/dotnet/runtime
+- ветка: `release/10.0`
+- коммит: `4a4758eb06bc1fa42fb69442af63f30026a23c9e` (2026-08-19)
+- путь: `src/libraries/System.Reflection.Metadata/src/`
+
+Дублируется в README модуля (`kotlin-dotnet-engine/dotnetutils/README.md`)
+и в `TODO/I-dotnetutils/REMAINING-ROADMAP.md`. При проверке обновлений:
+диффать апстрим от этого коммита и переносить дельту write-path в порт.
 
 ## Последствия
 
