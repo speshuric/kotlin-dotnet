@@ -4,6 +4,101 @@
 
 ## [Unreleased]
 
+### Added — порт System.Reflection.Metadata на Kotlin: модуль `dotnetutils` (ADR 0009, итерации I0–I8)
+
+Полный write-path + минимальный read-path SRM на чистом Kotlin stdlib
+(`org.kotlindotnet.dotnetutils.system.reflection`), пакет зеркалит
+неймспейсы оригинала. База порта зафиксирована: dotnet/runtime
+`release/10.0` @ `4a4758eb`.
+
+- **I0**: калибровка — enum'ы (`ILOpCode`, `TableIndex`, `Machine`,
+  `CorFlags`, …), value-классы `Handle`/`EntityHandle`/`LabelHandle`,
+  константы `HandleType`/`TokenTypeIds`.
+- **I1**: 30 типизированных хэндлов таблиц/куч; отсечены
+  HandleCollections (~1.9k строк reader-side).
+- **I2**: внутренние утилиты — `BitArithmetic`, `BlobUtilities`
+  (LE/BE писатели, UTF-8 с суррогатами), `Hash`, `Blob`/`BlobBuilder`/
+  `BlobWriter`/`BlobContentId` (kotlin.uuid).
+- **I3**: `CodedIndex` (13 семейств), `MetadataTokens`, `ILOpCodeExtensions`.
+- **I4**: ядро метаданных — `MetadataBuilder` (+кучи #Strings/#US/#Blob/
+  #Guid), `MetadataSizes`, `SerializedMetadataHeaps`, `MetadataRootBuilder`.
+- **I5**: IL-энкодинг — `InstructionEncoder`, `ControlFlowBuilder`,
+  `ExceptionRegionEncoder`, `SwitchInstructionEncoder`,
+  `MethodBodyStreamEncoder`.
+- **I6**: PE write-path — `PEHeader(Builder)`, `CoffHeader`, `CorHeader`,
+  `SectionHeader`, `PEDirectoriesBuilder`, `ManagedTextSection`
+  (IAT/import table/startup stub), `PEBuilder`, `ManagedPEBuilder`,
+  `ResourceSectionBuilder`.
+- **I7**: энкодеры сигнатур и custom attributes (`BlobEncoders`,
+  `SignatureHeader`, enum'ы `Signature*`) — 24 структуры.
+- **I8** (ADR 0011): минимальный MetadataReader — парс root/streams,
+  кучи, строки 11 эмитируемых таблиц, `PEReader`-lite (заголовки,
+  rva→offset, method body tiny/fat + exception regions),
+  `BlobReader` (compressed integers — зеркало SRM).
+
+Отсечено осознанно: EnC/WinMD/Portable PDB/DebugDirectory, пулинг,
+Stream/MemoryBlock, провайдеры декодеров, TypeName*/AssemblyNameInfo,
+HandleComparer. Причины — в шапках файлов и
+`TODO/I-dotnetutils/test-comparison.md`.
+
+Тесты: **220 → 242**, включая полные порты CompressedIntegerTests.cs,
+BlobEncodersTests.cs, BlobTests.cs и round-trip writer→reader сетку
+(ADR 0011). Попутные исправления fidelity:
+- compressed signed integer — знак в LSB всего raw-значения,
+  знакорасширение масками (не инверсия бита);
+- `writeUTF8(allowUnpairedSurrogates=false)` заменял U+FFFD любые
+  символы ≥0x800 вместо только непарных суррогатов;
+- coded index widths: ResolutionScope/TypeDefOrRef = 2 бита,
+  MemberRefParent = 3 бита.
+
+### Added — майлстон M1: EXE целиком Kotlin-кодом
+
+- `HelloWorldImage` (тест-фикстура): сборка hello-world EXE через
+  `MetadataBuilder` + `InstructionEncoder` + `MethodBodyStreamEncoder` +
+  `ManagedPEBuilder` без ilasm.
+- Тест `05-pe-hello` в реестре: запуск через `dotnet`, верификация
+  C#-harness'ом (`kotlin-dotnet-utils/verifier` — настоящий SRM),
+  dotnet-ildasm. Ловушка зафиксирована: `MethodAttributes.Static =
+  0x0010` не входит в access-mask — entry point без Static даёт
+  TypeLoadException «The signature is incorrect».
+
+### Changed — PE-бэкенд компилятора по умолчанию (ADR 0010, план COMPILER-INTEGRATION)
+
+- Новый `pe/PeIlEmitter` в compiler-plugin: реализация `IlEmitter` над
+  dotnetutils; текстовые member-ref'ы visitor'а парсятся в метаданные,
+  собственные вызовы резолвятся в MethodDef (тела кодируются отложенно —
+  forward-вызовы без второго прохода IR); локали через BlobEncoders;
+  сериализация образа `writeAssemblyTo()`.
+- CLI плагина: `backend=il|pe` (дефолт **pe** с S6), `output.kind=exe|dll`;
+  `kotlinc-net.sh -il` — legacy-путь, `-pe` сохранён для совместимости;
+  ilasm больше не нужен для основного пути (fallback сохранён до удаления
+  TextIlEmitter отдельным коммитом).
+- Вся e2e-сетка зелёная на обоих бэкендах: build-test.sh после il-прогона
+  повторяет тест через pe (те же ожидания + C#-verifier на каждый
+  pe-артефакт; dll-тесты временно подменяют артефакт по HintPath).
+- TextIlEmitter помечен @Deprecated.
+
+### Added — `kotlin-dotnet-utils/`
+
+.NET-сторона проекта: C#-harness `verifier/` открывает собранные образы
+настоящим `System.Reflection.Metadata` (PEReader/MetadataReader), печатает
+дамп заголовков/таблиц/IL и `VERIFIER OK`. README с использованием.
+
+### Changed — прочее
+
+- Тестовые классы dotnetutils переименованы: сняты префиксы итераций
+  (I0/I2/I3/I4/I6 → говорящие имена).
+- `EntityHandle.NIL` — публичная nil-константа.
+- Upstream-пин базы порта задокументирован в трёх местах (ADR 0009,
+  README модуля, REMAINING-ROADMAP).
+
+### Documentation — ADR
+
+- `0009-srm-port-to-kotlin.md` — порт SRM (Accepted).
+- `0010-compiler-plugin-pe-backend.md` — прямая генерация PE (Accepted).
+- `0011-minimal-metadata-reader.md` — минимальный reader (Accepted).
+- Сверка тестов апстрим ↔ проект: `TODO/I-dotnetutils/test-comparison.md`.
+
 ### Changed — реорганизация: JDK-область `kotlin-dotnet-engine/`
 
 - Gradle-корень перенесён из корня репозитория в `kotlin-dotnet-engine/`
