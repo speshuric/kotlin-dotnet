@@ -417,6 +417,10 @@ kotlin-dotnet/
 │   ├── 02-expr/                  # 16 выражений → DLL + C# consumer
 │   ├── 03-hello/                 # fun main() { println(...) } → EXE
 │   └── 04-loops/                 # циклы/функции/интерполяция → EXE + spec-тесты
+├── kotlin-dotnet-utils/          # .NET-сторона проекта (C#-утилиты)
+│   ├── README.md                 # назначение и использование
+│   └── verifier/                 # C#-harness: открывает образы настоящим SRM
+│                                  # (PEReader/MetadataReader), печатает VERIFIER OK
 ├── scripts/
 │   ├── common.sh               # общие функции (source-only)
 │   ├── activate.sh             # активация env (JAVA_HOME, DOTNET_ROOT, ...)

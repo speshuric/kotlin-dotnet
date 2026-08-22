@@ -18,7 +18,7 @@
   LinkPrefix/LinkSuffix композиция, TryGetSpan, chunk management,
   contentEquals на многочанковых билдерах, WriteConstant все типы.
 - BlobUtilitiesTests: GetUTF8ByteCount boundary + GetUserStringTrailingByte
-  уже покрыты косвенно через I2BlobCoreTests, но нужен прямой порт.
+  уже покрыты косвенно через BlobCoreTests, но нужен прямой порт.
 - Все тесты верифицируются без MetadataReader (только writer side).
 
 ## B. Итерации порта (из IMPLEMENTATION-PLAN.md)
@@ -38,7 +38,7 @@ content id provider берёт время из `PEBuilder.TIME_PROVIDER`
 `protected internal` ResourceSectionBuilder.Serialize → Kotlin
 `internal abstract`.
 
-Тесты: 11 новых (I6PEHeaderBuilderTests, I6PEBuilderTests) —
+Тесты: 11 новых (PEHeaderBuilderTests, PEBuilderTests) —
 переносимое подмножество PEHeaderBuilderTests + PEBuilderTests
 (GetContentToSign×3, GetPrefixBlob/GetSuffixBlob, NativeResources
 через парсинг сырого image, ошибки ctor). PEReader/MetadataReader
@@ -47,13 +47,25 @@ content id provider берёт время из `PEBuilder.TIME_PROVIDER`
 
 Блокирует M1.
 
-### B.2. M1: Майлстон — первый EXE целиком Kotlin'ом
+### B.2. M1: Майлстон — первый EXE целиком Kotlin'ом — **[DONE] 2026-08-22**
 
-Критерии приёмки (см. IMPLEMENTATION-PLAN.md):
-1. C#-harness открывает сборку настоящим SRM;
-2. `dotnet` запускает EXE;
-3. `dotnet-ildasm` даёт корректный IL;
-4. Экспериментальный recipe рядом с ilasm-путём.
+Критерии приёмки выполнены (тест `05-pe-hello`:
+`scripts/build-test.sh 05-pe-hello`, `just test 05-pe-hello`; C#-harness
+в `kotlin-dotnet-utils/verifier/`):
+1. EXE «hello world» собран чисто Kotlin-кодом модуля
+   (тест-фикстура HelloWorldImage в test-источниках dotnetutils:
+   MetadataBuilder + MethodBodyStreamEncoder + InstructionEncoder +
+   ManagedPEBuilder, сигнатурные блобы собраны руками до I7);
+2. C#-harness `kotlin-dotnet-utils/verifier/` открывает сборку
+   настоящим SRM — VERIFIER OK;
+3. `dotnet hello.exe` печатает ожидаемый вывод;
+4. `dotnet-ildasm` декомпилирует образ.
+
+Найденная и зафиксированная ловушка: MethodAttributes.Static = 0x0010
+(не входит в access-mask); entry point без Static даёт
+TypeLoadException "The signature is incorrect". Recipe:
+runtimeconfig.json генерируется скриптом (конфигурация хоста .NET, не
+часть PE-образа).
 
 ### B.3. I7: BlobEncoders (24 encoder-структуры, ~1390 строк)
 

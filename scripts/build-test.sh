@@ -66,6 +66,50 @@ fi
 
 log_info "build-test: $testid (config=$config, no-test=$no_test)"
 
+RUNTIMECONFIG_JSON='{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.11"},"rollForward":"Major"}}'
+
+# --- 05-pe-hello: особый путь — образ строит Gradle-тест dotnetutils ---
+if [ "$testid" = "05-pe-hello" ]; then
+    OUTDIR="build/$testid"
+    EXE="$OUTDIR/hello.exe"
+    GRADLE_IMG="kotlin-dotnet-engine/dotnetutils/build/hello-image/hello.exe"
+    mkdir -p "$OUTDIR"
+
+    if ! $no_test || [ ! -f "$EXE" ]; then
+        log_info "building PE image via :dotnetutils:test --tests '*HelloWorldImageTests*'"
+        (cd "$PROJECT_ROOT/kotlin-dotnet-engine" && ./gradlew :dotnetutils:test \
+            --tests "*HelloWorldImageTests*" --rerun-tasks -q)
+        require_file "$GRADLE_IMG" "Gradle test did not produce $GRADLE_IMG"
+        cp "$GRADLE_IMG" "$EXE"
+    fi
+
+    printf '%s\n' "$RUNTIMECONFIG_JSON" > "$OUTDIR/hello.runtimeconfig.json"
+
+    if $no_test; then
+        log_info "done: $testid (no-test)"
+        exit 0
+    fi
+
+    out="$(timeout 30 dotnet "$EXE" 2>/dev/null || true)"
+    expected="Hello from Kotlin-built PE!"
+    if [ "$out" != "$expected" ]; then
+        echo "FAIL: $testid"
+        echo "--- expected ---"; echo "$expected"
+        echo "--- got ---"; echo "$out"
+        exit 1
+    fi
+    echo ">>> $testid run OK"
+
+    log_info "verifying with C# harness (kotlin-dotnet-utils/verifier, real SRM)"
+    ( cd kotlin-dotnet-utils/verifier && timeout 120 dotnet run --no-launch-profile -- \
+        "$PROJECT_ROOT/$EXE" | grep -q "VERIFIER OK" ) \
+        || { echo "FAIL: $testid (verifier)"; exit 1; }
+    echo ">>> $testid verifier OK"
+
+    log_info ">>> $testid OK"
+    exit 0
+fi
+
 # --- Плагин JAR ---
 PLUGIN_JAR="kotlin-dotnet-engine/compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar"
 if [ ! -f "$PLUGIN_JAR" ]; then
@@ -73,9 +117,6 @@ if [ ! -f "$PLUGIN_JAR" ]; then
     (cd "$PROJECT_ROOT/kotlin-dotnet-engine" && ./gradlew :compiler-plugin:jar -q)
 fi
 require_file "$PLUGIN_JAR" "plugin JAR not found: $PLUGIN_JAR (run 'just plugin')"
-
-# --- Кофиг runtimeconfig.json (framework-dependent, rollForward Major) ---
-RUNTIMECONFIG_JSON='{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.11"},"rollForward":"Major"}}'
 
 # _build_one <kt> <testid>  — собрать и (если не no-test) верифицировать
 # один .kt файл. outdir = build/<testid> для обычных тестов,
