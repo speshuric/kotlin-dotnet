@@ -200,3 +200,43 @@ internal enum class StringKind(val value: UByte) {
         internal fun fromRaw(raw: UByte): StringKind? = byValue[raw]
     }
 }
+
+/**
+ * Port of the `TableMask` flags enum: per-table bits and the aggregates
+ * used by row-count sizing and token mapping.
+ *
+ * Note: AssemblyProcessor/AssemblyOS/AssemblyRefProcessor/AssemblyRefOS
+ * have no mask bits in the original either.
+ */
+internal object TableMask {
+    private fun bit(index: TableIndex): ULong = 1uL shl index.value
+
+    val PTR_TABLES: ULong =
+        bit(TableIndex.FIELD_PTR) or bit(TableIndex.METHOD_PTR) or bit(TableIndex.PARAM_PTR) or
+            bit(TableIndex.EVENT_PTR) or bit(TableIndex.PROPERTY_PTR)
+
+    val ENC_TABLES: ULong = bit(TableIndex.ENC_LOG) or bit(TableIndex.ENC_MAP)
+
+    val TYPE_SYSTEM_TABLES: ULong =
+        PTR_TABLES or ENC_TABLES or
+            bit(TableIndex.MODULE) or bit(TableIndex.TYPE_REF) or bit(TableIndex.TYPE_DEF) or
+            bit(TableIndex.FIELD) or bit(TableIndex.METHOD_DEF) or bit(TableIndex.PARAM) or
+            bit(TableIndex.INTERFACE_IMPL) or bit(TableIndex.MEMBER_REF) or bit(TableIndex.CONSTANT) or
+            bit(TableIndex.CUSTOM_ATTRIBUTE) or bit(TableIndex.FIELD_MARSHAL) or bit(TableIndex.DECL_SECURITY) or
+            bit(TableIndex.CLASS_LAYOUT) or bit(TableIndex.FIELD_LAYOUT) or bit(TableIndex.STAND_ALONE_SIG) or
+            bit(TableIndex.EVENT_MAP) or bit(TableIndex.EVENT) or bit(TableIndex.PROPERTY_MAP) or
+            bit(TableIndex.PROPERTY) or bit(TableIndex.METHOD_SEMANTICS) or bit(TableIndex.METHOD_IMPL) or
+            bit(TableIndex.MODULE_REF) or bit(TableIndex.TYPE_SPEC) or bit(TableIndex.IMPL_MAP) or
+            bit(TableIndex.FIELD_RVA) or bit(TableIndex.ASSEMBLY) or bit(TableIndex.ASSEMBLY_REF) or
+            bit(TableIndex.FILE) or bit(TableIndex.EXPORTED_TYPE) or bit(TableIndex.MANIFEST_RESOURCE) or
+            bit(TableIndex.NESTED_CLASS) or bit(TableIndex.GENERIC_PARAM) or bit(TableIndex.METHOD_SPEC) or
+            bit(TableIndex.GENERIC_PARAM_CONSTRAINT)
+
+    val DEBUG_TABLES: ULong =
+        bit(TableIndex.DOCUMENT) or bit(TableIndex.METHOD_DEBUG_INFORMATION) or
+            bit(TableIndex.LOCAL_SCOPE) or bit(TableIndex.LOCAL_VARIABLE) or
+            bit(TableIndex.LOCAL_CONSTANT) or bit(TableIndex.IMPORT_SCOPE) or
+            bit(TableIndex.STATE_MACHINE_METHOD) or bit(TableIndex.CUSTOM_DEBUG_INFORMATION)
+
+    val ALL_TABLES: ULong = TYPE_SYSTEM_TABLES or DEBUG_TABLES
+}
