@@ -13,3 +13,4 @@
 | 0007 | 2026-08-17 | Accepted | Output-директория плагина через CLI-опцию `output.dir` |
 | 0008 | 2026-08-19 | Accepted | Рефакторинг `justfile` — per-test layout, реестр тестов, dispatch-скрипты |
 | 0009 | 2026-08-21 | Accepted | Порт write-path System.Reflection.Metadata на Kotlin (модуль dotnetutils) |
+| 0010 | 2026-08-22 | Proposed | Прямая генерация PE в compiler-plugin (замена IL-текста + ilasm) |
