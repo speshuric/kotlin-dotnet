@@ -24,7 +24,7 @@ import kotlin.uuid.Uuid
  * - BlobBuilder allows for chunk allocation customization
  *   (override [allocateChunk]).
  */
-class BlobBuilder(capacity: Int = DEFAULT_CHUNK_SIZE) {
+open class BlobBuilder(capacity: Int = DEFAULT_CHUNK_SIZE) {
     // Builders are linked like so:
     //
     // [1:first]->[2]->[3:last]<-[4:head]

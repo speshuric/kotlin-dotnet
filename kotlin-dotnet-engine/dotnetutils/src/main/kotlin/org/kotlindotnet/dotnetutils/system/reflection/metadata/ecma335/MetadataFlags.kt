@@ -240,3 +240,13 @@ internal object TableMask {
 
     val ALL_TABLES: ULong = TYPE_SYSTEM_TABLES or DEBUG_TABLES
 }
+
+/** Heap size flags of the metadata table stream header (ECMA-335 II.24.2.6). */
+internal object HeapSizeFlag {
+    const val STRING_HEAP_LARGE: Int = 0x01 // 4 byte uint indexes used for string heap offsets
+    const val GUID_HEAP_LARGE: Int = 0x02   // 4 byte uint indexes used for GUID heap offsets
+    const val BLOB_HEAP_LARGE: Int = 0x04   // 4 byte uint indexes used for Blob heap offsets
+    const val ENC_DELTAS: Int = 0x20        // Indicates only EnC Deltas are present (not produced by this port)
+    const val EXTRA_DATA: Int = 0x40        // Extra 4 bytes follow the row counts
+    const val DELETED_MARKS: Int = 0x80     // Metadata might contain items marked deleted (EnC only)
+}
