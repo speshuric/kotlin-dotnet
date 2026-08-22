@@ -67,10 +67,26 @@ TypeLoadException "The signature is incorrect". Recipe:
 runtimeconfig.json генерируется скриптом (конфигурация хоста .NET, не
 часть PE-образа).
 
-### B.3. I7: BlobEncoders (24 encoder-структуры, ~1390 строк)
+### B.3. I7: BlobEncoders (24 encoder-структуры, ~1390 строк) — **[DONE] 2026-08-22**
 
-Custom attribute / signature encoding. Может идти параллельно
-с I5/I6 (нужны только I2+I4).
+Порт `Ecma335/Encoding/BlobEncoders.cs` + `Signatures/Signature*.cs`
+(enum'ы SignatureKind/Attributes/CallingConvention/TypeCode,
+SerializationTypeCode, PrimitiveTypeCode, CustomAttributeNamedArgumentKind)
++ `FunctionPointerAttributes.cs` + `SignatureHeader.cs` — в
+`...metadata/ecma335/` (`SignatureTypes.kt`, `SignatureHeader.kt`,
+`BlobEncoders.kt`).
+
+Отклонения: C# `out`-overloads → lambda-callbacks; методы, совпадающие
+с ключевыми словами Kotlin, переименованы (`Enum`→`enumType`,
+`Object`→`objectType`, `Array`→`array`); ImmutableArray → IntArray?
+(null = «все lower bounds 0»); FunctionPointerAttributes значения
+выписаны явно.
+
+Тесты: 43 новых (BlobEncodersTests) — golden-bytes порт
+BlobEncodersTests.cs; enum-кейсы C# с невалидными raw-значениями
+не воспроизводимы в Kotlin enum'ах (отмечено в тестах). Итого в модуле
+198 тестов, все зелёные. Может идти после M1: HelloWorldImage теперь
+может заменить рукописные сигнатуры на BlobEncoder'ы.
 
 ### B.4. I8: Минимальный MetadataReader (~3000–4000 строк)
 
