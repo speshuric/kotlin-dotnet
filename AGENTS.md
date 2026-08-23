@@ -401,6 +401,15 @@ kotlin-dotnet/
 ├── .sources/                    # Локальные исходники для референса (не в git)
 │   ├── kotlin/                   # shallow clone JetBrains/kotlin @ v2.4.20-RC
 │   └── dotnet-runtime/           # shallow clone dotnet/runtime @ release/10.0
+├── settings.gradle.kts           # корень = composite build: includeBuild(kotlin-dotnet-engine)
+│   │                             # (нужно только для IDE — IDEA открывает корень без ошибок;
+│   │                             # сборка всегда через kotlin-dotnet-engine/gradlew)
+├── build.gradle.kts              # пустой: отключает корневой таск wrapper
+│   │                             # (иначе IDEA плодит gradlew в корне при синке)
+├── gradle.properties             # toolchain для синка из корня: .sdk/jdk
+├── gradle/wrapper/
+│   └── gradle-wrapper.properties # версия Gradle для IDE (только свойства,
+│                                 # без jar/скриптов; CLI из корня не поддерживается)
 ├── .gitignore                    # .sdk/, .sources/, build/, *.dll, *.exe, .kotlin/
 ├── kotlin-dotnet-engine/         # Gradle-корень JDK-области (проекты на Kotlin)
 │   ├── build.gradle.kts            # корневой build
@@ -527,8 +536,7 @@ kotlin-dotnet/
 15. **DSH-изоляция (read-only корневая ФС).** Команды запускаются
     в песочнице, где корневая файловая система пользователя —
     read-only (нельзя писать в `~/.local/`, `/run/user/<uid>/`,
-    `~/.gradle/` и т.п.). Из-за этого «из коробки» падают:
-    - `just` — не может создать temp-директорию в
+    `~/.gradle/` и т.п.). Из-за этого «из коробки» падают:    - `just` — не может создать temp-директорию в
       `/run/user/<uid>/just/` (read-only).
     - `kotlinc` / Kotlin daemon — пытается писать маркер в
       `~/.local/share/kotlin/daemon/` (read-only → исключение
@@ -576,6 +584,23 @@ kotlin-dotnet/
     > и т.д. работают без ручного prelude. Ручной prelude (выше)
     > нужен только при запуске `just`/`gradlew`/`kotlinc`/`dotnet`
     > напрямую из шелла в обход скриптов.
+
+16. **IDE (IntelliJ IDEA).** Открывать корень репозитория: корневой
+    `settings.gradle.kts` подключает движок как composite build.
+    Локальные инструменты подхватываются автоматически:
+    - JDK 21 для тулчейна — через `org.gradle.java.installations.paths`
+      (`gradle.properties` в корне и в движке). База резолва относительных
+      путей — корень верхнеуровневого билда; симлинк
+      `kotlin-dotnet-engine/.sdk -> ../.sdk` делает путь валидным из обоих
+      контекстов. При composite-запуске кандидаты обоих файлов
+      объединяются; несуществующий путь — только warning;
+    - версия Gradle для синка — `gradle/wrapper/gradle-wrapper.properties`
+      (9.7.0, синхронизирована с движком);
+    - корневой таск `wrapper` отключён — IDEA не сможет плодить
+      `gradlew`/jar в корне при синке (сборка только через
+      `kotlin-dotnet-engine/gradlew`);
+    - end-to-end тесты запускать **только через just** (`just test ...`),
+      не напрямую через Gradle.
 
 ## Формат commit message
 
