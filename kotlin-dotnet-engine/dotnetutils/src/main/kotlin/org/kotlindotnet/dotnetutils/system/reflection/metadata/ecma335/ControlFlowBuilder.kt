@@ -14,7 +14,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ILOpCode
 
 class ControlFlowBuilder {
     /** Port of the internal `BranchInfo` struct. */
-    internal class BranchInfo(
+    internal data class BranchInfo(
         val operandOffset: Int,
         val label: LabelHandle,
         // Label offsets are calculated from the end of the instruction that
@@ -50,7 +50,8 @@ class ControlFlowBuilder {
         }
     }
 
-    internal class ExceptionHandlerInfo(
+    /** Port of the internal `ExceptionHandlerInfo` struct. */
+    internal data class ExceptionHandlerInfo(
         val kind: ExceptionRegionKind,
         val tryStart: LabelHandle,
         val tryEnd: LabelHandle,

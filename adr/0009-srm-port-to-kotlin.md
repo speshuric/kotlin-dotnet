@@ -124,3 +124,8 @@ SRM — MIT (.NET Foundation). В шапках файлов порта указ�
 - Закрепить запрет `import java.*` проверкой в Gradle-сборке модуля.
 - Идея «на подумать» (см. [I-02](../TODO/I-dotnetutils/I-02-csharp-codegen-idea.md)):
   генерация C#-кода по Kotlin для механизации проработки кейсов.
+
+## См. также
+
+- Паритет структур апстрима (какие C#-struct во что портированы и
+  исключения): [`docs/dotnetutils-struct-parity.md`](../docs/dotnetutils-struct-parity.md).

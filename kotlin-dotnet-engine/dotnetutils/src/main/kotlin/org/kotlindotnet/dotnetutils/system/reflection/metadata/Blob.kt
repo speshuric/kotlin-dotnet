@@ -9,7 +9,8 @@
 
 package org.kotlindotnet.dotnetutils.system.reflection.metadata
 
-class Blob internal constructor(
+/** Upstream: public readonly struct. Equality — по полям (как struct). */
+data class Blob internal constructor(
     internal val buffer: ByteArray?,
     internal val start: Int,
     val length: Int,
@@ -27,11 +28,6 @@ class Blob internal constructor(
     fun copyInto(destination: ByteArray, destinationOffset: Int = 0) {
         buffer?.copyInto(destination, destinationOffset, start, start + length)
     }
-
-    override fun equals(other: Any?): Boolean =
-        other is Blob && other.buffer === buffer && other.start == start && other.length == length
-
-    override fun hashCode(): Int = (buffer?.hashCode() ?: 0) xor start xor length
 
     companion object {
         internal val DEFAULT = Blob(null, 0, 0)

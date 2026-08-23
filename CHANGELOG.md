@@ -10,13 +10,18 @@
   `internal data class` — заголовок файла это декларировал с момента
   порта, а код не соответствовал.
 - `MethodBodyStreamEncoder.MethodBody` и `ReservedBlob<THandle>` — тоже
-  `data class`: в апстриме это `public readonly struct` (конвенция
-  «struct → data class», ADR 0009).
-- Намеренно НЕ переведены: `BlobDictionary.Entry` (содержит `ByteArray` —
-  генерируемый equals был бы ссылочным и вводил в заблуждение; семантика
-  как у апстримного struct), рабочие структуры билдеров
-  (`ControlFlowBuilder.BranchInfo`/`ExceptionHandlerInfo`) и все
-  stateful-сервисы/энкодеры.
+  `data class`: в апстриме это `public readonly struct`.
+- Аудит паритета «upstream struct → data/value class» завершён; реестр и
+  исключения зафиксированы в `docs/dotnetutils-struct-parity.md`
+  (см. также ADR 0009). Цель — механическая сверка API при будущей
+  компиляции модуля в .NET: data/value classes конвертируются в структуры.
+- Дочинены остатки аудита: `Blob` (ручные equals/hashCode заменены
+  генерированными — семантика идентична), `ControlFlowBuilder.BranchInfo`
+  и `ExceptionHandlerInfo` (апстримные private struct).
+- Намеренно НЕ переведены (задокументировано): курсоры
+  `BlobReader`/`BlobWriter`, энкодеры-фасады (`*Encoder` — readonly
+  struct в апстриме, но состояние = builder+offset),
+  `BlobDictionary.Entry` (ByteArray-равенство).
 
 ### Changed — реестр тестов: 1 тест = 1 папка, без хардкода имён
 
