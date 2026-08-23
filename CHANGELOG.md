@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+### Changed — dotnetutils: value-holder классы приведены к data classes
+
+- Строки таблиц метаданных в `MetadataRows.kt` (34 класса) теперь
+  `internal data class` — заголовок файла это декларировал с момента
+  порта, а код не соответствовал.
+- `MethodBodyStreamEncoder.MethodBody` и `ReservedBlob<THandle>` — тоже
+  `data class`: в апстриме это `public readonly struct` (конвенция
+  «struct → data class», ADR 0009).
+- Намеренно НЕ переведены: `BlobDictionary.Entry` (содержит `ByteArray` —
+  генерируемый equals был бы ссылочным и вводил в заблуждение; семантика
+  как у апстримного struct), рабочие структуры билдеров
+  (`ControlFlowBuilder.BranchInfo`/`ExceptionHandlerInfo`) и все
+  stateful-сервисы/энкодеры.
+
 ### Changed — реестр тестов: 1 тест = 1 папка, без хардкода имён
 
 - `scripts/tests.sh` больше не содержит имён тестов: id = имя папки в

@@ -25,7 +25,7 @@ data class AssemblyVersion(
     val revision: Int = 0,
 )
 
-internal class ModuleRow(
+internal data class ModuleRow(
     val generation: Short,
     val name: StringHandle,
     val moduleVersionId: GuidHandle,
@@ -33,7 +33,7 @@ internal class ModuleRow(
     val encBaseId: GuidHandle,
 )
 
-internal class AssemblyRefTableRow(
+internal data class AssemblyRefTableRow(
     val version: AssemblyVersion,
     val publicKeyToken: BlobHandle,
     val name: StringHandle,
@@ -42,7 +42,7 @@ internal class AssemblyRefTableRow(
     val hashValue: BlobHandle,
 )
 
-internal class AssemblyRow(
+internal data class AssemblyRow(
     val hashAlgorithm: UInt,
     val version: AssemblyVersion,
     val flags: Int,
@@ -51,44 +51,44 @@ internal class AssemblyRow(
     val assemblyCulture: StringHandle,
 )
 
-internal class ClassLayoutRow(val packingSize: Short, val classSize: UInt, val parent: Int)
-internal class ConstantRow(val type: Byte, val parent: Int, val value: BlobHandle)
-internal class CustomAttributeRow(val parent: Int, val type: Int, val value: BlobHandle)
-internal class DeclSecurityRow(val action: Short, val parent: Int, val permissionSet: BlobHandle)
-internal class EventRow(val eventFlags: Short, val name: StringHandle, val eventType: Int)
-internal class EventMapRow(val parent: Int, val eventList: Int)
-internal class ExportedTypeRow(
+internal data class ClassLayoutRow(val packingSize: Short, val classSize: UInt, val parent: Int)
+internal data class ConstantRow(val type: Byte, val parent: Int, val value: BlobHandle)
+internal data class CustomAttributeRow(val parent: Int, val type: Int, val value: BlobHandle)
+internal data class DeclSecurityRow(val action: Short, val parent: Int, val permissionSet: BlobHandle)
+internal data class EventRow(val eventFlags: Short, val name: StringHandle, val eventType: Int)
+internal data class EventMapRow(val parent: Int, val eventList: Int)
+internal data class ExportedTypeRow(
     val flags: UInt,
     val typeDefId: Int,
     val typeName: StringHandle,
     val typeNamespace: StringHandle,
     val implementation: Int,
 )
-internal class FieldLayoutRow(val offset: Int, val field: Int)
-internal class FieldMarshalRow(val parent: Int, val nativeType: BlobHandle)
-internal class FieldRvaRow(val offset: Int, val field: Int)
-internal class FieldDefRow(val flags: Short, val name: StringHandle, val signature: BlobHandle)
-internal class FileTableRow(val flags: UInt, val fileName: StringHandle, val hashValue: BlobHandle)
-internal class GenericParamConstraintRow(val owner: Int, val constraint: Int)
-internal class GenericParamRow(val number: Short, val flags: Short, val owner: Int, val name: StringHandle)
-internal class ImplMapRow(
+internal data class FieldLayoutRow(val offset: Int, val field: Int)
+internal data class FieldMarshalRow(val parent: Int, val nativeType: BlobHandle)
+internal data class FieldRvaRow(val offset: Int, val field: Int)
+internal data class FieldDefRow(val flags: Short, val name: StringHandle, val signature: BlobHandle)
+internal data class FileTableRow(val flags: UInt, val fileName: StringHandle, val hashValue: BlobHandle)
+internal data class GenericParamConstraintRow(val owner: Int, val constraint: Int)
+internal data class GenericParamRow(val number: Short, val flags: Short, val owner: Int, val name: StringHandle)
+internal data class ImplMapRow(
     val mappingFlags: Short,
     val memberForwarded: Int,
     val importName: StringHandle,
     val importScope: Int,
 )
-internal class InterfaceImplRow(val clazz: Int, val interface_: Int)
-internal class ManifestResourceRow(
+internal data class InterfaceImplRow(val clazz: Int, val interface_: Int)
+internal data class ManifestResourceRow(
     val offset: UInt,
     val flags: UInt,
     val name: StringHandle,
     val implementation: Int,
 )
-internal class MemberRefRow(val clazz: Int, val name: StringHandle, val signature: BlobHandle)
-internal class MethodImplRow(val clazz: Int, val methodBody: Int, val methodDecl: Int)
-internal class MethodSemanticsRow(val semantic: Short, val method: Int, val association: Int)
-internal class MethodSpecRow(val method: Int, val instantiation: BlobHandle)
-internal class MethodRow(
+internal data class MemberRefRow(val clazz: Int, val name: StringHandle, val signature: BlobHandle)
+internal data class MethodImplRow(val clazz: Int, val methodBody: Int, val methodDecl: Int)
+internal data class MethodSemanticsRow(val semantic: Short, val method: Int, val association: Int)
+internal data class MethodSpecRow(val method: Int, val instantiation: BlobHandle)
+internal data class MethodRow(
     val bodyOffset: Int,
     val implFlags: Short,
     val flags: Short,
@@ -96,12 +96,12 @@ internal class MethodRow(
     val signature: BlobHandle,
     val paramList: Int,
 )
-internal class ModuleRefRow(val name: StringHandle)
-internal class NestedClassRow(val nestedClass: Int, val enclosingClass: Int)
-internal class ParamRow(val flags: Short, val sequence: Short, val name: StringHandle)
-internal class PropertyMapRow(val parent: Int, val propertyList: Int)
-internal class PropertyRow(val propFlags: Short, val name: StringHandle, val type: BlobHandle)
-internal class TypeDefRow(
+internal data class ModuleRefRow(val name: StringHandle)
+internal data class NestedClassRow(val nestedClass: Int, val enclosingClass: Int)
+internal data class ParamRow(val flags: Short, val sequence: Short, val name: StringHandle)
+internal data class PropertyMapRow(val parent: Int, val propertyList: Int)
+internal data class PropertyRow(val propFlags: Short, val name: StringHandle, val type: BlobHandle)
+internal data class TypeDefRow(
     val flags: UInt,
     val name: StringHandle,
     val namespace: StringHandle,
@@ -109,6 +109,6 @@ internal class TypeDefRow(
     val fieldList: Int,
     val methodList: Int,
 )
-internal class TypeRefRow(val resolutionScope: Int, val name: StringHandle, val namespace: StringHandle)
-internal class TypeSpecRow(val signature: BlobHandle)
-internal class StandaloneSigRow(val signature: BlobHandle)
+internal data class TypeRefRow(val resolutionScope: Int, val name: StringHandle, val namespace: StringHandle)
+internal data class TypeSpecRow(val signature: BlobHandle)
+internal data class StandaloneSigRow(val signature: BlobHandle)

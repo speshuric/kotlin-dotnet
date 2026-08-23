@@ -58,8 +58,8 @@ class MethodBodyStreamEncoder(val builder: BlobBuilder) {
         return MethodBody(bodyOffset, instructions, regionEncoder)
     }
 
-    /** Encoded method body descriptor. */
-    class MethodBody internal constructor(
+    /** Encoded method body descriptor (upstream: public readonly struct). */
+    data class MethodBody internal constructor(
         /** Offset of the encoded method body in the method body stream. */
         val offset: Int,
         /** Blob reserved for instructions. */

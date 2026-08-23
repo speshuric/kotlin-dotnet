@@ -8,9 +8,9 @@ package org.kotlindotnet.dotnetutils.system.reflection.metadata
 
 /**
  * Represents a handle and a corresponding blob on a metadata heap that was
- * reserved for future content update.
+ * reserved for future content update (upstream: public readonly struct).
  */
-class ReservedBlob<THandle>(
+data class ReservedBlob<THandle>(
     val handle: THandle,
     val content: Blob,
 ) {
