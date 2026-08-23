@@ -15,5 +15,9 @@ value class LabelHandle internal constructor(val id: Int) {
     val isNil: Boolean
         get() = id == 0
 
-    override fun toString(): String = "LabelHandle($id)"
+    // Без reflection — модуль компилируется и в .NET; имя нужно для
+    // диагностики и будущей унификации хэндлов.
+    private val className: String get() = "LabelHandle"
+
+    override fun toString(): String = "$className($id)"
 }

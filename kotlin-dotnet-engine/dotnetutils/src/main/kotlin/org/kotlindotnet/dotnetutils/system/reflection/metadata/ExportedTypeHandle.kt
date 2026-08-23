@@ -13,29 +13,30 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenType
 value class ExportedTypeHandle internal constructor(
     internal val rowId: Int,
 ) {
-    fun toHandle(): Handle = Handle(HandleType.EXPORTED_TYPE.toUByte(), rowId)
+    fun toHandle(): Handle = Handle(tokenTypeSmall, rowId)
 
-    fun toEntityHandle(): EntityHandle = EntityHandle(TokenTypeIds.EXPORTED_TYPE or rowId.toUInt())
+    fun toEntityHandle(): EntityHandle = EntityHandle(tokenType or rowId.toUInt())
 
     val isNil: Boolean
         get() = rowId == 0
 
-    override fun toString(): String = "ExportedTypeHandle(rowId=$rowId)"
+    override fun toString(): String = "$className(rowId=$rowId)"
 
     companion object {
-        private val TOKEN_TYPE: UInt = TokenTypeIds.EXPORTED_TYPE
-        private val TOKEN_TYPE_SMALL: UByte = HandleType.EXPORTED_TYPE.toUByte()
+        private val className: String get() = "ExportedTypeHandle"
+        private val tokenType: UInt get() = TokenTypeIds.EXPORTED_TYPE
+        private val tokenTypeSmall: UByte get() = HandleType.EXPORTED_TYPE.toUByte()
 
         internal fun fromRowId(rowId: Int): ExportedTypeHandle = ExportedTypeHandle(rowId)
 
         internal fun fromHandle(handle: Handle): ExportedTypeHandle {
-            check(handle.vType == TOKEN_TYPE_SMALL) { "handle has wrong kind for ExportedTypeHandle" }
-            return ExportedTypeHandle(handle.rowId)
+            check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }
+            return fromRowId(handle.rowId)
         }
 
         internal fun fromEntityHandle(entity: EntityHandle): ExportedTypeHandle {
-            check(entity.vType == TOKEN_TYPE) { "entity handle has wrong kind for ExportedTypeHandle" }
-            return ExportedTypeHandle(entity.rowId)
+            check(entity.vType == tokenType) { "entity handle has wrong kind for $className" }
+            return fromRowId(entity.rowId)
         }
     }
 }

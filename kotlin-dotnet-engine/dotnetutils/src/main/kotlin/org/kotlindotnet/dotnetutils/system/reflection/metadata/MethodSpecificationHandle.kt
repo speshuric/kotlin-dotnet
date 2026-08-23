@@ -13,29 +13,30 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenType
 value class MethodSpecificationHandle internal constructor(
     internal val rowId: Int,
 ) {
-    fun toHandle(): Handle = Handle(HandleType.METHOD_SPEC.toUByte(), rowId)
+    fun toHandle(): Handle = Handle(tokenTypeSmall, rowId)
 
-    fun toEntityHandle(): EntityHandle = EntityHandle(TokenTypeIds.METHOD_SPEC or rowId.toUInt())
+    fun toEntityHandle(): EntityHandle = EntityHandle(tokenType or rowId.toUInt())
 
     val isNil: Boolean
         get() = rowId == 0
 
-    override fun toString(): String = "MethodSpecificationHandle(rowId=$rowId)"
+    override fun toString(): String = "$className(rowId=$rowId)"
 
     companion object {
-        private val TOKEN_TYPE: UInt = TokenTypeIds.METHOD_SPEC
-        private val TOKEN_TYPE_SMALL: UByte = HandleType.METHOD_SPEC.toUByte()
+        private val className: String get() = "MethodSpecificationHandle"
+        private val tokenType: UInt get() = TokenTypeIds.METHOD_SPEC
+        private val tokenTypeSmall: UByte get() = HandleType.METHOD_SPEC.toUByte()
 
         internal fun fromRowId(rowId: Int): MethodSpecificationHandle = MethodSpecificationHandle(rowId)
 
         internal fun fromHandle(handle: Handle): MethodSpecificationHandle {
-            check(handle.vType == TOKEN_TYPE_SMALL) { "handle has wrong kind for MethodSpecificationHandle" }
-            return MethodSpecificationHandle(handle.rowId)
+            check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }
+            return fromRowId(handle.rowId)
         }
 
         internal fun fromEntityHandle(entity: EntityHandle): MethodSpecificationHandle {
-            check(entity.vType == TOKEN_TYPE) { "entity handle has wrong kind for MethodSpecificationHandle" }
-            return MethodSpecificationHandle(entity.rowId)
+            check(entity.vType == tokenType) { "entity handle has wrong kind for $className" }
+            return fromRowId(entity.rowId)
         }
     }
 }

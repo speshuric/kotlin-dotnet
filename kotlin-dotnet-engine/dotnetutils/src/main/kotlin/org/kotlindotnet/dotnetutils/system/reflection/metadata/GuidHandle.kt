@@ -18,18 +18,21 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.HandleTyp
 value class GuidHandle internal constructor(
     internal val index: Int,
 ) {
-    fun toHandle(): Handle = Handle(HandleType.GUID.toUByte(), index)
+    fun toHandle(): Handle = Handle(tokenTypeSmall, index)
 
     val isNil: Boolean
         get() = index == 0
 
-    override fun toString(): String = "GuidHandle(index=$index)"
+    override fun toString(): String = "$className(index=$index)"
 
     companion object {
+        private val className: String get() = "GuidHandle"
+        private val tokenTypeSmall: UByte get() = HandleType.GUID.toUByte()
+
         internal fun fromIndex(heapIndex: Int): GuidHandle = GuidHandle(heapIndex)
 
         internal fun fromHandle(handle: Handle): GuidHandle {
-            check(handle.vType.toUInt() == HandleType.GUID) { "handle has wrong kind for GuidHandle" }
+            check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }
             return GuidHandle(handle.offset)
         }
     }

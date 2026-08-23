@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+### Changed — dotnetutils: дескрипторы хэндлов вместо констант
+
+- Во всех хэндлах пары констант `TOKEN_TYPE`/`TOKEN_TYPE_SMALL` заменены на
+  свойства-геттеры companion object (`internal val tokenType` /
+  `tokenTypeSmall` / `className`); геттеры инлайнятся JIT, но формируют
+  неявный общий интерфейс для будущей унификации хэндлов. Хардкод
+  `TokenTypeIds.*`/`HandleType.*` в `toHandle()`/`toEntityHandle()` и в
+  сообщениях фабрик устранён; `toString()` строится через `className`.
+- Охват: 25 row-handle'ов (+ их `from*`), кучевые `BlobHandle`/`GuidHandle`/
+  `UserStringHandle` (`tokenTypeSmall`, табличный токен неприменим),
+  `StringHandle`/`NamespaceDefinitionHandle` (composite vType — только
+  `className`), `LabelHandle`. Таблица применимости по каждому типу —
+  `docs/dotnetutils-struct-parity.md` §5.
+- Следующий шаг (обсуждается отдельно): сведение трёх свойств в объект-
+  дескриптор.
+
 ### Changed — dotnetutils: value-holder классы приведены к data classes
 
 - Строки таблиц метаданных в `MetadataRows.kt` (34 класса) теперь

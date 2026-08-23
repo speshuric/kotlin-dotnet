@@ -19,20 +19,23 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.HandleTyp
 value class BlobHandle internal constructor(
     private val offset: Int,
 ) {
-    fun toHandle(): Handle = Handle(HandleType.BLOB.toUByte(), offset)
+    fun toHandle(): Handle = Handle(tokenTypeSmall, offset)
 
     val isNil: Boolean
         get() = offset == 0
 
     fun getHeapOffset(): Int = offset
 
-    override fun toString(): String = "BlobHandle(offset=$offset)"
+    override fun toString(): String = "$className(offset=$offset)"
 
     companion object {
+        private val className: String get() = "BlobHandle"
+        private val tokenTypeSmall: UByte get() = HandleType.BLOB.toUByte()
+
         internal fun fromOffset(heapOffset: Int): BlobHandle = BlobHandle(heapOffset)
 
         internal fun fromHandle(handle: Handle): BlobHandle {
-            check(handle.vType.toUInt() == HandleType.BLOB) { "handle has wrong kind for BlobHandle" }
+            check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }
             return BlobHandle(handle.offset)
         }
     }

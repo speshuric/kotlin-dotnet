@@ -71,9 +71,13 @@ value class StringHandle internal constructor(
         return StringHandle(StringHandleType.STRING or (rawValue + prefixByteLength.toUInt()))
     }
 
-    override fun toString(): String = "StringHandle(0x%08X)".format(rawValue.toInt())
+    override fun toString(): String = "$className(0x%08X)".format(rawValue.toInt())
 
     companion object {
+        // composite vType (virtual-bit layout) — tokenTypeSmall как константа
+        // не выражается; унифицируем только имя типа.
+        private val className: String get() = "StringHandle"
+
         internal fun fromOffset(heapOffset: Int): StringHandle =
             StringHandle(StringHandleType.STRING or heapOffset.toUInt())
 

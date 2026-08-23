@@ -112,3 +112,69 @@ grep -rnE '^(internal |public )?(data |value |sealed )?class [A-Z]' \
 
 Сверка — по таблицам выше. Новые типы при расширении порта добавляются
 в этот документ (разделы 1–3) в том же коммите.
+
+
+## 5. Хэндлы: унификация членов
+
+Все хэндлы имеют тройку дескрипторов в companion object (геттеры вместо
+констант — JIT инлайнит, а у типов появляется неявный общий интерфейс для
+будущей унификации):
+
+- `className: String` — имя типа для диагностики и сообщений об ошибках;
+  без reflection (модуль компилируется и в .NET);
+- `tokenType: UInt` — табличный токен (`TokenTypeIds.*`);
+- `tokenTypeSmall: UByte` — код типа в `Handle` (`HandleType.*.toUByte()`).
+
+Применимость зависит от сорта хэндла:
+
+- **row-handle** (таблицы метаданных): все три + фабрики
+  `fromRowId`/`fromHandle`/`fromEntityHandle`;
+- **heap-handle** (`#Blob`, `#Guid`, `#US`): табличного токена не существует
+  → только `className` + `tokenTypeSmall`; фабрики `fromOffset`/`fromHandle`;
+- **composite vType** (`StringHandle`, `NamespaceDefinitionHandle`):
+  vType смешивается с virtual-bit → оба токен-свойства неприменимы,
+  только `className`;
+- `EntityHandle` / `Handle` — универсальные контейнеры без дескрипторов.
+
+| Тип | tokenType | tokenTypeSmall | className | isNil | toString | fromRowId | fromHandle | fromEntity |
+|---|---|---|---|---|---|---|---|---|
+| `AssemblyDefinitionHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `AssemblyFileHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `AssemblyReferenceHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `BlobHandle` | — | ✅ | ✅ | ✅ | ✅ | — | ✅ | — |
+| `ConstantHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `CustomAttributeHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `DeclarativeSecurityAttributeHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `EntityHandle` | — | — | — | ✅ | ✅ | — | ✅ | — |
+| `EventDefinitionHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ExportedTypeHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `FieldDefinitionHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GenericParameterConstraintHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GenericParameterHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `GuidHandle` | — | ✅ | ✅ | ✅ | ✅ | — | ✅ | — |
+| `Handle` | — | — | — | ✅ | ✅ | — | — | — |
+| `InterfaceImplementationHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ManifestResourceHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `MemberReferenceHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `MethodDefinitionHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `MethodImplementationHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `MethodSpecificationHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ModuleDefinitionHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ModuleReferenceHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `NamespaceDefinitionHandle` | — | — | ✅ | ✅ | ✅ | — | ✅ | — |
+| `ParameterHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `PropertyDefinitionHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `StandaloneSignatureHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `StringHandle` | — | — | ✅ | ✅ | ✅ | — | ✅ | — |
+| `TypeDefinitionHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `TypeReferenceHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `TypeSpecificationHandle` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `UserStringHandle` | — | ✅ | ✅ | ✅ | ✅ | — | ✅ | — |
+| `LabelHandle †` | — | — | ✅ | ✅ | ✅ | — | — | — |
+
+† `LabelHandle` живёт в пакете `ecma335` (id метки ControlFlowBuilder,
+1-based; ни токенов, ни кучи).
+
+Следующий возможный шаг — сведение трёх свойств в единый объект-
+дескриптор (один экземпляр на тип хэндла); требует обсуждения компромиссов
+(статическая инициализация, размер метаданных) и отдельно не делается.

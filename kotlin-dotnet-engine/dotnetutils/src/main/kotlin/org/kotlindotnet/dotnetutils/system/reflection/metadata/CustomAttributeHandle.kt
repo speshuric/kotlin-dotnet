@@ -13,29 +13,30 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenType
 value class CustomAttributeHandle internal constructor(
     internal val rowId: Int,
 ) {
-    fun toHandle(): Handle = Handle(HandleType.CUSTOM_ATTRIBUTE.toUByte(), rowId)
+    fun toHandle(): Handle = Handle(tokenTypeSmall, rowId)
 
-    fun toEntityHandle(): EntityHandle = EntityHandle(TokenTypeIds.CUSTOM_ATTRIBUTE or rowId.toUInt())
+    fun toEntityHandle(): EntityHandle = EntityHandle(tokenType or rowId.toUInt())
 
     val isNil: Boolean
         get() = rowId == 0
 
-    override fun toString(): String = "CustomAttributeHandle(rowId=$rowId)"
+    override fun toString(): String = "$className(rowId=$rowId)"
 
     companion object {
-        private val TOKEN_TYPE: UInt = TokenTypeIds.CUSTOM_ATTRIBUTE
-        private val TOKEN_TYPE_SMALL: UByte = HandleType.CUSTOM_ATTRIBUTE.toUByte()
+        private val className: String get() = "CustomAttributeHandle"
+        private val tokenType: UInt get() = TokenTypeIds.CUSTOM_ATTRIBUTE
+        private val tokenTypeSmall: UByte get() = HandleType.CUSTOM_ATTRIBUTE.toUByte()
 
         internal fun fromRowId(rowId: Int): CustomAttributeHandle = CustomAttributeHandle(rowId)
 
         internal fun fromHandle(handle: Handle): CustomAttributeHandle {
-            check(handle.vType == TOKEN_TYPE_SMALL) { "handle has wrong kind for CustomAttributeHandle" }
-            return CustomAttributeHandle(handle.rowId)
+            check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }
+            return fromRowId(handle.rowId)
         }
 
         internal fun fromEntityHandle(entity: EntityHandle): CustomAttributeHandle {
-            check(entity.vType == TOKEN_TYPE) { "entity handle has wrong kind for CustomAttributeHandle" }
-            return CustomAttributeHandle(entity.rowId)
+            check(entity.vType == tokenType) { "entity handle has wrong kind for $className" }
+            return fromRowId(entity.rowId)
         }
     }
 }

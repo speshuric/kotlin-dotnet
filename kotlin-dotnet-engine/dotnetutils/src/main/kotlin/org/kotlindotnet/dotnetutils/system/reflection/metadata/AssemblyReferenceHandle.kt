@@ -16,29 +16,30 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenType
 value class AssemblyReferenceHandle internal constructor(
     internal val rowId: Int,
 ) {
-    fun toHandle(): Handle = Handle(HandleType.ASSEMBLY_REF.toUByte(), rowId)
+    fun toHandle(): Handle = Handle(tokenTypeSmall, rowId)
 
-    fun toEntityHandle(): EntityHandle = EntityHandle(TokenTypeIds.ASSEMBLY_REF or rowId.toUInt())
+    fun toEntityHandle(): EntityHandle = EntityHandle(tokenType or rowId.toUInt())
 
     val isNil: Boolean
         get() = rowId == 0
 
-    override fun toString(): String = "AssemblyReferenceHandle(rowId=$rowId)"
+    override fun toString(): String = "$className(rowId=$rowId)"
 
     companion object {
-        private val TOKEN_TYPE: UInt = TokenTypeIds.ASSEMBLY_REF
-        private val TOKEN_TYPE_SMALL: UByte = HandleType.ASSEMBLY_REF.toUByte()
+        private val className: String get() = "AssemblyReferenceHandle"
+        private val tokenType: UInt get() = TokenTypeIds.ASSEMBLY_REF
+        private val tokenTypeSmall: UByte get() = HandleType.ASSEMBLY_REF.toUByte()
 
         internal fun fromRowId(rowId: Int): AssemblyReferenceHandle = AssemblyReferenceHandle(rowId)
 
         internal fun fromHandle(handle: Handle): AssemblyReferenceHandle {
-            check(handle.vType == TOKEN_TYPE_SMALL) { "handle has wrong kind for AssemblyReferenceHandle" }
-            return AssemblyReferenceHandle(handle.rowId)
+            check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }
+            return fromRowId(handle.rowId)
         }
 
         internal fun fromEntityHandle(entity: EntityHandle): AssemblyReferenceHandle {
-            check(entity.vType == TOKEN_TYPE) { "entity handle has wrong kind for AssemblyReferenceHandle" }
-            return AssemblyReferenceHandle(entity.rowId)
+            check(entity.vType == tokenType) { "entity handle has wrong kind for $className" }
+            return fromRowId(entity.rowId)
         }
     }
 }

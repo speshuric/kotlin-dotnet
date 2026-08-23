@@ -17,20 +17,23 @@ value class UserStringHandle internal constructor(
     //  0..23: index
     private val offset: Int,
 ) {
-    fun toHandle(): Handle = Handle(HandleType.USER_STRING.toUByte(), offset)
+    fun toHandle(): Handle = Handle(tokenTypeSmall, offset)
 
     val isNil: Boolean
         get() = offset == 0
 
     fun getHeapOffset(): Int = offset
 
-    override fun toString(): String = "UserStringHandle(offset=$offset)"
+    override fun toString(): String = "$className(offset=$offset)"
 
     companion object {
+        private val className: String get() = "UserStringHandle"
+        private val tokenTypeSmall: UByte get() = HandleType.USER_STRING.toUByte()
+
         internal fun fromOffset(heapOffset: Int): UserStringHandle = UserStringHandle(heapOffset)
 
         internal fun fromHandle(handle: Handle): UserStringHandle {
-            check(handle.vType.toUInt() == HandleType.USER_STRING) { "handle has wrong kind for UserStringHandle" }
+            check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }
             return UserStringHandle(handle.offset)
         }
     }

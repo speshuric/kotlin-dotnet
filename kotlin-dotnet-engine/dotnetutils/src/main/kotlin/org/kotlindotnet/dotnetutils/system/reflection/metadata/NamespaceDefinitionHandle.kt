@@ -50,9 +50,13 @@ value class NamespaceDefinitionHandle internal constructor(
         return StringHandle.fromOffset(getHeapOffset())
     }
 
-    override fun toString(): String = "NamespaceDefinitionHandle(0x%08X)".format(rawValue.toInt())
+    override fun toString(): String = "$className(0x%08X)".format(rawValue.toInt())
 
+    // composite vType (virtual-bit layout) — tokenTypeSmall константой не
+    // выражается; унифицируем только имя типа.
     companion object {
+        private val className: String get() = "NamespaceDefinitionHandle"
+
         internal fun fromFullNameOffset(stringHeapOffset: Int): NamespaceDefinitionHandle =
             NamespaceDefinitionHandle(stringHeapOffset.toUInt())
 
