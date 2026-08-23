@@ -9,7 +9,9 @@
 #   build-test.sh 04-loops --release      # release + verify
 #   build-test.sh 03-hello --no-test      # только собрать, без запуска
 #
-# Артефакты идут в build/<testid>/ (для 04-loops-spec — build/04-loops-spec/<basename>/).
+# Тест = папка в test-projects/ с test.properties (формат: docs/test-format.md).
+# Атрибуты (kind/backends/sources/consumer/expect) читаются из свойств.
+# Артефакты: build/<testid>/; для multi-source тестов — build/<testid>/<basename>/.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -68,8 +70,8 @@ log_info "build-test: $testid (config=$config, no-test=$no_test)"
 
 RUNTIMECONFIG_JSON='{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.11"},"rollForward":"Major"}}'
 
-# --- 05-pe-hello: особый путь — образ строит Gradle-тест dotnetutils ---
-if [ "$testid" = "05-pe-hello" ]; then
+# --- type=gradle-image: особый путь — образ строит Gradle-тест dotnetutils ---
+if [ "$(test_type "$testid")" = "gradle-image" ]; then
     OUTDIR="build/$testid"
     EXE="$OUTDIR/hello.exe"
     GRADLE_IMG="kotlin-dotnet-engine/dotnetutils/build/hello-image/hello.exe"
@@ -91,7 +93,7 @@ if [ "$testid" = "05-pe-hello" ]; then
     fi
 
     out="$(timeout 30 dotnet "$EXE" 2>/dev/null || true)"
-    expected="Hello from Kotlin-built PE!"
+    expected="$(printf '%b' "$(test_prop "$testid" expect)")"
     if [ "$out" != "$expected" ]; then
         echo "FAIL: $testid"
         echo "--- expected ---"; echo "$expected"
@@ -119,17 +121,18 @@ fi
 require_file "$PLUGIN_JAR" "plugin JAR not found: $PLUGIN_JAR (run 'just plugin')"
 
 # _build_one <kt> <testid>  — собрать и (если не no-test) верифицировать
-# один .kt файл. outdir = build/<testid> для обычных тестов,
-# build/<testid>/<basename>/ для 04-loops-spec.
+# один .kt файл. outdir = build/<testid>; для multi-source тестов —
+# build/<testid>/<basename>/ (чтобы артефакты не перетирались).
 _build_one() {
     local kt="$1"
     local tid="$2"
-    local name kind outdir il asm
+    local name kind outdir il asm sources_count
 
     name="$(basename "$kt" .kt)"
     kind="$(test_kind "$tid")"
 
-    if [ "$tid" = "04-loops-spec" ]; then
+    sources_count="$(test_kt "$tid" | wc -l)"
+    if [ "$sources_count" -gt 1 ]; then
         outdir="build/$tid/$name"
     else
         outdir="build/$tid"
@@ -187,77 +190,39 @@ _build_one() {
 }
 
 # _verify <testid> <name> <asm> — проверка вывода.
+# exe: прогон собранного образа; dll: запуск C#-consumer'а.
+# Ожидание — ключ expect (printf %b); без него — проверка непустоты.
 _verify() {
     local tid="$1"
     local name="$2"
     local asm="$3"
-    local out expected consumer
+    local out expected consumer kind
 
-    case "$tid" in
-        00-int-add)
-            consumer="$(test_consumer "$tid")"
-            # dotnet run печатает рантайм-шум в stderr; программа — в stdout.
-            out="$(cd "$consumer" && dotnet run 2>/dev/null || true)"
-            expected="5"
-            if [ "$out" != "$expected" ]; then
-                echo "FAIL: $tid"
-                echo "--- expected ---"
-                echo "$expected"
-                echo "--- got ---"
-                echo "$out"
-                exit 1
-            fi
-            ;;
-        02-expr)
-            consumer="$(test_consumer "$tid")"
-            out="$(cd "$consumer" && dotnet run 2>/dev/null || true)"
-            # 16 информационных строк; проверяем только exit-код (выхлоп нестабилен).
-            if [ -z "$out" ]; then
-                echo "FAIL: $tid (empty output)"
-                exit 1
-            fi
-            ;;
-        03-hello)
-            out="$(dotnet "$asm" 2>/dev/null || true)"
-            expected="Hello, .NET!"
-            if [ "$out" != "$expected" ]; then
-                echo "FAIL: $tid"
-                echo "--- expected ---"
-                echo "$expected"
-                echo "--- got ---"
-                echo "$out"
-                exit 1
-            fi
-            ;;
-        04-loops)
-            out="$(dotnet "$asm" 2>/dev/null || true)"
-            expected="$(printf '10\n10\n5\n25\n42\nx = 42')"
-            if [ "$out" != "$expected" ]; then
-                echo "FAIL: $tid"
-                echo "--- expected ---"
-                echo "$expected"
-                echo "--- got ---"
-                echo "$out"
-                exit 1
-            fi
-            ;;
-        04-loops-spec)
-            out="$(dotnet "$asm" 2>/dev/null || true)"
-            expected="OK"
-            if [ "$out" != "$expected" ]; then
-                echo "FAIL: $tid/$name"
-                echo "--- expected ---"
-                echo "$expected"
-                echo "--- got ---"
-                echo "$out"
-                exit 1
-            fi
-            ;;
-        *)
-            log_error "verify: unknown test id '$tid'"
+    kind="$(test_kind "$tid")"
+    if [ "$kind" = "dll" ]; then
+        consumer="$(test_consumer "$tid")"
+        [ -n "$consumer" ] || { echo "FAIL: $tid (dll without consumer in test.properties)"; exit 1; }
+        # dotnet run печатает рантайм-шум в stderr; программа — в stdout.
+        out="$(cd "$consumer" && timeout 180 dotnet run 2>/dev/null || true)"
+    else
+        out="$(timeout 30 dotnet "$asm" 2>/dev/null || true)"
+    fi
+
+    expected="$(test_prop "$tid" expect "" || true)"
+    if [ -n "$expected" ]; then
+        expected="$(printf '%b' "$expected")"
+        if [ "$out" != "$expected" ]; then
+            echo "FAIL: $tid"
+            echo "--- expected ---"
+            echo "$expected"
+            echo "--- got ---"
+            echo "$out"
             exit 1
-            ;;
-    esac
+        fi
+    elif [ -z "$out" ]; then
+        echo "FAIL: $tid (empty output)"
+        exit 1
+    fi
     echo ">>> $tid/$name OK"
 }
 
@@ -298,93 +263,92 @@ _pe_build_one() {
     fi
 
     # C#-harness: pe-артефакт должен открываться настоящим SRM.
+    if $no_test; then return 0; fi
     ( cd kotlin-dotnet-utils/verifier && timeout 120 dotnet run --no-launch-profile -- \
         "$PROJECT_ROOT/$asm" | grep -q "VERIFIER OK" ) \
         || { echo "FAIL: $tid pe (verifier)"; exit 1; }
 }
 
-_verify_pe_exe() {
-    local tid="$1" name="$2" expected="$3"
-    local out
-    out="$(timeout 30 dotnet "build/$tid/pe/$name.exe" 2>/dev/null || true)"
-    if [ "$out" != "$expected" ]; then
-        echo "FAIL: $tid pe"
-        echo "--- expected ---"; echo "$expected"
-        echo "--- got ---"; echo "$out"
-        exit 1
-    fi
-}
-
 _verify_pe() {
     local tid="$1"
-    local kind kt name
+    local kind kt name expected expected_raw out consumer_dll backup
+
     kind="$(test_kind "$tid")"
 
-    case "$tid" in
-        04-loops-spec)
-            shopt -s nullglob
-            for kt in test-projects/04-loops/spec/*.kt; do
-                _pe_build_one "$kt" "$tid" "$kind"
-                _verify_pe_exe "$tid" "$(basename "$kt" .kt)" "OK"
-            done
-            shopt -u nullglob
-            ;;
-        00-int-add|02-expr)
-            kt="$(test_kt "$tid")"
-            name="$(basename "$kt" .kt)"
-            _pe_build_one "$kt" "$tid" "$kind"
+    # Сборка всех исходников теста на pe-бэкенде (+ verifier на каждый).
+    while IFS= read -r kt; do
+        _pe_build_one "$kt" "$tid" "$kind"
+    done < <(test_kt "$tid")
 
-            # Подмена dll по пути из HintPath consumer'а с восстановлением.
-            local consumer_dll="build/$tid/$name.dll"
-            local backup="build/$tid/${name}.il-dll.bak"
-            cp "$consumer_dll" "$backup"
-            cp "build/$tid/pe/$name.dll" "$consumer_dll"
-            local out
-            out="$( cd "$(test_consumer "$tid")" && timeout 180 dotnet run 2>/dev/null || true )"
-            mv -f "$backup" "$consumer_dll"
+    if [ "$kind" = "dll" ]; then
+        # Подмена DLL по пути из HintPath consumer'а с восстановлением
+        # (одна dll на тест; multi-source dll-тестов пока нет).
+        name="$(basename "$(test_kt "$tid" | head -n 1)" .kt)"
+        consumer_dll="build/$tid/$name.dll"
+        backup="build/$tid/${name}.il-dll.bak"
+        cp "$consumer_dll" "$backup"
+        cp "build/$tid/pe/$name.dll" "$consumer_dll"
+        out="$( cd "$(test_consumer "$tid")" && timeout 180 dotnet run 2>/dev/null || true )"
+        mv -f "$backup" "$consumer_dll"
 
-            case "$tid" in
-                00-int-add)
-                    [ "$out" = "5" ] || { echo "FAIL: $tid pe (got: $out)"; exit 1; } ;;
-                02-expr)
-                    [ -n "$out" ] || { echo "FAIL: $tid pe (empty output)"; exit 1; } ;;
-            esac
-            ;;
-        03-hello)
-            _pe_build_one "$(test_kt "$tid")" "$tid" "$kind"
-            _verify_pe_exe "$tid" "hello" "Hello, .NET!" ;;
-        04-loops)
-            _pe_build_one "$(test_kt "$tid")" "$tid" "$kind"
-            _verify_pe_exe "$tid" "Loops" "$(printf '10\n10\n5\n25\n42\nx = 42')" ;;
-        *)
-            log_error "_verify_pe: unknown test id '$tid'"
+        expected_raw="$(test_prop "$tid" expect "" || true)"
+        if [ -n "$expected_raw" ]; then
+            expected="$(printf '%b' "$expected_raw")"
+            if [ "$out" != "$expected" ]; then
+                echo "FAIL: $tid pe"
+                echo "--- expected ---"; echo "$expected"
+                echo "--- got ---"; echo "$out"
+                exit 1
+            fi
+        elif [ -z "$out" ]; then
+            echo "FAIL: $tid pe (empty output)"
             exit 1
-            ;;
-    esac
+        fi
+    else
+        expected="$(printf '%b' "$(test_prop "$tid" expect)")"
+        while IFS= read -r kt; do
+            name="$(basename "$kt" .kt)"
+            out="$(timeout 30 dotnet "build/$tid/pe/$name.exe" 2>/dev/null || true)"
+            if [ "$out" != "$expected" ]; then
+                echo "FAIL: $tid pe ($name)"
+                echo "--- expected ---"; echo "$expected"
+                echo "--- got ---"; echo "$out"
+                exit 1
+            fi
+        done < <(test_kt "$tid")
+    fi
     echo ">>> $tid pe OK"
 }
 
-# --- Тело: 04-loops-spec цикл по 4 spec .kt, обычный — один .kt ---
-if [ "$testid" = "04-loops-spec" ]; then
-    shopt -s nullglob
-    for kt in test-projects/04-loops/spec/*.kt; do
+# --- Тело: сборка по бэкендам из свойств теста (см. docs/test-format.md) ---
+case " $(test_backends "$testid") " in
+    *" il "*) do_il=true ;;
+    *) do_il=false ;;
+esac
+case " $(test_backends "$testid") " in
+    *" pe "*) do_pe=true ;;
+    *) do_pe=false ;;
+esac
+
+if $do_il; then
+    while IFS= read -r kt; do
         _build_one "$kt" "$testid"
-    done
-    shopt -u nullglob
-    if $no_test; then
-        log_info "done: $testid (no-test)"
-        exit 0
-    fi
-    _verify_pe "$testid"
-    log_info ">>> $testid OK"
-    exit 0
+    done < <(test_kt "$testid")
 fi
 
-kt="$(test_kt "$testid")"
-_build_one "$kt" "$testid"
+if $do_pe; then
+    if $no_test; then
+        # Только собрать pe-артефакты (без прогона и verifier).
+        while IFS= read -r kt; do
+            _pe_build_one "$kt" "$testid" "$(test_kind "$testid")"
+        done < <(test_kt "$testid")
+    else
+        _verify_pe "$testid"
+    fi
+fi
+
 if $no_test; then
     log_info "done: $testid (no-test)"
 else
-    _verify_pe "$testid"
     log_info ">>> $testid OK"
 fi

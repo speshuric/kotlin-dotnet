@@ -85,12 +85,14 @@
 | 10 | StdlibResolver → разрешение через stdlib | [D-02-resolve-stdlib-call.md](D-stdlib/D-02-resolve-stdlib-call.md) | POST-9 | D-01 | TODO |
 | 11 | IR: какая платформа/проходы (tailrec и др.) | [E-01-ir-platform-investigation.md](E-ir-platform/E-01-ir-platform-investigation.md) | PRE-9 (исследование), POST-9 (фикс) | — | TODO |
 | 12 | PascalCase/camelCase: аннотации @kotlinToPascalCase / @dotnetFromPascalCase | [F-01-name-case-annotations.md](F-name-case-annotations/F-01-name-case-annotations.md) | POST-9 (план), POST-PoC (механика) | — | TODO |
+| 12a | Проектирование единого мэппинга имён (коллизии операторных имён, CIL-слова, аксессоры) — **приоритет после Phase 10.9** | [F-02-name-mapping-design.md](F-name-case-annotations/F-02-name-mapping-design.md) | POST-10 (дизайн) | F-01, Phase 10 | TODO |
 | 13 | Дизайн: лямбды и захват контекста | [G-01-lambdas-capture.md](G-internal-design/G-01-lambdas-capture.md) | POST-9 (дизайн), POST-10 (реализация) | B-01, A-03 | TODO |
 | 14 | Дизайн: итераторы (общий + специализированные по диапазонам/строкам) | [G-02-iterators.md](G-internal-design/G-02-iterators.md) | POST-9 (дизайн) | B-01 | TODO |
 | 15 | Дизайн: hash-коллизии и районы, где напоремся | [G-03-hash-design.md](G-internal-design/G-03-hash-design.md) | POST-9 (дизайн) | — | TODO |
 | 16 | Миграция тестов из kotlin-компилятора | [H-01-kotlin-test-migration.md](H-test-migration/H-01-kotlin-test-migration.md) | POST-PoC | Phase 9–12 done | TODO |
 | 17 | dotnetutils: порт write-path SRM → Kotlin (билдер .NET-сборок) | [I-01-metadata-builder.md](I-dotnetutils/I-01-metadata-builder.md) | POST-9 (review) | — (ADR 0009) | WIP |
 | 18 | Идея: генерация C# по Kotlin для проработки кейсов | [I-02-csharp-codegen-idea.md](I-dotnetutils/I-02-csharp-codegen-idea.md) | POST-PoC | I-01 | TODO |
+| 19 | Декомпозиция PeIlEmitter (модель типов / парсер ссылок / сигнатуры / буфер опкодов / writer) — **сразу после Phase 10.9** | [J-01-pe-emitter-decomposition.md](J-pe-backend/J-01-pe-emitter-decomposition.md) | POST-10.9 (рефакторинг) | Phase 10, Phase 10.9 | TODO |
 
 ## Краткая карта тем
 
@@ -104,6 +106,7 @@ F. Name-case annotations (POST-9)  — PascalCase/camelCase через анно�
 G. Internal design (POST-9)        — лямбды, итераторы, hash
 H. Test migration (POST-PoC)       — перенос тестов из kotlin-компилятора
 I. dotnetutils (POST-9 review)     — порт write-path SRM → Kotlin, идеи
+J. PE backend (POST-10.9)          — декомпозиция PeIlEmitter
 ```
 
 ## Связь с AGENTS.md

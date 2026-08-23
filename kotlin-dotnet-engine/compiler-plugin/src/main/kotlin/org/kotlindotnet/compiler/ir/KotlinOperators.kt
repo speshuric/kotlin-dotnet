@@ -46,4 +46,15 @@ object KotlinOperators {
     const val INC = "inc"
     /** `a.dec()` / `a--` → `dec` (operator). Для примитивов → -1. */
     const val DEC = "dec"
+
+    /**
+     * Все operator-имена, обрабатываемые visitor'ом. Вызовы с другими
+     * именами считаются пользовательскими (top-level/instance, Phase 10).
+     */
+    val ALL: Set<String> = setOf(
+        PLUS, MINUS, TIMES, DIV, REM,
+        UNARY_MINUS, UNARY_PLUS, NOT,
+        AND, OR, XOR, SHL, SHR, USHR,
+        RANGE_TO, INC, DEC,
+    )
 }

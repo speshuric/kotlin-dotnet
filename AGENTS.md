@@ -217,9 +217,8 @@ Runtime-библиотека состоит из двух частей:
 
 ## План работ (поэтапный)
 
-> **Статус обновлён: 2026-08-19.** Этапы 0–1 и этап 2 выполнены
-> (Phase 0–9 в нумерации коммитов; `for`-loop — TODO Phase 11/G-02).
-> См. `CHANGELOG.md` и `adr/`.
+> **Статус обновлён: 2026-08-23.** Этапы 0–2 и Phase 9–10 выполнены
+> (`for`-loop — TODO Phase 11/G-02). См. `CHANGELOG.md` и `adr/`.
 
 > **Выравнивающие задачи (не по фазам):** структурированный план
 > рефакторинга и дизайна, не входящего в фиксированные фазы, — в
@@ -338,11 +337,12 @@ Runtime-библиотека состоит из двух частей:
 
 | Phase | Что | Зависимости | Приоритет |
 |---|---|---|---|
-| **9** | Циклы (for/while) + вызовы пользовательских функций + строковая интерполяция | — | высокий |
-| **10** ← текущая | Классы (минимальные): `.class`, поля, `.ctor`, instance-методы, `newobj`. План: TODO/PHASE-10.md | — | высокий |
+| **9** ✅ | Циклы (for/while) + вызовы пользовательских функций + строковая интерполяция | — | высокий |
+| **10** ✅ | Классы: `.class`, поля, `.ctor`, instance-методы, `newobj`, наследование, интерфейсы, open/override. Итоги: TODO/PHASE-10.md | — | высокий |
+| **10.9** ← следующая | Удаление TextIlEmitter + ilasm-ветки (D1, отдельный коммит) | Phase 10 | высокий |
 | **11** | Массивы (`int32[]`) + `readLine` + базовые строки (length, substring, +) | runtime расширение | средний |
 | **12** | Nullable (`Nullable<T>`) + дженерики (минимальные) | ADR 0003 проверка на реальном дженерике | средний |
-| **13+** | Data classes, companion objects, object declarations, enums, extension functions, коллекции (List/Map/Set через runtime) | runtime расширение | низкий |
+| **13+** | Data classes, companion objects (+ статические члены), object declarations, enums, extension functions, коллекции (List/Map/Set через runtime) | runtime расширение | низкий |
 
 **Phase 9 — выполнена** (циклы + функции + интерполяция, коммит `6a86837`):
 - `IrWhileLoop` / `IrDoWhileLoop` → IL-цикл с метками (`br`/`brfalse`).
@@ -359,17 +359,35 @@ Runtime-библиотека состоит из двух частей:
   while/do-while из kotlin-компилятора — задача 9.8 (4 теста, все "OK").
 - Тестовый проект `04-loops/` (+ `just test 04-loops`, `just test 04-loops-spec`).
 
-**Следующая сессия — Phase 10** (классы):
-- `.class`, поля (instance/static), `.ctor` (instance/static), `newobj`.
-- Instance-методы (`callvirt`), `IrConstructorCall`, `IrGetField`/`IrSetField`.
-- `IrClass` → IL `.class`, наследование (`extends`/`implements`).
-- План: `TODO/PHASE-10.md` — **написан**; ключевые решения: классы только
-  на pe-бэкенде (`test_backends` в реестре), il-путь заморожен на Phase 9;
-  сначала наблюдения IR (10.0), затем эмиттеры.
-- После фазы: удаление TextIlEmitter + ilasm-ветки (отдельный коммит).
-- Затем по порядку: **interop** (имена PascalCase/camelCase, аннотации
-  трансляции имён, аналог `JVMName`/`JSName`) → **базовая расширяемая
-  прокладка stdlib** → возврат к фичам языка (по необходимости).
+**Phase 10 — выполнена** (классы, pe-бэкенд):
+- `IrClass` → TypeDef (поля → ctor → методы), интерфейсы (`Interface|Abstract`,
+  extends=nil, `addInterfaceImplementation`).
+- Поля: бэкинг-поля свойств → FieldDef (private); инициализаторы полей
+  инжектируются в primary ctor (в IR они висят на `FIELD.EXPRESSION_BODY`,
+  в теле ctor их нет — наблюдения 10.0).
+- Дефолтные аксессоры свойств → обычные instance-методы `<get-x>`/`<set-x>`;
+  чтение/запись свойств идут через callvirt этих аксессоров.
+- Конструкторы: `IrDelegatingConstructorCall` (ldarg.0 + args + call base),
+  `IrConstructorCall` (args + newobj); синтез дефолтного `.ctor` в эмиттере.
+- Instance-вызовы → `callvirt`; fake overrides спускаются по
+  `overriddenSymbols` к реальной реализации.
+- Наследование/интерфейсы; open/override → Virtual|NewSlot / Virtual|ReuseSlot,
+  полиморфизм через базовую переменную (Animal/Dog).
+- Ключевые находки (детали — TODO/PHASE-10.md §«Итоги»):
+  TypeAttributes.Public=0x1 (не 0x6!); NIL-scope TypeRef CLR не принимает —
+  свои типы только через предвычисленные TypeDef; у ctor-параметров сдвиг
+  arg+1; операторные имена (inc/plus) различаются по пакету callee (kotlin.*
+  vs пользовательский класс).
+- Тестовый проект `05-classes/`, помечен `test_backends=pe` в реестре;
+  verifier расширен детальным дампом метаданных.
+
+**Следующая сессия — Phase 10.9**: удаление TextIlEmitter + ilasm-ветки
+(D1, отдельный коммит). Сразу после — выравнивающие задачи:
+**J-01** декомпозиция PeIlEmitter (файл разросся до ~1000 строк,
+TODO/J-pe-backend/) и **F-02** проектирование единого мэппинга имён
+(коллизии операторных имён, TODO/F-name-case-annotations/). Затем по
+порядку: **interop** (аннотации трансляции имён, аналог `JVMName`/`JSName`)
+→ **базовая расширяемая прокладка stdlib** → возврат к фичам языка.
 
 ## Структура проекта (актуальная)
 
@@ -424,11 +442,15 @@ kotlin-dotnet/
 ├── runtime/                        # KotlinDotnetRuntime (C# class library)
 │   ├── KotlinDotnetRuntime.csproj
 │   └── src/Print.cs              # Kotlin.Runtime.Print (println/print)
-├── test-projects/                # Тестовые Kotlin-проекты
+├── test-projects/                # Тесты: 1 тест = 1 папка + test.properties
+│   │                             # (формат и схема ключей: docs/test-format.md)
 │   ├── 00-int-add/               # test_add(Int,Int): Int → DLL + C# consumer
 │   ├── 02-expr/                  # 16 выражений → DLL + C# consumer
 │   ├── 03-hello/                 # fun main() { println(...) } → EXE
-│   └── 04-loops/                 # циклы/функции/интерполяция → EXE + spec-тесты
+│   ├── 04-loops/                 # циклы/функции/интерполяция → EXE
+│   ├── 04-loops-spec/            # spec-тесты while/do-while из kotlin/tests-spec → EXE ×4
+│   ├── 05-pe-hello/              # образ строит Gradle-тест dotnetutils (type=gradle-image)
+│   └── 05-classes/               # классы/наследование/интерфейсы/open-override → EXE (pe-only)
 ├── kotlin-dotnet-utils/          # .NET-сторона проекта (C#-утилиты)
 │   ├── README.md                 # назначение и использование
 │   └── verifier/                 # C#-harness: открывает образы настоящим SRM
@@ -447,7 +469,9 @@ kotlin-dotnet/
 │   ├── show.sh                 # il | ir | disasm × last | all | <testid> | <glob>
 │   └── clean.sh                # all | build | sdk | sources
 ├── discussions/                  # Архив чатов и логов (gitignored кроме README)
-├── docs/                         # il-reference.md, references.md, generics-strategy.md
+├── docs/                         # il-reference.md, references.md, generics-strategy.md,
+│   │                             # test-format.md (формат тестов)
+│   ├── test-format.md            # 1 тест = 1 папка + test.properties
 ├── TODO/                         # Выравнивающие задачи + PHASE-9.md (см. TODO/README.md)
 ├── adr/                          # Architecture Decision Records
 │   ├── 0001-pipeline-ir-to-il.md
@@ -484,7 +508,8 @@ kotlin-dotnet/
 8. **IL-текст — основной формат вывода** (человекочитаемый,
    отлаживаемый). Бинарный PE — через ilasm.
 9. **Каждый этап — с тестовым проектом**, который можно
-   скомпилировать и запустить.
+   скомпилировать и запустить. Формат: 1 тест = 1 папка в
+   `test-projects/` + `test.properties` (см. docs/test-format.md).
 10. **Сохранять работоспособность предыдущих этапов** при
     добавлении новых возможностей (регрессионные тесты).
 11. **Runtime-библиотека — промежуточный слой** между

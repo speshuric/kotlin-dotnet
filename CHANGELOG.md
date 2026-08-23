@@ -4,6 +4,69 @@
 
 ## [Unreleased]
 
+### Changed — реестр тестов: 1 тест = 1 папка, без хардкода имён
+
+- `scripts/tests.sh` больше не содержит имён тестов: id = имя папки в
+  `test-projects/`, содержащей `test.properties`; папка без свойств
+  тестом не считается. `TEST_IDS`/`tests_list` строятся обходом каталога.
+- Атрибуты теста (`kind`/`backends`/`sources`/`consumer`/`expect`/`desc`/
+  `type`) читаются из `test.properties`; формат и схема ключей —
+  `docs/test-format.md`.
+- `04-loops-spec` выделен в собственную папку (spec-файлы переехали из
+  `04-loops/spec/`); multi-source тесты собираются per-source.
+- Особый путь `05-pe-hello` (образ строит Gradle-тест) переключён на
+  свойство `type=gradle-image` вместо сравнения по id; ожидания выводов
+  всех тестов перенесены в `expect` (с `\n`-escape).
+- `scripts/build-test.sh`: универсальные `_verify`/`_verify_pe` без
+  case-таблиц по id; ветки il/pe управляются свойством `backends`.
+
+### Added — Phase 10: классы (TypeDef, поля, конструкторы, instance-методы)
+
+- `IrClass` → TypeDef в PeIlEmitter: поля (`addFieldDefinition`, private
+  бэкинг-поля), конструкторы (`0x1886`), instance-методы (`0x0086`),
+  диапазоны fieldList/methodList по группам типов (каскад с конца);
+  `<Module>` + контейнер + классы. Синтез дефолтного `.ctor` как страховка
+  (K2 сам кладёт primary ctor в IR).
+- Интерфейсы: `Interface|Abstract` (extends=nil) +
+  `addInterfaceImplementation`; пустые интерфейсы.
+- Наследование: `IrDelegatingConstructorCall` → `ldarg.0` + args +
+  `call base::.ctor`; `IrConstructorCall` → args + `newobj`.
+- Instance-вызовы → `callvirt`; dispatch receiver = `arguments[0]`;
+  fake overrides спускаются по `overriddenSymbols`. Свойства — через
+  дефолтные аксессоры `<get-x>`/`<set-x>` (обычные instance-методы).
+- open/override (10.7): Virtual|NewSlot / Virtual|ReuseSlot; полиморфизм
+  через базовую переменную.
+- Инициализаторы полей инжектируются в primary ctor (в K2 IR они висят на
+  `FIELD.EXPRESSION_BODY`, в теле ctor их нет).
+- Тест `05-classes` (pe-only, реестр `test_backends`): классы, var/val,
+  наследование, интерфейс, полиморфизм; verifier OK.
+- Verifier расширен детальным дампом (attrs/extends/диапазоны/TypeRef-scope).
+
+Ловушки зафиксированы (детали — TODO/PHASE-10.md §«Итоги»):
+- **TypeAttributes.Public = 0x1** (не 0x6 — это MethodAttributes): 0x6
+  перекочевал из таблицы флагов методов плана фазы; флаги класса с такой
+  видимостью дают невалидный top-level тип → TypeLoadException
+  «format is invalid» только при первой загрузке типа.
+- Ссылки на свои типы — прямые TypeDef с предвычисленными хэндлами
+  (каноничная форма, как у csc/ilasm). NIL-scope TypeRef тоже работает на
+  net10 CLR (проверено экспериментом), но компиляторами не используется.
+- У конструкторов нет this-параметра в IR → параметры сдвинуты на arg+1.
+- Операторные имена (`inc`/`plus`) обрабатываются как опкоды только для
+  callee из `kotlin.*` — иначе коллизия с пользовательскими методами;
+  системное решение вынесено в TODO F-02 (мэппинг имён).
+- Override обязан быть виртуальным даже в final-классе (иначе скрывает
+  слот базы и ломает полиморфизм).
+
+### Changed — dotnetutils: доступ к номерам строк только через MetadataTokens
+
+- `rowId` хэндлов остался **internal** — публичная поверхность API
+  сохранена паритетной апстримному SRM (там RowId тоже не экспортируется;
+  подтверждено по ref-сборке System.Reflection.Metadata). Промежуточно
+  внесённое расширение видимости откачено.
+- PeIlEmitter для диапазонов fieldList/methodList использует канонический
+  `MetadataTokens.getRowNumber(handle.toEntityHandle())` (API уже было в
+  порте, зеркалит апстримный `GetRowNumber(EntityHandle)`).
+
 ### Added — порт System.Reflection.Metadata на Kotlin: модуль `dotnetutils` (ADR 0009, итерации I0–I8)
 
 Полный write-path + минимальный read-path SRM на чистом Kotlin stdlib

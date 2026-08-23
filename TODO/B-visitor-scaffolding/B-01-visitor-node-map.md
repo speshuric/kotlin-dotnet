@@ -47,18 +47,18 @@ Ir-узел, в `visitElement` бросается `TODO`, и кто-то доп�
 |---|---|---|---|
 | `IrFile` | ✅ | 4 | `.assembly` + container class |
 | `IrSimpleFunction` (top-level) | ✅ | 4 | static method |
-| `IrSimpleFunction` (instance) | TODO | 10 | instance method (ldarg.0 = this) |
-| `IrSimpleFunction` (extension) | TODO | 10 | static method, receiver = param 0 |
-| `IrClass` | TODO | 10 | `.class` declaration |
-| `IrConstructor` | TODO | 10 | `.ctor` (instance/static) |
-| `IrField` | TODO | 10 | `.field` (instance/static) |
-| `IrProperty` | TODO | 10 | property + get/set accessors |
+| `IrSimpleFunction` (instance) | ✅ | 10 | instance method (ldarg.0 = this), callvirt |
+| `IrSimpleFunction` (extension) | TODO | POST-10 | static method, receiver = param 0 |
+| `IrClass` | ✅ | 10 | TypeDef: поля → ctor → методы; FAKE_OVERRIDE skip |
+| `IrConstructor` | ✅ | 10 | `.ctor` + инжекция инициализаторов полей в primary |
+| `IrField` | ✅ | 10 | FieldDef (private backing field), ldfld/stfld |
+| `IrProperty` | ✅ | 10 | дефолтные аксессоры → instance-методы `<get-x>`/`<set-x>` |
 | `IrVariable` | ✅ | 7 | `.locals` entry + `stloc` |
-| `IrValueParameter` | ✅ | 4 | `ldarg.<index>` |
+| `IrValueParameter` | ✅ | 4 | `ldarg.<index>`; ctor-параметры сдвинуты на +1 (Phase 10) |
 | `IrTypeParameter` | TODO | 12 | generic param `<T>` |
 | `IrTypeAlias` | TODO | POST-PoC | — (skip) |
 | `IrEnumEntry` | TODO | 13 | static field with init |
-| `IrAnonymousInitializer` | TODO | 10 | instance init block |
+| `IrAnonymousInitializer` | ✅-мин. | 10 | пустые — no-op; непустые — TODO Phase 10.x |
 | `IrEnumDeclaration` | TODO | 13 | `.class sealed extends Enum` or `.class ... enum` |
 | `IrScript` | TODO | POST-PoC | JS-specific, skip for .NET |
 | `IrModuleFragment` | n/a | — | обрабатывается в extension, не visitor |
@@ -76,11 +76,11 @@ Ir-узел, в `visitElement` бросается `TODO`, и кто-то доп�
 | Узел | Статус | Фаза | Семантика → IL |
 |---|---|---|---|
 | `IrConst` | ✅ | 7 | `ldc.*` / `ldstr` / `ldnull` |
-| `IrCall` (operator) | ✅ | 7 | opcode (add/sub/...) |
+| `IrCall` (operator) | ✅ | 7 | opcode (add/sub/...); Phase 10: только для callee из kotlin.* |
 | `IrCall` (stdlib) | ✅ | 8 | `call [Runtime]Kotlin.Runtime.*` |
-| `IrCall` (user, top-level) | TODO | 9 | `call <File>Kt::method` |
-| `IrCall` (instance) | TODO | 10 | `ldarg.0; callvirt` |
-| `IrCall` (extension) | TODO | 10 | static call with receiver |
+| `IrCall` (user, top-level) | ✅ | 9 | `call <File>Kt::method` |
+| `IrCall` (instance) | ✅ | 10 | `callvirt` (receiver = arguments[0]) |
+| `IrCall` (extension) | TODO | POST-10 | static call with receiver |
 | `IrGetValue` | ✅ | 7 | `ldarg` / `ldloc` |
 | `IrSetValue` | ✅ | 7 | `stloc` (locals only) |
 | `IrSetValue` (field) | TODO | 10 | `stfld` |
@@ -105,11 +105,11 @@ Ir-узел, в `visitElement` бросается `TODO`, и кто-то доп�
 | `IrFunctionReference` | TODO | G-01 | delegate |
 | `IrPropertyReference` | TODO | POST-PoC | — |
 | `IrClassReference` | TODO | POST-PoC | `ldtoken` |
-| `IrGetField` | TODO | 10 | `ldfld` / `ldsfld` |
-| `IrSetField` | TODO | 10 | `stfld` / `stsfld` |
+| `IrGetField` | ✅ | 10 | `ldfld` (ldsfld — Phase 13) |
+| `IrSetField` | ✅ | 10 | `stfld` (stsfld — Phase 13) |
 | `IrGetObjectValue` | TODO | 13 | `ldsfld <Object>_INSTANCE` |
 | `IrGetEnumValue` | TODO | 13 | `ldsfld <EnumEntry>` |
-| `IrInstanceInitializerCall` | TODO | 10 | `newobj` + `.ctor` |
+| `IrInstanceInitializerCall` | ✅ | 10 | no-op (аллокация в newobj на месте вызова) |
 | `IrNewInstance` | TODO | 10 | `newobj` |
 | `IrNewArray` | TODO | 11 | `newarr` |
 | `IrCall` (lambda invoke) | TODO | G-01 | callvirt on delegate |
@@ -220,5 +220,13 @@ IR-классы. Их маппинг:
   `IrCall` (`visitCall`); категория определяется по `origin` и
   `symbol.owner`. Различение в `emitCall`.
 - **`IrSetValue` (field)** → тот же `IrSetValue` (`visitSetValue`);
-  отличие — по `symbol.owner` (`IrField` vs `IrVariable`). Различение в
-  `emitSetValue`.
+  отличие — по `symbol.owner` (`IrVariable` vs `IrField`). Различение в
+  `emitSetValue`. В K2 IR присваивание полям идёт через `IrSetField`
+  (в т.ч. в телах дефолтных сеттеров); ветка IrField в `emitSetValue`
+  оставлена как defensive-TODO.
+- **`IrDelegatingConstructorCall`** → `visitDelegatingConstructorCall`
+  (Phase 10). Слота receiver нет: `this` подаётся явно `ldarg.0`.
+  Отсутствовал в scaffolding B-01 — добавлен в Phase 10.
+- **`IrConstructorCall`** → `visitConstructorCall` (Phase 10): args +
+  NEWOBJ, слота receiver нет.
+- **Статусы Phase 10**: см. TODO/PHASE-10.md §«Итоги реализации».

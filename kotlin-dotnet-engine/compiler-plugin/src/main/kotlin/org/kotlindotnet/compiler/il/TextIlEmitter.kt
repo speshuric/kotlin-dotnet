@@ -124,7 +124,45 @@ class TextIlEmitter : IlEmitter {
         contextStack.removeAt(contextStack.lastIndex)
     }
 
+    // === IlEmitter: user classes (Phase 10) — il-путь заморожен на Phase 9 (D1) ===
+
+    override fun beginClass(
+        namespace: String,
+        name: String,
+        flags: UInt,
+        baseTypeCil: String?,
+        interfaces: List<String>
+    ) {
+        TODO("removed after Phase 10: user classes are pe-backend only (D1)")
+    }
+
+    override fun endClass() {
+        TODO("removed after Phase 10: user classes are pe-backend only (D1)")
+    }
+
+    override fun declareField(cilType: String, name: String, isStatic: Boolean): Int {
+        TODO("removed after Phase 10: user classes are pe-backend only (D1)")
+    }
+
     // === IlEmitter: static method ===
+
+    override fun beginMethod(
+        name: String,
+        returnType: String,
+        params: List<Pair<String, String>>,
+        isStatic: Boolean,
+        isEntrypoint: Boolean,
+        attributesOverride: UInt?
+    ) {
+        if (!isStatic) {
+            TODO("removed after Phase 10: instance methods are pe-backend only (D1)")
+        }
+        beginStaticMethod(name, returnType, params, isEntrypoint)
+    }
+
+    override fun beginConstructor(params: List<Pair<String, String>>) {
+        TODO("removed after Phase 10: user classes are pe-backend only (D1)")
+    }
 
     override fun beginStaticMethod(
         name: String,

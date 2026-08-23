@@ -94,5 +94,11 @@ enum class IlOpcode(val il: String) {
     STELEM_REF("stelem.ref"),
     /** `ldelem.ref` — загрузка object-ссылки из массива по индексу. */
     LDELEM_REF("ldelem.ref"),
+
+    // === Поля экземпляра (Phase 10; ldsfld/stsfld — Phase 13, статические члены) ===
+    /** `ldfld <field-ref>` — загрузка поля экземпляра (receiver на стеке). */
+    LDFLD("ldfld"),
+    /** `stfld <field-ref>` — сохранение в поле экземпляра (receiver+value на стеке). */
+    STFLD("stfld"),
     ;
 }

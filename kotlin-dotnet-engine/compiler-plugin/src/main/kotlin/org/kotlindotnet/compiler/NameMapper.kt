@@ -1,5 +1,6 @@
 package org.kotlindotnet.compiler
 
+import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import java.io.File
@@ -10,7 +11,7 @@ import java.io.File
  * PoC-решения:
  * - package → namespace: **verbatim** (lowercase, 1:1).
  * - top-level functions → контейнер `<FileName>Kt` (JVM-mirror).
- * - имена методов: **verbatim** (включая `_`).
+ * - имена методов и классов: **verbatim** (включая `_`, `<get-x>`).
  * - assembly name: из имени файла (без расширения).
  *
  * TODO: namespace-трансформация в PascalCase для идиоматичности .NET.
@@ -22,6 +23,9 @@ object NameMapper {
         val fileName = File(file.fileEntry.name).nameWithoutExtension
         return "${fileName}Kt"
     }
+
+    /** Имя пользовательского класса — verbatim. */
+    fun className(declaration: IrClass): String = declaration.name.asString()
 
     /** Namespace из fqName файла (verbatim). */
     fun namespace(file: IrFile): String = file.packageFqName.asString()

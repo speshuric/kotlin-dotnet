@@ -1,10 +1,12 @@
 package org.kotlindotnet.compiler
 
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -28,6 +30,7 @@ import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstKind
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrContinue
+import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrDoWhileLoop
 import org.jetbrains.kotlin.ir.expressions.IrErrorExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -57,7 +60,11 @@ import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
 import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.expressions.IrWhen
 import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.types.isAny
 import org.jetbrains.kotlin.ir.types.isUnit
+import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.visitors.IrVisitor
 import org.kotlindotnet.compiler.il.IlEmitter
@@ -145,35 +152,46 @@ class DotnetIrVisitor(
         // Эмитим extern KotlinDotnetRuntime всегда — лишний extern не вредит,
         // а двухпроходный обход для поиска stdlib-вызовов усложнит PoC.
         emitter.assemblyHeader(asm, withRuntime = true)
+
+        // Двухпроходный порядок (Phase 10): сначала все top-level функции в
+        // контейнерный класс, затем пользовательские классы. Это гарантирует
+        // смежность MethodDef-строк каждой группы типов (требование ECMA
+        // для fieldList/methodList диапазонов). Финализация (pe-бэкенд)
+        // происходит в endContainerClass — классы регистрируются ДО неё.
         emitter.beginContainerClass(ns, cls)
         for (decl in declaration.declarations) {
             if (decl !is IrSimpleFunction) continue
+            if (decl.dispatchReceiverParameter != null) continue // члены классов — во 2-м проходе
             emitSimpleFunction(decl, data)
+        }
+        for (decl in declaration.declarations) {
+            if (decl is IrClass) emitClass(decl, data)
         }
         emitter.endContainerClass()
     }
 
     override fun visitSimpleFunction(declaration: IrSimpleFunction, data: Nothing?) {
-        // top-level function (Phase 4): эмитим.
-        // instance / extension (Phase 10): сейчас emitSimpleFunction бросает
-        // TODO при наличии dispatchReceiverParameter — оставляем как есть.
+        // top-level (Phase 4) и instance-методы/аксессоры (Phase 10):
+        // различение внутри emitSimpleFunction по dispatchReceiverParameter.
         emitSimpleFunction(declaration, data)
     }
 
     override fun visitClass(declaration: IrClass, data: Nothing?) {
-        TODO("[B-01] IrClass — Phase 10")
+        emitClass(declaration, data)
     }
 
     override fun visitConstructor(declaration: IrConstructor, data: Nothing?) {
-        TODO("[B-01] IrConstructor — Phase 10")
+        emitConstructor(declaration, data)
     }
 
     override fun visitField(declaration: IrField, data: Nothing?) {
-        TODO("[B-01] IrField — Phase 10")
+        // Поля объявляются в emitClass (declareField); самостоятельного
+        // обхода IrField нет — инициализаторы инжектируются в primary ctor.
     }
 
     override fun visitProperty(declaration: IrProperty, data: Nothing?) {
-        TODO("[B-01] IrProperty — Phase 10")
+        // Свойства обрабатываются в emitClass: бэкинг-поле → declareField,
+        // дефолтные аксессоры → обычные instance-методы (наблюдения 10.0).
     }
 
     override fun visitVariable(declaration: IrVariable, data: Nothing?) {
@@ -198,7 +216,12 @@ class DotnetIrVisitor(
     }
 
     override fun visitAnonymousInitializer(declaration: IrAnonymousInitializer, data: Nothing?) {
-        TODO("[B-01] IrAnonymousInitializer — Phase 10")
+        // Пустые init-блоки — no-op (наблюдения 10.0: K2 кладёт их в primary
+        // ctor; инициализаторы свойств мы инжектируем отдельно).
+        val hasStatements = (declaration.body as? IrBlockBody)?.statements?.isNotEmpty() == true
+        if (hasStatements) {
+            TODO("[B-01] IrAnonymousInitializer (non-empty) — Phase 10.x")
+        }
     }
 
     // Примечание: IrEnumDeclaration в IR-дереве Kotlin — это IrClass с
@@ -341,11 +364,11 @@ class DotnetIrVisitor(
     }
 
     override fun visitGetField(expression: IrGetField, data: Nothing?) {
-        TODO("[B-01] IrGetField — Phase 10")
+        emitGetField(expression, data)
     }
 
     override fun visitSetField(expression: IrSetField, data: Nothing?) {
-        TODO("[B-01] IrSetField — Phase 10")
+        emitSetField(expression, data)
     }
 
     override fun visitGetObjectValue(expression: IrGetObjectValue, data: Nothing?) {
@@ -357,13 +380,21 @@ class DotnetIrVisitor(
     }
 
     override fun visitInstanceInitializerCall(expression: IrInstanceInitializerCall, data: Nothing?) {
-        TODO("[B-01] IrInstanceInitializerCall — Phase 10")
+        // Маркер инициализации экземпляра в primary ctor (наблюдения 10.0):
+        // для нас no-op — аллокация происходит в newobj на месте вызова.
     }
 
     // Примечание: IrNewInstance в IR-дереве Kotlin — это IrConstructorCall
     // (visitConstructorCall). Отдельного IrNewInstance-узла нет.
     override fun visitConstructorCall(expression: IrConstructorCall, data: Nothing?) {
-        TODO("[B-01] IrConstructorCall (newobj) — Phase 10")
+        emitConstructorCall(expression, data)
+    }
+
+    override fun visitDelegatingConstructorCall(
+        expression: IrDelegatingConstructorCall,
+        data: Nothing?,
+    ) {
+        emitDelegatingConstructorCall(expression, data)
     }
 
     // Примечание: IrNewArray в IR-дереве Kotlin отсутствует — массивы
@@ -385,26 +416,33 @@ class DotnetIrVisitor(
     // Приватные emit-методы (реализация уже-обработанных узлов).
     // =====================================================================
 
-    private fun emitSimpleFunction(declaration: IrSimpleFunction, data: Nothing?) {
-        if (declaration.dispatchReceiverParameter != null) {
-            TODO("[B-01] IrSimpleFunction (instance) — Phase 10")
-        }
+    private fun emitSimpleFunction(
+        declaration: IrSimpleFunction,
+        data: Nothing?,
+        attributesOverride: UInt? = null,
+    ) {
+        val isInstance = declaration.dispatchReceiverParameter != null
 
         // Сброс состояния для нового метода.
         variableIndices.clear()
         emitter.resetMethodState()
 
         val name = NameMapper.methodName(declaration)
-        val retType = TypeMapper.mapType(declaration.returnType)
+        val retType = cilTypeOf(declaration.returnType)
         val params = declaration.parameters
             .filter { it.kind == IrParameterKind.Regular }
             .map { p: IrValueParameter ->
-                TypeMapper.mapType(p.type) to p.name.asString()
+                cilTypeOf(p.type) to p.name.asString()
             }
 
-        // main() → .entrypoint (Phase 8).
-        val isEntrypoint = name == "main"
-        emitter.beginStaticMethod(name, retType, params, isEntrypoint = isEntrypoint)
+        // main() → .entrypoint (Phase 8); только статический main (Phase 10).
+        val isEntrypoint = !isInstance && name == "main"
+        emitter.beginMethod(
+            name, retType, params,
+            isStatic = !isInstance,
+            isEntrypoint = isEntrypoint,
+            attributesOverride = attributesOverride,
+        )
 
         // Предварительно обходим тело, чтобы собрать локальные переменные.
         // Это нужно, чтобы .locals init шёл до инструкций.
@@ -421,6 +459,294 @@ class DotnetIrVisitor(
         }
 
         emitter.endStaticMethod()
+    }
+
+    // =====================================================================
+    // Классы (Phase 10): emitClass / конструкторы / поля / instance-вызовы.
+    // Фактические IR-формы — в TODO/PHASE-10.md §«10.0 Наблюдения».
+    // =====================================================================
+
+    /**
+     * Пользовательский класс → beginClass + поля + конструкторы/методы.
+     *
+     * FAKE_OVERRIDE-члены (equals/hashCode/toString и унаследованные)
+     * пропускаются — у них нет тел, реальные реализации живут в предке.
+     */
+    private fun emitClass(declaration: IrClass, data: Nothing?) {
+        if (declaration.isInterface) {
+            emitInterface(declaration)
+            return
+        }
+
+        val file = declaration.parent as? IrFile
+            ?: error("Class ${declaration.name} is not top-level (parent is ${declaration.parent::class.simpleName})")
+        val ns = NameMapper.namespace(file)
+
+        var baseCil: String? = null
+        val interfaces = mutableListOf<String>()
+        for (superType in declaration.superTypes) {
+            if (superType.isAny()) continue
+            val owner = superType.classOrNull?.owner as? IrClass
+            if (owner?.isInterface == true) {
+                interfaces.add(cilTypeOf(superType))
+            } else if (baseCil == null) {
+                baseCil = cilTypeOf(superType)
+            }
+        }
+        emitter.beginClass(ns, NameMapper.className(declaration), classFlags(declaration), baseCil, interfaces)
+
+        // Бэкинг-поля свойств + их дефолтные аксессоры (наблюдения 10.0:
+        // FIELD PROPERTY_BACKING_FIELD; аксессоры висят на свойстве,
+        // в class.declarations их нет).
+        for (prop in declaration.declarations.filterIsInstance<IrProperty>()) {
+            if (prop.origin == IrDeclarationOrigin.FAKE_OVERRIDE) continue
+            val backingField = prop.backingField
+            if (backingField != null) {
+                emitter.declareField(cilTypeOf(backingField.type), backingField.name.asString(), backingField.isStatic)
+            }
+            // Дефолтные аксессоры эмитим как обычные instance-методы.
+            for (accessor in listOf(prop.getter, prop.setter)) {
+                if (accessor == null) continue
+                if (accessor.body != null && accessor.origin != IrDeclarationOrigin.FAKE_OVERRIDE) {
+                    emitSimpleFunction(accessor, data, memberAttributes(accessor, declaration))
+                }
+            }
+        }
+        // Прямые декларации полей (без свойства) — на всякий случай.
+        for (field in declaration.declarations.filterIsInstance<IrField>()) {
+            emitter.declareField(cilTypeOf(field.type), field.name.asString(), field.isStatic)
+        }
+
+        for (member in declaration.declarations) {
+            when (member) {
+                is IrConstructor -> emitConstructor(member, data)
+                is IrSimpleFunction ->
+                    // FAKE_OVERRIDE не имеют тел; дефолтные аксессоры и обычные
+                    // методы эмитятся единым instance-путём.
+                    if (member.body != null && member.origin != IrDeclarationOrigin.FAKE_OVERRIDE) {
+                        emitSimpleFunction(member, data, memberAttributes(member, declaration))
+                    }
+                else -> Unit
+            }
+        }
+
+        emitter.endClass()
+    }
+
+    /** Пустой интерфейс → TypeDef с Interface|Abstract; члены с телами — Phase 13. */
+    private fun emitInterface(declaration: IrClass) {
+        val file = declaration.parent as? IrFile
+            ?: error("Interface ${declaration.name} is not top-level")
+        val ns = NameMapper.namespace(file)
+        // Public | Interface | Abstract (TypeAttributes.Public = 0x1!);
+        // extends = nil (см. наблюдение P4).
+        emitter.beginClass(ns, NameMapper.className(declaration), 0x00A1u, null, emptyList())
+        for (member in declaration.declarations) {
+            when (member) {
+                is IrSimpleFunction ->
+                    if (member.body != null && member.origin != IrDeclarationOrigin.FAKE_OVERRIDE) {
+                        TODO("[B-01] interface member with body (${member.name}) — Phase 13")
+                    }
+                else -> Unit
+            }
+        }
+        emitter.endClass()
+    }
+
+    /**
+     * Конструктор класса. Тело уже содержит DELEGATING_CONSTRUCTOR_CALL
+     * (+ INSTANCE_INITIALIZER_CALL — no-op). После delegating call инжектируем
+     * инициализаторы бэкинг-полей (наблюдения 10.0: они висят на
+     * FIELD.EXPRESSION_BODY и НЕ присутствуют в теле ctor).
+     *
+     * Инжекция — только в primary ctor: secondary делегируют в this(...),
+     * и инициализация выполняется в цепочке ровно один раз.
+     */
+    private fun emitConstructor(declaration: IrConstructor, data: Nothing?) {
+        variableIndices.clear()
+        emitter.resetMethodState()
+
+        val params = declaration.parameters
+            .filter { it.kind == IrParameterKind.Regular }
+            .map { p: IrValueParameter -> cilTypeOf(p.type) to p.name.asString() }
+        emitter.beginConstructor(params)
+
+        val body = declaration.body ?: error("Constructor of ${declaration.parent} has no body")
+        collectLocals(body)
+        emitter.emitLocalsIfAny()
+
+        emitBody(body, data)
+
+        if (declaration.isPrimary) {
+            val owningClass = declaration.parent as IrClass
+            for (prop in owningClass.declarations.filterIsInstance<IrProperty>()) {
+                if (prop.origin == IrDeclarationOrigin.FAKE_OVERRIDE) continue
+                val backingField = prop.backingField ?: continue
+                val initializer = backingField.initializer ?: continue
+                emitter.ldarg(0)
+                emitExpr(initializer.expression, data)
+                emitter.opcode(IlOpcode.STFLD, fieldRef(backingField))
+            }
+        }
+
+        emitter.opcode(IlOpcode.RET)
+        emitter.endStaticMethod()
+    }
+
+    /**
+     * `Point(1, 2)` → args + NEWOBJ `.ctor`. Слота receiver нет
+     * (наблюдения 10.0): аллокацию делает сам newobj.
+     */
+    private fun emitConstructorCall(call: IrConstructorCall, data: Nothing?) {
+        call.arguments.forEach { a -> a?.let { emitExpr(it, data) } }
+        emitter.opcode(IlOpcode.NEWOBJ, constructorRef(call.symbol.owner))
+    }
+
+    /**
+     * Делегирующий вызов конструктора (base или this). Слота receiver тоже
+     * нет — `this` подаётся явно через ldarg.0 перед аргументами.
+     */
+    private fun emitDelegatingConstructorCall(
+        call: IrDelegatingConstructorCall,
+        data: Nothing?,
+    ) {
+        emitter.ldarg(0)
+        call.arguments.forEach { a -> a?.let { emitExpr(it, data) } }
+        emitter.opcode(IlOpcode.CALL, constructorRef(call.symbol.owner))
+    }
+
+    /** `ldfld <field-ref>`: receiver на стеке из [expression.receiver]. */
+    private fun emitGetField(expression: IrGetField, data: Nothing?) {
+        val field = expression.symbol.owner
+        if (field.isStatic) {
+            TODO("[B-01] static field access (ldsfld) — Phase 13")
+        }
+        val receiver = expression.receiver
+            ?: error("IrGetField without receiver: ${field.name}")
+        emitExpr(receiver, data)
+        emitter.opcode(IlOpcode.LDFLD, fieldRef(field))
+    }
+
+    /** `stfld <field-ref>`: порядок стека — object, value. */
+    private fun emitSetField(expression: IrSetField, data: Nothing?) {
+        val field = expression.symbol.owner
+        if (field.isStatic) {
+            TODO("[B-01] static field access (stsfld) — Phase 13")
+        }
+        val receiver = expression.receiver
+            ?: error("IrSetField without receiver: ${field.name}")
+        emitExpr(receiver, data)
+        emitExpr(expression.value, data)
+        emitter.opcode(IlOpcode.STFLD, fieldRef(field))
+    }
+
+    /**
+     * Instance-call → `callvirt`. Dispatch receiver занимает `arguments[0]`
+     * (наблюдения 10.0). Ref строится по declaring-классу реальной
+     * реализации: fake overrides (без тела) спускаются по overriddenSymbols
+     * (наблюдение P3: чтение унаследованного свойства резолвится в fake
+     * override производного класса).
+     */
+    private fun emitInstanceCall(call: IrCall, data: Nothing?) {
+        val callee = call.symbol.owner as IrSimpleFunction
+        val realCallee = resolveRealOverride(callee)
+
+        val dispatch = call.dispatchReceiver
+            ?: error("Instance call without dispatch receiver: ${callee.name}")
+        emitExpr(dispatch, data)
+
+        // Остальные слоты аргументов после dispatch receiver.
+        for (i in 1 until call.arguments.size) {
+            call.arguments[i]?.let { emitExpr(it, data) }
+        }
+
+        val declaringClass = realCallee.parent as? IrClass
+            ?: error("Callee ${realCallee.name} has no IrClass parent")
+        val paramSig = realCallee.parameters
+            .filter { it.kind == IrParameterKind.Regular }
+            .joinToString(", ") { cilTypeOf(it.type) }
+        val retCil = cilTypeOf(realCallee.returnType)
+        val methodName = NameMapper.methodName(realCallee).removeSurrounding("'")
+        val ref =
+            "$retCil instance ${qualifiedClassName(declaringClass)}::$methodName($paramSig)"
+        emitter.opcode(IlOpcode.CALLVIRT, ref)
+    }
+
+    /** Спуск по overriddenSymbols до функции с телом (fake overrides без тела). */
+    private fun resolveRealOverride(fn: IrSimpleFunction): IrSimpleFunction {
+        var currentFn = fn
+        var hops = 0
+        while (currentFn.body == null) {
+            val next = currentFn.overriddenSymbols.firstOrNull()?.owner ?: break
+            currentFn = next
+            if (++hops > 64) error("overriddenSymbols chain too deep at ${fn.name}")
+        }
+        return currentFn
+    }
+
+    /**
+     * MethodAttributes для open/override (10.7).
+     *
+     * override → Public|HideBySig|Virtual (ReuseSlot, 0x00C6) — ОБЯЗАТЕЛЬНО
+     * виртуальный даже в final-классе, иначе метод скрывает слот базы и
+     * полиморфизм через базовую переменную ломается;
+     * open в неоткрытом-для-наследования классе → дефолт (некому переопределять);
+     * open в открытом классе → + NewSlot (0x01C6).
+     */
+    private fun memberAttributes(fn: IrSimpleFunction, containingClass: IrClass): UInt? =
+        when {
+            fn.overriddenSymbols.isNotEmpty() -> 0x000000C6u
+            containingClass.modality != Modality.FINAL && fn.modality == Modality.OPEN -> 0x000001C6u
+            else -> null
+        }
+
+    // === Хелперы классов ===
+
+    /**
+     * TypeAttributes. ВАЖНО: Public для типов = 0x00000001 (маска
+     * видимости 0x7), не путать с MethodAttributes.Public = 0x6.
+     * final → Public|Sealed|BeforeFieldInit, open → Public|BeforeFieldInit.
+     */
+    private fun classFlags(declaration: IrClass): UInt =
+        when (declaration.modality) {
+            Modality.FINAL -> 0x00100101u // Public | Sealed | BeforeFieldInit
+            Modality.OPEN -> 0x00100001u // Public | BeforeFieldInit
+            else -> TODO("[B-01] class modality ${declaration.modality} — Phase 13")
+        }
+
+    /** CIL-тип: примитивы через TypeMapper, пользовательские классы — fqName verbatim. */
+    private fun cilTypeOf(type: IrType): String {
+        val mapped = TypeMapper.mapType(type)
+        if (mapped != "object") return mapped
+        // "object" — это kotlin.Any/Any? либо пользовательский класс.
+        val owner = type.classOrNull?.owner as? IrClass ?: return "object"
+        val fqName = owner.kotlinFqName.asString()
+        return if (fqName.startsWith("kotlin.") || fqName.isEmpty()) "object" else fqName
+    }
+
+    /** Полное CIL-имя класса (`probe.p1.Point`). */
+    private fun qualifiedClassName(declaration: IrClass): String =
+        declaration.kotlinFqName.asString()
+
+    /** Field-ref для ldfld/stfld: `<cilType> <Ns.Class>::<field>`. */
+    private fun fieldRef(field: IrField): String {
+        val owner = field.parent as? IrClass
+            ?: error("Field ${field.name} has no IrClass parent")
+        return "${cilTypeOf(field.type)} ${qualifiedClassName(owner)}::${field.name.asString()}"
+    }
+
+    /** Ctor-ref для call/newobj: `void instance <Ns.Class>::.ctor(<params>)`. */
+    private fun constructorRef(constructor: IrConstructor): String {
+        val owner = constructor.parent as? IrClass
+            ?: error("Constructor has no IrClass parent")
+        val paramSig = constructor.parameters
+            .filter { it.kind == IrParameterKind.Regular }
+            .joinToString(", ") { cilTypeOf(it.type) }
+        // Базовый ctor kotlin.Any → BCL System.Object (вне нашей сборки).
+        val typeName =
+            if (owner.kotlinFqName.asString() == "kotlin.Any") "[System.Runtime]System.Object"
+            else qualifiedClassName(owner)
+        return "void instance $typeName::.ctor($paramSig)"
     }
 
     /** Предварительный обход для регистрации всех IrVariable в .locals. */
@@ -456,6 +782,13 @@ class DotnetIrVisitor(
             is IrTypeOperatorCall -> collectLocals(element.argument)
             is IrStringConcatenation -> element.arguments.forEach { collectLocals(it) }
             is IrComposite -> element.statements.forEach { collectLocals(it) }
+            is IrConstructorCall -> element.arguments.forEach { a -> a?.let { collectLocals(it) } }
+            is IrDelegatingConstructorCall -> element.arguments.forEach { a -> a?.let { collectLocals(it) } }
+            is IrGetField -> element.receiver?.let { collectLocals(it) }
+            is IrSetField -> {
+                element.receiver?.let { collectLocals(it) }
+                collectLocals(element.value)
+            }
             else -> Unit
         }
     }
@@ -550,7 +883,7 @@ class DotnetIrVisitor(
                     ?: error("Variable ${owner.name} not registered in .locals")
                 emitter.stloc(idx)
             }
-            is IrField -> TODO("[B-01] IrSetValue (field) — Phase 10")
+            is IrField -> TODO("[B-01] IrSetValue (field) — n/a in K2 IR: use IrSetField")
             else -> TODO("[B-01] IrSetValue of ${owner::class.simpleName} — Phase 10")
         }
     }
@@ -585,11 +918,35 @@ class DotnetIrVisitor(
             return
         }
 
+        val symbolName = call.symbol.owner.name.asString()
+
+        // Пользовательский вызов (top-level Phase 9 / instance Phase 10):
+        // аргументы эмитит соответствующий обработчик — у instance-call
+        // dispatch receiver занимает слот 0 в arguments.
+        //
+        // Операторные имена различаем по объявлению вызываемого: plus/inc/...
+        // обрабатываются как IL-опкоды только если функция объявлена в
+        // kotlin.* (методы примитивов). Пользовательский `class C { fun inc() }`
+        // — обычный instance-вызов.
+        val calleeFqName =
+            (call.symbol.owner as? IrSimpleFunction)?.kotlinFqName?.asString() ?: ""
+        val isStdlibOperator = calleeFqName.startsWith("kotlin.") && symbolName in KotlinOperators.ALL
+
+        if (!isStdlibOperator) {
+            val owner = call.symbol.owner
+            if (owner.dispatchReceiverParameter == null) {
+                emitCallArguments(call, data)
+                emitUserTopLevelCall(call, data)
+            } else {
+                emitInstanceCall(call, data)
+            }
+            return
+        }
+
         // Обычный operator-call: эмитим аргументы, затем opcode.
         emitCallArguments(call, data)
 
         // Унарные / бинарные операторы.
-        val symbolName = call.symbol.owner.name.asString()
         when (symbolName) {
             KotlinOperators.PLUS -> emitter.opcode(IlOpcode.ADD)
             KotlinOperators.MINUS -> emitter.opcode(IlOpcode.SUB)
@@ -623,15 +980,9 @@ class DotnetIrVisitor(
             }
             KotlinOperators.RANGE_TO -> TODO("[B-01] IrCall RANGE_TO — Phase 11 (ranges)")
             else -> {
-                // Не operator-call — значит это пользовательский вызов функции.
-                // dispatchReceiverParameter == null → top-level (Phase 9);
-                // иначе instance/extension (Phase 10).
-                val owner = call.symbol.owner
-                if (owner.dispatchReceiverParameter == null) {
-                    emitUserTopLevelCall(call, data)
-                } else {
-                    TODO("[B-01] IrCall (instance/extension) — Phase 10")
-                }
+                // Не operator-call — сюда не доходим: пользовательские вызовы
+                // обработаны выше (см. проверку OPERATOR_SYMBOLS).
+                error("Unexpected call symbol '$symbolName' in operator dispatch")
             }
         }
     }
@@ -727,7 +1078,11 @@ class DotnetIrVisitor(
         val owner = get.symbol.owner
         when (owner) {
             is IrValueParameter -> {
-                emitter.ldarg(owner.indexInParameters)
+                // У конструкторов нет this-параметра в IR, но в IL arg0 =
+                // this, поэтому регулярные параметры сдвинуты на +1.
+                // У instance-методов DispatchReceiver уже учтён в индексах.
+                val shift = if (owner.parent is IrConstructor) 1 else 0
+                emitter.ldarg(owner.indexInParameters + shift)
             }
             is IrVariable -> {
                 val idx = variableIndices[owner]
