@@ -17,7 +17,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.StringHan
 
 /** #String heap handle. */
 @JvmInline
-value class StringHandle internal constructor(
+value class StringHandle private constructor(
     // bits:
     //     31: IsVirtual
     // 29..31: type (non-virtual: STRING, DOT_TERMINATED; virtual: VIRTUAL, WIN_RT_PREFIXED)
@@ -77,6 +77,8 @@ value class StringHandle internal constructor(
         // composite vType (virtual-bit layout) — tokenTypeSmall как константа
         // не выражается; унифицируем только имя типа.
         private val className: String get() = "StringHandle"
+
+        internal fun fromRaw(rawValue: UInt) = StringHandle(rawValue)
 
         internal fun fromOffset(heapOffset: Int): StringHandle =
             StringHandle(StringHandleType.STRING or heapOffset.toUInt())

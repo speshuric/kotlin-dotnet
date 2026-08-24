@@ -15,6 +15,7 @@ package org.kotlindotnet.dotnetutils.system.reflection.metadata.reader
 
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.BlobReader
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.StandaloneSignatureHandle
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataTokens
 
 /** Разобранные заголовки PE-образа (минимум для чтения метаданных). */
 class PEReader(val image: ByteArray) {
@@ -99,7 +100,7 @@ class PEReader(val image: ByteArray) {
                 maxStack = -1,
                 codeOffset = at + 1,
                 codeSize = codeSize,
-                localVariablesSignature = StandaloneSignatureHandle(0),
+                localVariablesSignature = MetadataTokens.standaloneSignatureHandle(0),
                 exceptionRegions = emptyList(),
             )
         }
@@ -121,7 +122,7 @@ class PEReader(val image: ByteArray) {
             maxStack = maxStack,
             codeOffset = codeOffset,
             codeSize = codeSize,
-            localVariablesSignature = StandaloneSignatureHandle(localSigToken and 0x00FFFFFF),
+            localVariablesSignature = StandaloneSignatureHandle.fromRowId(localSigToken and 0x00FFFFFF),
             exceptionRegions = regions,
         )
     }

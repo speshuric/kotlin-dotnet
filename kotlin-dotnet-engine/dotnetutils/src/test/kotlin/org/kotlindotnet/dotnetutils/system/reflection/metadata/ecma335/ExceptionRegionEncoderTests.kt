@@ -267,9 +267,9 @@ class ExceptionRegionEncoderTests {
 class LabelHandleTests {
     @Test
     fun equality() {
-        val a1 = LabelHandle(1)
-        val a2 = LabelHandle(2)
-        val b1 = LabelHandle(1)
+        val a1 = LabelHandle.fromId(1)
+        val a2 = LabelHandle.fromId(2)
+        val b1 = LabelHandle.fromId(1)
 
         assertTrue(a1 != a2)
         assertEquals(a1, b1)

@@ -85,21 +85,21 @@ class RoundTripTests {
     private fun buildMinimalMetadata(): Built {
         val metadata = MetadataBuilder()
         val mvid = Uuid.parse("4b5ea1a7-9a2f-4f0e-8d3c-6f1e2a9b0c41")
-        metadata.addModule(0, metadata.getOrAddString("rt-test"), metadata.getOrAddGuid(mvid), GuidHandle(0), GuidHandle(0))
-        metadata.addAssembly(metadata.getOrAddString("RtAsm"), AssemblyVersion(1, 2, 3, 4), MetadataTokens.stringHandle(0), BlobHandle(0), 0, 0u)
+        metadata.addModule(0, metadata.getOrAddString("rt-test"), metadata.getOrAddGuid(mvid), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
+        metadata.addAssembly(metadata.getOrAddString("RtAsm"), AssemblyVersion(1, 2, 3, 4), MetadataTokens.stringHandle(0), BlobHandle.fromOffset(0), 0, 0u)
 
         val bclToken = byteArrayOf(0xB0.toByte(), 0x3F, 0x5F, 0x7F, 0x11, 0xD5.toByte(), 0x0A, 0x3A.toByte())
         val systemRuntime =
             metadata.addAssemblyReference(
                 metadata.getOrAddString("System.Runtime"), AssemblyVersion(8, 0, 0, 0),
-                MetadataTokens.stringHandle(0), metadata.getOrAddBlob(bclToken), 0u, BlobHandle(0),
+                MetadataTokens.stringHandle(0), metadata.getOrAddBlob(bclToken), 0u, BlobHandle.fromOffset(0),
             )
         val objectTypeRef =
             metadata.addTypeReference(systemRuntime.toEntityHandle(), metadata.getOrAddString("System"), metadata.getOrAddString("Object"))
 
         val mainSig = metadata.getOrAddBlob(byteArrayOf(0x00, 0x00, 0x01)) // static void ()
         val main =
-            metadata.addMethodDefinition(0x0096, 0x0000, metadata.getOrAddString("Main"), mainSig, -1, ParameterHandle(0))
+            metadata.addMethodDefinition(0x0096, 0x0000, metadata.getOrAddString("Main"), mainSig, -1, org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle.fromRowId(0))
 
         metadata.addTypeDefinition(
             0u, MetadataTokens.stringHandle(0), metadata.getOrAddString("<Module>"),
@@ -186,10 +186,10 @@ class RoundTripTests {
         il.opCode(ILOpCode.RET)
         val bodyOffset = bodies.addMethodBody(il)
 
-        metadata.addModule(0, metadata.getOrAddString("pe-rt"), metadata.getOrAddGuid(Uuid.random()), GuidHandle(0), GuidHandle(0))
+        metadata.addModule(0, metadata.getOrAddString("pe-rt"), metadata.getOrAddGuid(Uuid.random()), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
 
         val mainSig = metadata.getOrAddBlob(byteArrayOf(0x00, 0x00, 0x01))
-        val main = metadata.addMethodDefinition(0x0096, 0x0000, metadata.getOrAddString("Main"), mainSig, bodyOffset, ParameterHandle(0))
+        val main = metadata.addMethodDefinition(0x0096, 0x0000, metadata.getOrAddString("Main"), mainSig, bodyOffset, org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle.fromRowId(0))
         metadata.addTypeDefinition(
             0u, MetadataTokens.stringHandle(0), metadata.getOrAddString("<Module>"),
             EntityHandle.NIL, MetadataTokens.fieldDefinitionHandle(1), main,
@@ -223,7 +223,7 @@ class RoundTripTests {
         // строка из #US читается обратно:
         val usToken = ((ilBytes[1].toInt() and 0xFF) or ((ilBytes[2].toInt() and 0xFF) shl 8) or
             ((ilBytes[3].toInt() and 0xFF) shl 16) or ((ilBytes[4].toInt() and 0xFF) shl 24)) and 0x00FFFFFF
-        val text = reader.getUserString(org.kotlindotnet.dotnetutils.system.reflection.metadata.UserStringHandle(usToken))
+        val text = reader.getUserString(org.kotlindotnet.dotnetutils.system.reflection.metadata.UserStringHandle.fromOffset(usToken))
         assertEquals("Hello from Kotlin-built PE!", text)
     }
 }

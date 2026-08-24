@@ -16,7 +16,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.HandleTyp
 
 /** #Blob heap handle. */
 @JvmInline
-value class BlobHandle internal constructor(
+value class BlobHandle private constructor(
     private val offset: Int,
 ) {
     fun toHandle(): Handle = Handle(tokenTypeSmall, offset)

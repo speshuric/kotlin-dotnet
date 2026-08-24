@@ -10,7 +10,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.HandleTyp
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenTypeIds
 
 @JvmInline
-value class ConstantHandle internal constructor(
+value class ConstantHandle private constructor(
     internal val rowId: Int,
 ) {
     fun toHandle(): Handle = Handle(tokenTypeSmall, rowId)
@@ -27,7 +27,7 @@ value class ConstantHandle internal constructor(
         private val tokenType: UInt get() = TokenTypeIds.CONSTANT
         private val tokenTypeSmall: UByte get() = HandleType.CONSTANT.toUByte()
 
-        internal fun fromRowId(rowId: Int): ConstantHandle = ConstantHandle(rowId)
+        internal fun fromRowId(rowId: Int) = ConstantHandle(rowId)
 
         internal fun fromHandle(handle: Handle): ConstantHandle {
             check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }

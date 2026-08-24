@@ -10,7 +10,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.HandleTyp
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenTypeIds
 
 @JvmInline
-value class StandaloneSignatureHandle internal constructor(
+value class StandaloneSignatureHandle private constructor(
     internal val rowId: Int,
 ) {
     fun toHandle(): Handle = Handle(tokenTypeSmall, rowId)
@@ -27,7 +27,7 @@ value class StandaloneSignatureHandle internal constructor(
         private val tokenType: UInt get() = TokenTypeIds.SIGNATURE
         private val tokenTypeSmall: UByte get() = HandleType.SIGNATURE.toUByte()
 
-        internal fun fromRowId(rowId: Int): StandaloneSignatureHandle = StandaloneSignatureHandle(rowId)
+        internal fun fromRowId(rowId: Int) = StandaloneSignatureHandle(rowId)
 
         internal fun fromHandle(handle: Handle): StandaloneSignatureHandle {
             check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }

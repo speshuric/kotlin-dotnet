@@ -59,16 +59,16 @@ object HelloWorldImage {
             0,
             metadata.getOrAddString("m1-hello"),
             metadata.getOrAddGuid(CONTENT_ID_GUID),
-            GuidHandle(0),
-            GuidHandle(0),
+            GuidHandle.fromIndex(0),
+            GuidHandle.fromIndex(0),
         )
 
         // Assembly row:
         metadata.addAssembly(
             metadata.getOrAddString("HelloImage"),
             AssemblyVersion(1, 0, 0, 0),
-            StringHandle(0u),
-            BlobHandle(0),
+            StringHandle.fromRaw(0u),
+            BlobHandle.fromOffset(0),
             0,
             0u,
         )
@@ -81,20 +81,20 @@ object HelloWorldImage {
             metadata.addAssemblyReference(
                 name = metadata.getOrAddString("System.Runtime"),
                 version = AssemblyVersion(8, 0, 0, 0),
-                culture = StringHandle(0u),
+                culture = StringHandle.fromRaw(0u),
                 publicKeyOrToken = metadata.getOrAddBlob(bclToken),
                 flags = 0u,
-                hashValue = BlobHandle(0),
+                hashValue = BlobHandle.fromOffset(0),
             )
         @Suppress("UNUSED_VARIABLE")
         val systemConsoleRef =
             metadata.addAssemblyReference(
                 name = metadata.getOrAddString("System.Console"),
                 version = AssemblyVersion(8, 0, 0, 0),
-                culture = StringHandle(0u),
+                culture = StringHandle.fromRaw(0u),
                 publicKeyOrToken = metadata.getOrAddBlob(bclToken),
                 flags = 0u,
-                hashValue = BlobHandle(0),
+                hashValue = BlobHandle.fromOffset(0),
             )
         // TypeRef System.Object [System.Runtime] (base class):
         val objectTypeRef =
@@ -143,13 +143,13 @@ object HelloWorldImage {
                 metadata.getOrAddString("Main"),
                 mainSigBlob,
                 mainBodyOffset,
-                ParameterHandle(0),
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle.fromRowId(0),
             )
 
         // TypeDefs: <Module> (mandatory row 1) then Program.
         metadata.addTypeDefinition(
             0u,
-            StringHandle(0u),
+            StringHandle.fromRaw(0u),
             metadata.getOrAddString("<Module>"),
             EntityHandle(0u),
             MetadataTokens.fieldDefinitionHandle(1),
@@ -157,7 +157,7 @@ object HelloWorldImage {
         )
         metadata.addTypeDefinition(
             0x00100001u, // Public | AutoLayout | AnsiClass | Class
-            StringHandle(0u), // no namespace
+            StringHandle.fromRaw(0u), // no namespace
             metadata.getOrAddString("Program"),
             objectTypeRef.toEntityHandle(),
             MetadataTokens.fieldDefinitionHandle(1),

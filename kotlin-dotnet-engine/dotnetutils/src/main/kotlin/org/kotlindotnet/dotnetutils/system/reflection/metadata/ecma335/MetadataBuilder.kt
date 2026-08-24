@@ -137,7 +137,7 @@ class MetadataBuilder(
         // Add zero-th entry to all heaps so that nil handles have zero value.
         userStringBuilder.writeByte(0.toByte())
 
-        blobs.getOrAdd(ByteArray(0), ByteArray(0), BlobHandle(0))
+        blobs.getOrAdd(ByteArray(0), ByteArray(0), BlobHandle.fromOffset(0))
         blobHeapSize = 1
 
         this.userStringHeapStartOffset = userStringHeapStartOffset
@@ -183,7 +183,7 @@ class MetadataBuilder(
     fun getOrAddBlob(value: ByteArray): BlobHandle = getOrAddBlobImpl(value)
 
     private fun getOrAddBlobImpl(value: ByteArray): BlobHandle {
-        val nextHandle = BlobHandle(blobHeapStartOffset + blobHeapSize)
+        val nextHandle = BlobHandle.fromOffset(blobHeapStartOffset + blobHeapSize)
         val (handle, exists) = blobs.getOrAdd(value, value, nextHandle)
         if (!exists) {
             blobHeapSize += BlobWriterImpl.getCompressedIntegerSize(value.size) + value.size
@@ -232,7 +232,7 @@ class MetadataBuilder(
      */
     fun getOrAddGuid(guid: Uuid): GuidHandle {
         if (guid == Uuid.NIL) {
-            return GuidHandle(0)
+            return GuidHandle.fromIndex(0)
         }
 
         guids[guid]?.let { return it }
@@ -262,7 +262,7 @@ class MetadataBuilder(
      */
     fun getOrAddString(value: String): StringHandle {
         if (value.isEmpty()) {
-            return StringHandle(0u) // idx 0 is reserved for the empty string
+            return StringHandle.fromRaw(0u) // idx 0 is reserved for the empty string
         }
 
         return strings[value] ?: StringHandle.fromWriterVirtualIndex(strings.size + 1).also {

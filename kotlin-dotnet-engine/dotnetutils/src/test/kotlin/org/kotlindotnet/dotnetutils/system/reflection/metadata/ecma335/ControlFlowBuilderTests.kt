@@ -132,14 +132,14 @@ class ControlFlowBuilderTests {
         il.markLabel(l5)
 
         // invalid catch types:
-        assertFailsWith<IllegalStateException> { flow.addCatchRegion(l1, l2, l3, l4, TypeDefinitionHandle(0).toEntityHandle()) }
+        assertFailsWith<IllegalStateException> { flow.addCatchRegion(l1, l2, l3, l4, org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).toEntityHandle()) }
         assertFailsWith<IllegalStateException> { flow.addCatchRegion(l1, l2, l3, l4, MetadataTokens.methodDefinitionHandle(1).toEntityHandle()) }
 
         // nil labels:
-        assertFailsWith<IllegalStateException> { flow.addCatchRegion(LabelHandle(0), l2, l3, l4, MetadataTokens.typeReferenceHandle(1).toEntityHandle()) }
-        assertFailsWith<IllegalStateException> { flow.addCatchRegion(l1, LabelHandle(0), l3, l4, MetadataTokens.typeReferenceHandle(1).toEntityHandle()) }
-        assertFailsWith<IllegalStateException> { flow.addCatchRegion(l1, l2, LabelHandle(0), l4, MetadataTokens.typeReferenceHandle(1).toEntityHandle()) }
-        assertFailsWith<IllegalStateException> { flow.addCatchRegion(l1, l2, l3, LabelHandle(0), MetadataTokens.typeReferenceHandle(1).toEntityHandle()) }
+        assertFailsWith<IllegalStateException> { flow.addCatchRegion(LabelHandle.fromId(0), l2, l3, l4, MetadataTokens.typeReferenceHandle(1).toEntityHandle()) }
+        assertFailsWith<IllegalStateException> { flow.addCatchRegion(l1, LabelHandle.fromId(0), l3, l4, MetadataTokens.typeReferenceHandle(1).toEntityHandle()) }
+        assertFailsWith<IllegalStateException> { flow.addCatchRegion(l1, l2, LabelHandle.fromId(0), l4, MetadataTokens.typeReferenceHandle(1).toEntityHandle()) }
+        assertFailsWith<IllegalStateException> { flow.addCatchRegion(l1, l2, l3, LabelHandle.fromId(0), MetadataTokens.typeReferenceHandle(1).toEntityHandle()) }
 
         // labels of another builder:
         assertFailsWith<IllegalStateException> { flow.addCatchRegion(lx, l2, l3, l4, MetadataTokens.typeReferenceHandle(1).toEntityHandle()) }

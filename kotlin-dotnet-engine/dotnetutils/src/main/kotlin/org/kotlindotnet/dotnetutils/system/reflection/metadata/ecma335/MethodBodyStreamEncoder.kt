@@ -10,6 +10,7 @@ package org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.Blob
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.BlobBuilder
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.StandaloneSignatureHandle
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataTokens
 
 /** Encodes method body stream. */
 class MethodBodyStreamEncoder(val builder: BlobBuilder) {
@@ -28,7 +29,7 @@ class MethodBodyStreamEncoder(val builder: BlobBuilder) {
         maxStack: Int = 8,
         exceptionRegionCount: Int = 0,
         hasSmallExceptionRegions: Boolean = true,
-        localVariablesSignature: StandaloneSignatureHandle = StandaloneSignatureHandle(0),
+        localVariablesSignature: StandaloneSignatureHandle = MetadataTokens.standaloneSignatureHandle(0),
         attributes: MethodBodyAttributes = MethodBodyAttributes.INIT_LOCALS,
         hasDynamicStackAllocation: Boolean = false,
     ): MethodBody {
@@ -77,7 +78,7 @@ class MethodBodyStreamEncoder(val builder: BlobBuilder) {
     fun addMethodBody(
         instructionEncoder: InstructionEncoder,
         maxStack: Int = 8,
-        localVariablesSignature: StandaloneSignatureHandle = StandaloneSignatureHandle(0),
+        localVariablesSignature: StandaloneSignatureHandle = MetadataTokens.standaloneSignatureHandle(0),
         attributes: MethodBodyAttributes = MethodBodyAttributes.INIT_LOCALS,
         hasDynamicStackAllocation: Boolean = false,
     ): Int {

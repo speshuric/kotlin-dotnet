@@ -119,7 +119,7 @@ class MetadataRootBuilderTests {
     @Test
     fun metadataVersion_default() {
         val mdBuilder = MetadataBuilder()
-        mdBuilder.addModule(0, StringHandle(0u), GuidHandle(0), GuidHandle(0), GuidHandle(0))
+        mdBuilder.addModule(0, StringHandle.fromRaw(0u), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
 
         val rootBuilder = MetadataRootBuilder(mdBuilder)
         assertEquals("v4.0.30319", rootBuilder.metadataVersion)
@@ -141,7 +141,7 @@ class MetadataRootBuilderTests {
     @Test
     fun metadataVersion_empty() {
         val mdBuilder = MetadataBuilder()
-        mdBuilder.addModule(0, StringHandle(0u), GuidHandle(0), GuidHandle(0), GuidHandle(0))
+        mdBuilder.addModule(0, StringHandle.fromRaw(0u), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
 
         val rootBuilder = MetadataRootBuilder(mdBuilder, "")
         assertEquals("", rootBuilder.metadataVersion)
@@ -162,7 +162,7 @@ class MetadataRootBuilderTests {
     fun metadataVersion_maxLength() {
         val version = "x".repeat(254)
         val mdBuilder = MetadataBuilder()
-        mdBuilder.addModule(0, StringHandle(0u), GuidHandle(0), GuidHandle(0), GuidHandle(0))
+        mdBuilder.addModule(0, StringHandle.fromRaw(0u), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
 
         val rootBuilder = MetadataRootBuilder(mdBuilder, version)
         assertEquals(version, rootBuilder.metadataVersion)
@@ -181,7 +181,7 @@ class MetadataRootBuilderTests {
     fun metadataVersion_surrogatePair() {
         val version = "\u1234\ud800"
         val mdBuilder = MetadataBuilder()
-        mdBuilder.addModule(0, StringHandle(0u), GuidHandle(0), GuidHandle(0), GuidHandle(0))
+        mdBuilder.addModule(0, StringHandle.fromRaw(0u), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
 
         val rootBuilder = MetadataRootBuilder(mdBuilder, version)
 
@@ -213,8 +213,8 @@ class MetadataRootBuilderTests {
     fun suppressValidation_allowsUnsortedTables() {
         val mdBuilder = MetadataBuilder()
         // add ClassLayout out of order
-        mdBuilder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(2), 1, 1u)
-        mdBuilder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(1), 1, 1u)
+        mdBuilder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(2), 1, 1u)
+        mdBuilder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(1), 1, 1u)
 
         val rootBuilder = MetadataRootBuilder(mdBuilder, suppressValidation = true)
         val builder = BlobBuilder()

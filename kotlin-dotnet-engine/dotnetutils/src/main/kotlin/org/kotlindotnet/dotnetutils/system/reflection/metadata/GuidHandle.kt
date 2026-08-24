@@ -15,7 +15,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.HandleTyp
  * Its first element is numbered 1, its second 2, and so on.
  */
 @JvmInline
-value class GuidHandle internal constructor(
+value class GuidHandle private constructor(
     internal val index: Int,
 ) {
     fun toHandle(): Handle = Handle(tokenTypeSmall, index)

@@ -10,7 +10,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.HandleTyp
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenTypeIds
 
 @JvmInline
-value class GenericParameterHandle internal constructor(
+value class GenericParameterHandle private constructor(
     internal val rowId: Int,
 ) {
     fun toHandle(): Handle = Handle(tokenTypeSmall, rowId)
@@ -27,7 +27,7 @@ value class GenericParameterHandle internal constructor(
         private val tokenType: UInt get() = TokenTypeIds.GENERIC_PARAM
         private val tokenTypeSmall: UByte get() = HandleType.GENERIC_PARAM.toUByte()
 
-        internal fun fromRowId(rowId: Int): GenericParameterHandle = GenericParameterHandle(rowId)
+        internal fun fromRowId(rowId: Int) = GenericParameterHandle(rowId)
 
         internal fun fromHandle(handle: Handle): GenericParameterHandle {
             check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }

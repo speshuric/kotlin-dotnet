@@ -10,7 +10,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.HandleTyp
 
 /** #US heap handle; string indices must fit into 24 bits since they are used in IL stream tokens. */
 @JvmInline
-value class UserStringHandle internal constructor(
+value class UserStringHandle private constructor(
     // bits:
     //     31: 0
     // 24..30: 0

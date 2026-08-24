@@ -56,63 +56,63 @@ class MetadataBuilderTests {
     fun add() {
         val builder = MetadataBuilder()
 
-        builder.addModule(0, StringHandle(0u), GuidHandle(0), GuidHandle(0), GuidHandle(0))
+        builder.addModule(0, StringHandle.fromRaw(0u), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
         assertEquals(1, builder.getRowCount(TableIndex.MODULE))
 
-        builder.addAssembly(StringHandle(0u), AssemblyVersion(0, 0, 0, 0), StringHandle(0u), BlobHandle(0), 0, 0u)
+        builder.addAssembly(StringHandle.fromRaw(0u), AssemblyVersion(0, 0, 0, 0), StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), 0, 0u)
         assertEquals(1, builder.getRowCount(TableIndex.ASSEMBLY))
 
         val assemblyReference = builder.addAssemblyReference(
-            StringHandle(0u), AssemblyVersion(0, 0, 0, 0), StringHandle(0u), BlobHandle(0), 0u, BlobHandle(0),
+            StringHandle.fromRaw(0u), AssemblyVersion(0, 0, 0, 0), StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), 0u, BlobHandle.fromOffset(0),
         )
         assertEquals(1, builder.getRowCount(TableIndex.ASSEMBLY_REF))
         assertEquals(1, MetadataTokens.getRowNumber(assemblyReference.toEntityHandle()))
 
         val typeDefinition = builder.addTypeDefinition(
-            0u, StringHandle(0u), StringHandle(0u), EntityHandle(0u),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(0),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle(0),
+            0u, StringHandle.fromRaw(0u), StringHandle.fromRaw(0u), EntityHandle(0u),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(0),
         )
         assertEquals(1, builder.getRowCount(TableIndex.TYPE_DEF))
         assertEquals(1, MetadataTokens.getRowNumber(typeDefinition.toEntityHandle()))
 
-        builder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0), 0, 0u)
+        builder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0), 0, 0u)
         assertEquals(1, builder.getRowCount(TableIndex.CLASS_LAYOUT))
 
         builder.addInterfaceImplementation(MetadataTokens.typeDefinitionHandle(1), MetadataTokens.typeDefinitionHandle(1).toEntityHandle())
         assertEquals(1, builder.getRowCount(TableIndex.INTERFACE_IMPL))
 
         builder.addNestedType(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0),
         )
         assertEquals(1, builder.getRowCount(TableIndex.NESTED_CLASS))
 
-        val typeReference = builder.addTypeReference(EntityHandle.MODULE_DEFINITION, StringHandle(0u), StringHandle(0u))
+        val typeReference = builder.addTypeReference(EntityHandle.MODULE_DEFINITION, StringHandle.fromRaw(0u), StringHandle.fromRaw(0u))
         assertEquals(1, MetadataTokens.getRowNumber(typeReference.toEntityHandle()))
         assertEquals(1, builder.getRowCount(TableIndex.TYPE_REF))
 
-        builder.addTypeSpecification(BlobHandle(0))
+        builder.addTypeSpecification(BlobHandle.fromOffset(0))
         assertEquals(1, builder.getRowCount(TableIndex.TYPE_SPEC))
 
-        builder.addStandaloneSignature(BlobHandle(0))
+        builder.addStandaloneSignature(BlobHandle.fromOffset(0))
         assertEquals(1, builder.getRowCount(TableIndex.STAND_ALONE_SIG))
 
-        builder.addProperty(0, StringHandle(0u), BlobHandle(0))
+        builder.addProperty(0, StringHandle.fromRaw(0u), BlobHandle.fromOffset(0))
         assertEquals(1, builder.getRowCount(TableIndex.PROPERTY))
 
         builder.addPropertyMap(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.PropertyDefinitionHandle(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.PropertyDefinitionHandle.fromRowId(0),
         )
         assertEquals(1, builder.getRowCount(TableIndex.PROPERTY_MAP))
 
-        builder.addEvent(0, StringHandle(0u), MetadataTokens.typeDefinitionHandle(1).toEntityHandle())
+        builder.addEvent(0, StringHandle.fromRaw(0u), MetadataTokens.typeDefinitionHandle(1).toEntityHandle())
         assertEquals(1, builder.getRowCount(TableIndex.EVENT))
 
         builder.addEventMap(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.EventDefinitionHandle(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.EventDefinitionHandle.fromRowId(0),
         )
         assertEquals(1, builder.getRowCount(TableIndex.EVENT_MAP))
 
@@ -121,86 +121,86 @@ class MetadataBuilderTests {
 
         builder.addMethodSemantics(
             MetadataTokens.eventDefinitionHandle(1).toEntityHandle(), 0,
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(0),
         )
         assertEquals(1, builder.getRowCount(TableIndex.METHOD_SEMANTICS))
 
         builder.addCustomAttribute(
             MetadataTokens.typeDefinitionHandle(1).toEntityHandle(),
-            MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), BlobHandle(0),
+            MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), BlobHandle.fromOffset(0),
         )
         assertEquals(1, builder.getRowCount(TableIndex.CUSTOM_ATTRIBUTE))
 
-        builder.addMethodSpecification(MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), BlobHandle(0))
+        builder.addMethodSpecification(MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), BlobHandle.fromOffset(0))
         assertEquals(1, builder.getRowCount(TableIndex.METHOD_SPEC))
 
-        builder.addModuleReference(StringHandle(0u))
+        builder.addModuleReference(StringHandle.fromRaw(0u))
         assertEquals(1, builder.getRowCount(TableIndex.MODULE_REF))
 
-        builder.addParameter(0, StringHandle(0u), 0)
+        builder.addParameter(0, StringHandle.fromRaw(0u), 0)
         assertEquals(1, builder.getRowCount(TableIndex.PARAM))
 
         val genericParameter = builder.addGenericParameter(
-            MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), 0, StringHandle(0u), 0,
+            MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), 0, StringHandle.fromRaw(0u), 0,
         )
         assertEquals(1, builder.getRowCount(TableIndex.GENERIC_PARAM))
         assertEquals(1, MetadataTokens.getRowNumber(genericParameter.toEntityHandle()))
 
         builder.addGenericParameterConstraint(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.GenericParameterHandle(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.GenericParameterHandle.fromRowId(0),
             MetadataTokens.typeDefinitionHandle(1).toEntityHandle(),
         )
         assertEquals(1, builder.getRowCount(TableIndex.GENERIC_PARAM_CONSTRAINT))
 
-        builder.addFieldDefinition(0, StringHandle(0u), BlobHandle(0))
+        builder.addFieldDefinition(0, StringHandle.fromRaw(0u), BlobHandle.fromOffset(0))
         assertEquals(1, builder.getRowCount(TableIndex.FIELD))
 
-        builder.addFieldLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(0), 0)
+        builder.addFieldLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(0), 0)
         assertEquals(1, builder.getRowCount(TableIndex.FIELD_LAYOUT))
 
-        builder.addMarshallingDescriptor(MetadataTokens.fieldDefinitionHandle(1).toEntityHandle(), BlobHandle(0))
+        builder.addMarshallingDescriptor(MetadataTokens.fieldDefinitionHandle(1).toEntityHandle(), BlobHandle.fromOffset(0))
         assertEquals(1, builder.getRowCount(TableIndex.FIELD_MARSHAL))
 
         builder.addFieldRelativeVirtualAddress(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(0), 0,
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(0), 0,
         )
         assertEquals(1, builder.getRowCount(TableIndex.FIELD_RVA))
 
         val methodDefinition = builder.addMethodDefinition(
-            0, 0, StringHandle(0u), BlobHandle(0), 0,
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle(0),
+            0, 0, StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), 0,
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle.fromRowId(0),
         )
         assertEquals(1, builder.getRowCount(TableIndex.METHOD_DEF))
         assertEquals(1, MetadataTokens.getRowNumber(methodDefinition.toEntityHandle()))
 
         builder.addMethodImport(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle(1), 0, StringHandle(0u),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(1), 0, StringHandle.fromRaw(0u),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle.fromRowId(0),
         )
         assertEquals(1, builder.getRowCount(TableIndex.IMPL_MAP))
 
         builder.addMethodImplementation(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0),
             MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), MetadataTokens.methodDefinitionHandle(1).toEntityHandle(),
         )
         assertEquals(1, builder.getRowCount(TableIndex.METHOD_IMPL))
 
         val memberReference = builder.addMemberReference(
-            MetadataTokens.typeDefinitionHandle(1).toEntityHandle(), StringHandle(0u), BlobHandle(0),
+            MetadataTokens.typeDefinitionHandle(1).toEntityHandle(), StringHandle.fromRaw(0u), BlobHandle.fromOffset(0),
         )
         assertEquals(1, builder.getRowCount(TableIndex.MEMBER_REF))
         assertEquals(1, MetadataTokens.getRowNumber(memberReference.toEntityHandle()))
 
-        builder.addManifestResource(0u, StringHandle(0u), MetadataTokens.assemblyFileHandle(1).toEntityHandle(), 0u)
+        builder.addManifestResource(0u, StringHandle.fromRaw(0u), MetadataTokens.assemblyFileHandle(1).toEntityHandle(), 0u)
         assertEquals(1, builder.getRowCount(TableIndex.MANIFEST_RESOURCE))
 
-        builder.addAssemblyFile(StringHandle(0u), BlobHandle(0), false)
+        builder.addAssemblyFile(StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), false)
         assertEquals(1, builder.getRowCount(TableIndex.FILE))
 
-        builder.addExportedType(0u, StringHandle(0u), StringHandle(0u), MetadataTokens.assemblyFileHandle(1).toEntityHandle(), 0)
+        builder.addExportedType(0u, StringHandle.fromRaw(0u), StringHandle.fromRaw(0u), MetadataTokens.assemblyFileHandle(1).toEntityHandle(), 0)
         assertEquals(1, builder.getRowCount(TableIndex.EXPORTED_TYPE))
 
-        builder.addDeclarativeSecurityAttribute(MetadataTokens.typeDefinitionHandle(1).toEntityHandle(), 0, BlobHandle(0))
+        builder.addDeclarativeSecurityAttribute(MetadataTokens.typeDefinitionHandle(1).toEntityHandle(), 0, BlobHandle.fromOffset(0))
         assertEquals(1, builder.getRowCount(TableIndex.DECL_SECURITY))
 
         // EnC entries are cut per ADR 0009 (original asserts EncLog/EncMap here)
@@ -224,87 +224,87 @@ class MetadataBuilderTests {
 
     // --- Add_ArgumentErrors (minimal validation parity) ---
 
-    private val badHandleKind: EntityHandle = CustomAttributeHandle.fromRowId(1).toEntityHandle()
+    private val badHandleKind: EntityHandle = org.kotlindotnet.dotnetutils.system.reflection.metadata.CustomAttributeHandle.fromRowId(1).toEntityHandle()
 
     @Test
     fun add_argumentErrors() {
         val builder = MetadataBuilder()
 
         assertFailsWith<IllegalArgumentException> {
-            builder.addTypeDefinition(0u, StringHandle(0u), StringHandle(0u), badHandleKind,
-                org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(0),
-                org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle(0))
+            builder.addTypeDefinition(0u, StringHandle.fromRaw(0u), StringHandle.fromRaw(0u), badHandleKind,
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(0),
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(0))
         }
         assertFailsWith<IllegalArgumentException> {
             builder.addInterfaceImplementation(
-                org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0), badHandleKind)
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0), badHandleKind)
         }
         assertFailsWith<IllegalArgumentException> {
-            builder.addTypeReference(badHandleKind, StringHandle(0u), StringHandle(0u))
+            builder.addTypeReference(badHandleKind, StringHandle.fromRaw(0u), StringHandle.fromRaw(0u))
         }
-        assertFailsWith<IllegalArgumentException> { builder.addEvent(0, StringHandle(0u), badHandleKind) }
+        assertFailsWith<IllegalArgumentException> { builder.addEvent(0, StringHandle.fromRaw(0u), badHandleKind) }
         assertFailsWith<IllegalArgumentException> { builder.addConstant(badHandleKind, 0) }
         assertFailsWith<IllegalArgumentException> {
             builder.addMethodSemantics(badHandleKind, 0,
-                org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle(0))
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(0))
         }
         assertFailsWith<IllegalArgumentException> {
-            builder.addCustomAttribute(badHandleKind, MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), BlobHandle(0))
+            builder.addCustomAttribute(badHandleKind, MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), BlobHandle.fromOffset(0))
         }
         assertFailsWith<IllegalArgumentException> {
             builder.addCustomAttribute(
-                MetadataTokens.typeDefinitionHandle(1).toEntityHandle(), badHandleKind, BlobHandle(0))
+                MetadataTokens.typeDefinitionHandle(1).toEntityHandle(), badHandleKind, BlobHandle.fromOffset(0))
         }
         assertFailsWith<IllegalArgumentException> {
-            builder.addMethodSpecification(badHandleKind, BlobHandle(0))
+            builder.addMethodSpecification(badHandleKind, BlobHandle.fromOffset(0))
         }
         assertFailsWith<IllegalArgumentException> {
-            builder.addGenericParameter(badHandleKind, 0, StringHandle(0u), 0)
+            builder.addGenericParameter(badHandleKind, 0, StringHandle.fromRaw(0u), 0)
         }
         assertFailsWith<IllegalArgumentException> {
             builder.addGenericParameterConstraint(
-                org.kotlindotnet.dotnetutils.system.reflection.metadata.GenericParameterHandle(0), badHandleKind)
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.GenericParameterHandle.fromRowId(0), badHandleKind)
         }
         assertFailsWith<IllegalArgumentException> {
-            builder.addMarshallingDescriptor(badHandleKind, BlobHandle(0))
+            builder.addMarshallingDescriptor(badHandleKind, BlobHandle.fromOffset(0))
         }
         assertFailsWith<IllegalArgumentException> {
             builder.addMethodImplementation(
-                org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0),
-                badHandleKind, org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle(0).toEntityHandle())
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0),
+                badHandleKind, org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(0).toEntityHandle())
         }
         assertFailsWith<IllegalArgumentException> {
-            builder.addMemberReference(badHandleKind, StringHandle(0u), BlobHandle(0))
+            builder.addMemberReference(badHandleKind, StringHandle.fromRaw(0u), BlobHandle.fromOffset(0))
         }
         assertFailsWith<IllegalArgumentException> {
-            builder.addManifestResource(0u, StringHandle(0u), badHandleKind, 0u)
+            builder.addManifestResource(0u, StringHandle.fromRaw(0u), badHandleKind, 0u)
         }
         assertFailsWith<IllegalArgumentException> {
-            builder.addExportedType(0u, StringHandle(0u), StringHandle(0u), badHandleKind, 0)
+            builder.addExportedType(0u, StringHandle.fromRaw(0u), StringHandle.fromRaw(0u), badHandleKind, 0)
         }
         assertFailsWith<IllegalArgumentException> {
-            builder.addDeclarativeSecurityAttribute(badHandleKind, 0, BlobHandle(0))
+            builder.addDeclarativeSecurityAttribute(badHandleKind, 0, BlobHandle.fromOffset(0))
         }
 
         assertFailsWith<IllegalArgumentException> {
-            builder.addModule(-1, StringHandle(0u), GuidHandle(0), GuidHandle(0), GuidHandle(0))
+            builder.addModule(-1, StringHandle.fromRaw(0u), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
         }
         assertFailsWith<IllegalArgumentException> {
-            builder.addModule(UShort.MAX_VALUE.toInt() + 1, StringHandle(0u), GuidHandle(0), GuidHandle(0), GuidHandle(0))
+            builder.addModule(UShort.MAX_VALUE.toInt() + 1, StringHandle.fromRaw(0u), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
         }
-        assertFailsWith<IllegalArgumentException> { builder.addParameter(0, StringHandle(0u), -1) }
+        assertFailsWith<IllegalArgumentException> { builder.addParameter(0, StringHandle.fromRaw(0u), -1) }
         assertFailsWith<IllegalArgumentException> {
             builder.addGenericParameter(
-                org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0).toEntityHandle(), 0, StringHandle(0u), -1)
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).toEntityHandle(), 0, StringHandle.fromRaw(0u), -1)
         }
         assertFailsWith<IllegalArgumentException> {
             builder.addFieldRelativeVirtualAddress(
-                org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(0), -1)
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(0), -1)
         }
         assertFailsWith<IllegalArgumentException> {
             builder.addMethodDefinition(
-                0, 0, StringHandle(0u), BlobHandle(0), -2,
-                org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle(0))
+                0, 0, StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), -2,
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle.fromRowId(0))
         }
     }
 
@@ -314,14 +314,14 @@ class MetadataBuilderTests {
     fun multipleModuleAssemblyEntries() {
         val builder = MetadataBuilder()
 
-        builder.addAssembly(StringHandle(0u), AssemblyVersion(0, 0, 0, 0), StringHandle(0u), BlobHandle(0), 0, 0u)
-        builder.addModule(0, StringHandle(0u), GuidHandle(0), GuidHandle(0), GuidHandle(0))
+        builder.addAssembly(StringHandle.fromRaw(0u), AssemblyVersion(0, 0, 0, 0), StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), 0, 0u)
+        builder.addModule(0, StringHandle.fromRaw(0u), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
 
         assertFailsWith<IllegalStateException> {
-            builder.addAssembly(StringHandle(0u), AssemblyVersion(0, 0, 0, 0), StringHandle(0u), BlobHandle(0), 0, 0u)
+            builder.addAssembly(StringHandle.fromRaw(0u), AssemblyVersion(0, 0, 0, 0), StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), 0, 0u)
         }
         assertFailsWith<IllegalStateException> {
-            builder.addModule(0, StringHandle(0u), GuidHandle(0), GuidHandle(0), GuidHandle(0))
+            builder.addModule(0, StringHandle.fromRaw(0u), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
         }
     }
 
@@ -331,39 +331,39 @@ class MetadataBuilderTests {
     fun add_badValues() {
         val builder = MetadataBuilder()
 
-        builder.addAssembly(StringHandle(0u), AssemblyVersion(0, 0, 0, 0), StringHandle(0u), BlobHandle(0), -1, (-1).toUInt())
-        builder.addAssemblyReference(StringHandle(0u), AssemblyVersion(0, 0, 0, 0), StringHandle(0u), BlobHandle(0), (-1).toUInt(), BlobHandle(0))
+        builder.addAssembly(StringHandle.fromRaw(0u), AssemblyVersion(0, 0, 0, 0), StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), -1, (-1).toUInt())
+        builder.addAssemblyReference(StringHandle.fromRaw(0u), AssemblyVersion(0, 0, 0, 0), StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), (-1).toUInt(), BlobHandle.fromOffset(0))
         builder.addTypeDefinition(
-            (-1).toUInt(), StringHandle(0u), StringHandle(0u),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0).toEntityHandle(),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(0),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle(0),
+            (-1).toUInt(), StringHandle.fromRaw(0u), StringHandle.fromRaw(0u),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).toEntityHandle(),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(0),
         )
-        builder.addProperty(-1, StringHandle(0u), BlobHandle(0))
-        builder.addEvent(-1, StringHandle(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0).toEntityHandle())
+        builder.addProperty(-1, StringHandle.fromRaw(0u), BlobHandle.fromOffset(0))
+        builder.addEvent(-1, StringHandle.fromRaw(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).toEntityHandle())
         builder.addMethodSemantics(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.EventDefinitionHandle(0).toEntityHandle(), -1,
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.EventDefinitionHandle.fromRowId(0).toEntityHandle(), -1,
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(0),
         )
-        builder.addParameter(-1, StringHandle(0u), 0)
+        builder.addParameter(-1, StringHandle.fromRaw(0u), 0)
         builder.addGenericParameter(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0).toEntityHandle(), -1, StringHandle(0u), 0)
-        builder.addFieldDefinition(-1, StringHandle(0u), BlobHandle(0))
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).toEntityHandle(), -1, StringHandle.fromRaw(0u), 0)
+        builder.addFieldDefinition(-1, StringHandle.fromRaw(0u), BlobHandle.fromOffset(0))
         builder.addMethodDefinition(
-            -1, -1, StringHandle(0u), BlobHandle(0), -1,
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle(0),
+            -1, -1, StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), -1,
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle.fromRowId(0),
         )
         builder.addMethodImport(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle(0), -1, StringHandle(0u),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle(0),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(0), -1, StringHandle.fromRaw(0u),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle.fromRowId(0),
         )
-        builder.addManifestResource((-1).toUInt(), StringHandle(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.AssemblyFileHandle(0).toEntityHandle(), 0u)
+        builder.addManifestResource((-1).toUInt(), StringHandle.fromRaw(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.AssemblyFileHandle.fromRowId(0).toEntityHandle(), 0u)
         builder.addExportedType(
-            (-1).toUInt(), StringHandle(0u), StringHandle(0u),
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.AssemblyFileHandle(0).toEntityHandle(), 0,
+            (-1).toUInt(), StringHandle.fromRaw(0u), StringHandle.fromRaw(0u),
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.AssemblyFileHandle.fromRowId(0).toEntityHandle(), 0,
         )
         builder.addDeclarativeSecurityAttribute(
-            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0).toEntityHandle(), -1, BlobHandle(0))
+            org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).toEntityHandle(), -1, BlobHandle.fromOffset(0))
     }
 
     // --- Heaps_Empty ---
@@ -613,8 +613,8 @@ class MetadataBuilderTests {
 
         repeat(3) {
             builder.addMethodDefinition(
-                0, 0, StringHandle(0u), BlobHandle(0), 0,
-                org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle(0))
+                0, 0, StringHandle.fromRaw(0u), BlobHandle.fromOffset(0), 0,
+                org.kotlindotnet.dotnetutils.system.reflection.metadata.ParameterHandle.fromRowId(0))
         }
 
         builder.setTableCapacity(TableIndex.METHOD_DEF, 0)
@@ -639,39 +639,39 @@ class MetadataBuilderTests {
     @Test
     fun validateClassLayoutTable() {
         var builder = MetadataBuilder()
-        builder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(2), 1, 1u)
-        builder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(1), 1, 1u)
+        builder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(2), 1, 1u)
+        builder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(1), 1, 1u)
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
 
         builder = MetadataBuilder()
-        builder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(1), 1, 1u)
-        builder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(1), 1, 1u)
+        builder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(1), 1, 1u)
+        builder.addTypeLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(1), 1, 1u)
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
     }
 
     @Test
     fun validateFieldLayoutTable() {
         var builder = MetadataBuilder()
-        builder.addFieldLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(2), 1)
-        builder.addFieldLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(1), 1)
+        builder.addFieldLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(2), 1)
+        builder.addFieldLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(1), 1)
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
 
         builder = MetadataBuilder()
-        builder.addFieldLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(1), 1)
-        builder.addFieldLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(1), 1)
+        builder.addFieldLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(1), 1)
+        builder.addFieldLayout(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(1), 1)
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
     }
 
     @Test
     fun validateFieldRvaTable() {
         var builder = MetadataBuilder()
-        builder.addFieldRelativeVirtualAddress(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(2), 1)
-        builder.addFieldRelativeVirtualAddress(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(1), 1)
+        builder.addFieldRelativeVirtualAddress(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(2), 1)
+        builder.addFieldRelativeVirtualAddress(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(1), 1)
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
 
         builder = MetadataBuilder()
-        builder.addFieldRelativeVirtualAddress(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(1), 1)
-        builder.addFieldRelativeVirtualAddress(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle(1), 1)
+        builder.addFieldRelativeVirtualAddress(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(1), 1)
+        builder.addFieldRelativeVirtualAddress(org.kotlindotnet.dotnetutils.system.reflection.metadata.FieldDefinitionHandle.fromRowId(1), 1)
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
     }
 
@@ -679,8 +679,8 @@ class MetadataBuilderTests {
     fun validateGenericParamTable() {
         fun build(owner1: EntityHandle, owner2: EntityHandle, index1: Int = 0, index2: Int = 0): MetadataBuilder {
             val b = MetadataBuilder()
-            b.addGenericParameter(owner1, 0, StringHandle(0u), index1)
-            b.addGenericParameter(owner2, 0, StringHandle(0u), index2)
+            b.addGenericParameter(owner1, 0, StringHandle.fromRaw(0u), index1)
+            b.addGenericParameter(owner2, 0, StringHandle.fromRaw(0u), index2)
             return b
         }
 
@@ -699,26 +699,26 @@ class MetadataBuilderTests {
     @Test
     fun validateGenericParamConstraintTable() {
         var builder = MetadataBuilder()
-        builder.addGenericParameterConstraint(MetadataTokens.genericParameterHandle(2), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0).toEntityHandle())
-        builder.addGenericParameterConstraint(MetadataTokens.genericParameterHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0).toEntityHandle())
+        builder.addGenericParameterConstraint(MetadataTokens.genericParameterHandle(2), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).toEntityHandle())
+        builder.addGenericParameterConstraint(MetadataTokens.genericParameterHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).toEntityHandle())
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
 
         builder = MetadataBuilder()
-        builder.addGenericParameterConstraint(MetadataTokens.genericParameterHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0).toEntityHandle())
-        builder.addGenericParameterConstraint(MetadataTokens.genericParameterHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0).toEntityHandle())
+        builder.addGenericParameterConstraint(MetadataTokens.genericParameterHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).toEntityHandle())
+        builder.addGenericParameterConstraint(MetadataTokens.genericParameterHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).toEntityHandle())
         builder.validateOrder() // ok
     }
 
     @Test
     fun validateImplMapTable() {
         var builder = MetadataBuilder()
-        builder.addMethodImport(MetadataTokens.methodDefinitionHandle(2), 0, StringHandle(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle(0))
-        builder.addMethodImport(MetadataTokens.methodDefinitionHandle(1), 0, StringHandle(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle(0))
+        builder.addMethodImport(MetadataTokens.methodDefinitionHandle(2), 0, StringHandle.fromRaw(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle.fromRowId(0))
+        builder.addMethodImport(MetadataTokens.methodDefinitionHandle(1), 0, StringHandle.fromRaw(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle.fromRowId(0))
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
 
         builder = MetadataBuilder()
-        builder.addMethodImport(MetadataTokens.methodDefinitionHandle(1), 0, StringHandle(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle(0))
-        builder.addMethodImport(MetadataTokens.methodDefinitionHandle(1), 0, StringHandle(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle(0))
+        builder.addMethodImport(MetadataTokens.methodDefinitionHandle(1), 0, StringHandle.fromRaw(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle.fromRowId(0))
+        builder.addMethodImport(MetadataTokens.methodDefinitionHandle(1), 0, StringHandle.fromRaw(0u), org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleReferenceHandle.fromRowId(0))
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
     }
 
@@ -738,26 +738,26 @@ class MetadataBuilderTests {
     @Test
     fun validateMethodImplTable() {
         var builder = MetadataBuilder()
-        builder.addMethodImplementation(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(2), MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), MetadataTokens.methodDefinitionHandle(1).toEntityHandle())
-        builder.addMethodImplementation(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(1), MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), MetadataTokens.methodDefinitionHandle(1).toEntityHandle())
+        builder.addMethodImplementation(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(2), MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), MetadataTokens.methodDefinitionHandle(1).toEntityHandle())
+        builder.addMethodImplementation(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(1), MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), MetadataTokens.methodDefinitionHandle(1).toEntityHandle())
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
 
         builder = MetadataBuilder()
-        builder.addMethodImplementation(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(1), MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), MetadataTokens.methodDefinitionHandle(1).toEntityHandle())
-        builder.addMethodImplementation(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(1), MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), MetadataTokens.methodDefinitionHandle(1).toEntityHandle())
+        builder.addMethodImplementation(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(1), MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), MetadataTokens.methodDefinitionHandle(1).toEntityHandle())
+        builder.addMethodImplementation(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(1), MetadataTokens.methodDefinitionHandle(1).toEntityHandle(), MetadataTokens.methodDefinitionHandle(1).toEntityHandle())
         builder.validateOrder() // ok
     }
 
     @Test
     fun validateNestedClassTable() {
         var builder = MetadataBuilder()
-        builder.addNestedType(MetadataTokens.typeDefinitionHandle(2), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0))
-        builder.addNestedType(MetadataTokens.typeDefinitionHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0))
+        builder.addNestedType(MetadataTokens.typeDefinitionHandle(2), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0))
+        builder.addNestedType(MetadataTokens.typeDefinitionHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0))
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
 
         builder = MetadataBuilder()
-        builder.addNestedType(MetadataTokens.typeDefinitionHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0))
-        builder.addNestedType(MetadataTokens.typeDefinitionHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle(0))
+        builder.addNestedType(MetadataTokens.typeDefinitionHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0))
+        builder.addNestedType(MetadataTokens.typeDefinitionHandle(1), org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0))
         assertFailsWith<IllegalStateException> { builder.validateOrder() }
     }
 

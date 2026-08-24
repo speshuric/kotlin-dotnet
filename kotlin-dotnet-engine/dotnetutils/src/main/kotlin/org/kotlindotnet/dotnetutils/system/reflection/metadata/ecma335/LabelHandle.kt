@@ -11,13 +11,17 @@ package org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335
  * (ported with the Encoding iteration).
  */
 @JvmInline
-value class LabelHandle internal constructor(val id: Int) {
+value class LabelHandle private constructor(val id: Int) {
     val isNil: Boolean
         get() = id == 0
 
     // Без reflection — модуль компилируется и в .NET; имя нужно для
     // диагностики и будущей унификации хэндлов.
     private val className: String get() = "LabelHandle"
+
+    companion object {
+        internal fun fromId(id: Int) = LabelHandle(id)
+    }
 
     override fun toString(): String = "$className($id)"
 }

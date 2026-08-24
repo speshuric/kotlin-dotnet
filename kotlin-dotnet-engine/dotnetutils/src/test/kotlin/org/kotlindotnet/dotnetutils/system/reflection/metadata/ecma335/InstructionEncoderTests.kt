@@ -508,12 +508,12 @@ class InstructionEncoderTests {
 
         // encoder without a control-flow builder:
         assertFailsWith<IllegalStateException> { il.defineLabel() }
-        assertFailsWith<IllegalStateException> { il.branch(ILOpCode.BR, LabelHandle(0)) }
-        assertFailsWith<IllegalStateException> { il.markLabel(LabelHandle(0)) }
+        assertFailsWith<IllegalStateException> { il.branch(ILOpCode.BR, LabelHandle.fromId(0)) }
+        assertFailsWith<IllegalStateException> { il.markLabel(LabelHandle.fromId(0)) }
 
         // nil labels:
-        assertFailsWith<IllegalStateException> { ilcf1.branch(ILOpCode.BR, LabelHandle(0)) }
-        assertFailsWith<IllegalStateException> { ilcf1.markLabel(LabelHandle(0)) }
+        assertFailsWith<IllegalStateException> { ilcf1.branch(ILOpCode.BR, LabelHandle.fromId(0)) }
+        assertFailsWith<IllegalStateException> { ilcf1.markLabel(LabelHandle.fromId(0)) }
         // label of another builder:
         assertFailsWith<IllegalStateException> { ilcf1.branch(ILOpCode.BR, l2) }
         assertFailsWith<IllegalStateException> { ilcf1.markLabel(l2) }

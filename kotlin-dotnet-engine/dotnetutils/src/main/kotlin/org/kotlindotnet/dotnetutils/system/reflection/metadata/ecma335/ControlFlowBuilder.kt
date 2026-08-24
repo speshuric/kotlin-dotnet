@@ -46,7 +46,7 @@ class ControlFlowBuilder {
 
         companion object {
             /** Sentinel used after the last real branch has been processed. */
-            internal val END = BranchInfo(Int.MAX_VALUE, LabelHandle(0), 0, 0, ILOpCode.NOP)
+            internal val END = BranchInfo(Int.MAX_VALUE, LabelHandle.fromId(0), 0, 0, ILOpCode.NOP)
         }
     }
 
@@ -78,7 +78,7 @@ class ControlFlowBuilder {
     internal fun addLabel(): LabelHandle {
         validateNotInSwitch()
         labels.add(-1)
-        return LabelHandle(labels.size)
+        return LabelHandle.fromId(labels.size)
     }
 
     internal fun addBranch(operandOffset: Int, label: LabelHandle, instructionEndDisplacement: Int, ilOffset: Int, opCode: ILOpCode) {
@@ -140,7 +140,7 @@ class ControlFlowBuilder {
         tryEnd: LabelHandle,
         handlerStart: LabelHandle,
         handlerEnd: LabelHandle,
-        filterStart: LabelHandle = LabelHandle(0),
+        filterStart: LabelHandle = LabelHandle.fromId(0),
         catchType: EntityHandle = EntityHandle(0u),
     ) {
         validateLabel(tryStart)

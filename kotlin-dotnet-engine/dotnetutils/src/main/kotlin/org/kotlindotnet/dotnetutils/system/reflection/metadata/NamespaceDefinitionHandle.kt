@@ -20,7 +20,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenType
  * create unique values.
  */
 @JvmInline
-value class NamespaceDefinitionHandle internal constructor(
+value class NamespaceDefinitionHandle private constructor(
     // bits:
     //     31: IsVirtual
     // 29..31: 0

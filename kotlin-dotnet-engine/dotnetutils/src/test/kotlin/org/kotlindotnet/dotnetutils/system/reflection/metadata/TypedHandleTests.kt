@@ -81,7 +81,7 @@ class TypedHandleTests {
     @Test
     fun wrongKindConversions_failFast() {
         assertFailsWith<IllegalStateException> {
-            TypeDefinitionHandle.fromHandle(ModuleDefinitionHandle.fromRowId(1).toHandle())
+            TypeDefinitionHandle.fromHandle(org.kotlindotnet.dotnetutils.system.reflection.metadata.ModuleDefinitionHandle.fromRowId(1).toHandle())
         }
         assertFailsWith<IllegalStateException> {
             BlobHandle.fromHandle(StringHandle.fromOffset(5).toHandle())
@@ -92,12 +92,12 @@ class TypedHandleTests {
 
     @Test
     fun isNil() {
-        assertFalse(TypeDefinitionHandle.fromRowId(1).isNil)
-        assertTrue(TypeDefinitionHandle.fromRowId(0).isNil)
-        assertFalse(MethodDefinitionHandle.fromRowId(1).isNil)
-        assertTrue(MethodDefinitionHandle.fromRowId(0).isNil)
-        assertFalse(AssemblyReferenceHandle.fromRowId(1).isNil)
-        assertTrue(AssemblyReferenceHandle.fromRowId(0).isNil)
+        assertFalse(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(1).isNil)
+        assertTrue(org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeDefinitionHandle.fromRowId(0).isNil)
+        assertFalse(org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(1).isNil)
+        assertTrue(org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle.fromRowId(0).isNil)
+        assertFalse(org.kotlindotnet.dotnetutils.system.reflection.metadata.AssemblyReferenceHandle.fromRowId(1).isNil)
+        assertTrue(org.kotlindotnet.dotnetutils.system.reflection.metadata.AssemblyReferenceHandle.fromRowId(0).isNil)
 
         val entity = EntityHandle(TokenTypeIds.TYPE_DEF or 1u)
         val nilEntity = EntityHandle(TokenTypeIds.TYPE_DEF or 0u)

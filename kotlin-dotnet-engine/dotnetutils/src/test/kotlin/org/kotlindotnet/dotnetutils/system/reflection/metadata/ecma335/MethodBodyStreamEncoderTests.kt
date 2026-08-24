@@ -456,7 +456,7 @@ class MethodBodyStreamEncoderTests {
             assertFailsWith<IllegalStateException> { il.defineLabel() }
         }
 
-        var foreign = LabelHandle(0)
+        var foreign = LabelHandle.fromId(0)
         run {
             val other = InstructionEncoder(codeBuilder, ControlFlowBuilder())
             other.defineLabel()
@@ -469,7 +469,7 @@ class MethodBodyStreamEncoderTests {
         val l0 = il.defineLabel()
 
         assertFailsWith<IllegalArgumentException> { il.branch(ILOpCode.NOP, l0) } // not a branch
-        assertFailsWith<IllegalStateException> { il.branch(ILOpCode.BR, LabelHandle(0)) } // nil
+        assertFailsWith<IllegalStateException> { il.branch(ILOpCode.BR, LabelHandle.fromId(0)) } // nil
         assertFailsWith<IllegalStateException> { il.branch(ILOpCode.BR, foreign) } // other builder's label
     }
 

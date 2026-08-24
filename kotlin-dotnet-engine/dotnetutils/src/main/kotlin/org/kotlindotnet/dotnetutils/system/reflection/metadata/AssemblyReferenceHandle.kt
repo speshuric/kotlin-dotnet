@@ -13,7 +13,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenType
  * Deviation: WinRT projection members (nested enum VirtualIndex, FromVirtualIndex)/ * are cut per ADR 0009 (WinMD not supported); the handle keeps plain row-id storage.
  */
 @JvmInline
-value class AssemblyReferenceHandle internal constructor(
+value class AssemblyReferenceHandle private constructor(
     internal val rowId: Int,
 ) {
     fun toHandle(): Handle = Handle(tokenTypeSmall, rowId)
@@ -30,7 +30,7 @@ value class AssemblyReferenceHandle internal constructor(
         private val tokenType: UInt get() = TokenTypeIds.ASSEMBLY_REF
         private val tokenTypeSmall: UByte get() = HandleType.ASSEMBLY_REF.toUByte()
 
-        internal fun fromRowId(rowId: Int): AssemblyReferenceHandle = AssemblyReferenceHandle(rowId)
+        internal fun fromRowId(rowId: Int) = AssemblyReferenceHandle(rowId)
 
         internal fun fromHandle(handle: Handle): AssemblyReferenceHandle {
             check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }

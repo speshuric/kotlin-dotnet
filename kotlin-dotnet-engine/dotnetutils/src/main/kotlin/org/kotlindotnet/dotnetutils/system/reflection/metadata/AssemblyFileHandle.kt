@@ -10,7 +10,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.HandleTyp
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenTypeIds
 
 @JvmInline
-value class AssemblyFileHandle internal constructor(
+value class AssemblyFileHandle private constructor(
     internal val rowId: Int,
 ) {
     fun toHandle(): Handle = Handle(tokenTypeSmall, rowId)
@@ -27,7 +27,7 @@ value class AssemblyFileHandle internal constructor(
         private val tokenType: UInt get() = TokenTypeIds.FILE
         private val tokenTypeSmall: UByte get() = HandleType.FILE.toUByte()
 
-        internal fun fromRowId(rowId: Int): AssemblyFileHandle = AssemblyFileHandle(rowId)
+        internal fun fromRowId(rowId: Int) = AssemblyFileHandle(rowId)
 
         internal fun fromHandle(handle: Handle): AssemblyFileHandle {
             check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }

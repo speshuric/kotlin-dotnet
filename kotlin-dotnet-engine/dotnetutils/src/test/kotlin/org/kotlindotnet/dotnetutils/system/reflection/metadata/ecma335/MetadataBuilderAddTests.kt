@@ -33,7 +33,7 @@ class MetadataBuilderAddTests {
     @Test
     fun addModule_rowCount() {
         val mb = newBuilder()
-        mb.addModule(0, mb.getOrAddString("test"), GuidHandle(0), GuidHandle(0), GuidHandle(0))
+        mb.addModule(0, mb.getOrAddString("test"), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
         assertEquals(1, mb.getRowCount(TableIndex.MODULE))
         assertEquals(0, mb.getRowCount(TableIndex.ASSEMBLY))
     }
@@ -41,7 +41,7 @@ class MetadataBuilderAddTests {
     @Test
     fun addAssembly_rowCount() {
         val mb = newBuilder()
-        mb.addAssembly(mb.getOrAddString("MyAsm"), AssemblyVersion(1, 0, 0, 0), mb.getOrAddString(""), BlobHandle(0), 0, 0u)
+        mb.addAssembly(mb.getOrAddString("MyAsm"), AssemblyVersion(1, 0, 0, 0), mb.getOrAddString(""), BlobHandle.fromOffset(0), 0, 0u)
         assertEquals(1, mb.getRowCount(TableIndex.ASSEMBLY))
     }
 
@@ -98,7 +98,7 @@ class MetadataBuilderAddTests {
         val mb = newBuilder()
         val name = mb.getOrAddString("Foo")
         val ns = mb.getOrAddString("Test")
-        val typeHandle = mb.addTypeDefinition(0u, ns, name, EntityHandle(0u), mb.addFieldDefinition(0, name, BlobHandle(0)), mb.addMethodDefinition(0, 0, name, BlobHandle(0), -1, mb.addParameter(0, name, 0)))
+        val typeHandle = mb.addTypeDefinition(0u, ns, name, EntityHandle(0u), mb.addFieldDefinition(0, name, BlobHandle.fromOffset(0)), mb.addMethodDefinition(0, 0, name, BlobHandle.fromOffset(0), -1, mb.addParameter(0, name, 0)))
         assertEquals(1, mb.getRowCount(TableIndex.TYPE_DEF))
         assertEquals(1, mb.getRowCount(TableIndex.FIELD))
         assertEquals(1, mb.getRowCount(TableIndex.METHOD_DEF))
@@ -109,8 +109,8 @@ class MetadataBuilderAddTests {
     @Test
     fun serializeMetadataRoot_minimalAssembly() {
         val mb = newBuilder()
-        mb.addModule(0, mb.getOrAddString("test"), GuidHandle(0), GuidHandle(0), GuidHandle(0))
-        mb.addAssembly(mb.getOrAddString("MyAsm"), AssemblyVersion(1, 0, 0, 0), mb.getOrAddString(""), BlobHandle(0), 0, 0u)
+        mb.addModule(0, mb.getOrAddString("test"), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0), GuidHandle.fromIndex(0))
+        mb.addAssembly(mb.getOrAddString("MyAsm"), AssemblyVersion(1, 0, 0, 0), mb.getOrAddString(""), BlobHandle.fromOffset(0), 0, 0u)
 
         val rootBuilder = MetadataRootBuilder(mb)
         val writer = BlobBuilder()

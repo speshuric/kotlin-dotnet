@@ -13,7 +13,7 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TokenType
  * Deviation: ToDebugInformationHandle is cut (MethodDebugInformationHandle belongs/ * to the debug/PDB scope excluded by ADR 0009).
  */
 @JvmInline
-value class MethodDefinitionHandle internal constructor(
+value class MethodDefinitionHandle private constructor(
     internal val rowId: Int,
 ) {
     fun toHandle(): Handle = Handle(tokenTypeSmall, rowId)
@@ -30,7 +30,7 @@ value class MethodDefinitionHandle internal constructor(
         private val tokenType: UInt get() = TokenTypeIds.METHOD_DEF
         private val tokenTypeSmall: UByte get() = HandleType.METHOD_DEF.toUByte()
 
-        internal fun fromRowId(rowId: Int): MethodDefinitionHandle = MethodDefinitionHandle(rowId)
+        internal fun fromRowId(rowId: Int) = MethodDefinitionHandle(rowId)
 
         internal fun fromHandle(handle: Handle): MethodDefinitionHandle {
             check(handle.vType == tokenTypeSmall) { "handle has wrong kind for $className" }
