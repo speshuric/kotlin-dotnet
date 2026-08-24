@@ -120,135 +120,26 @@ if [ ! -f "$PLUGIN_JAR" ]; then
 fi
 require_file "$PLUGIN_JAR" "plugin JAR not found: $PLUGIN_JAR (run 'just plugin')"
 
-# _build_one <kt> <testid>  — собрать и (если не no-test) верифицировать
-# один .kt файл. outdir = build/<testid>; для multi-source тестов —
-# build/<testid>/<basename>/ (чтобы артефакты не перетирались).
-_build_one() {
-    local kt="$1"
-    local tid="$2"
-    local name kind outdir il asm sources_count
-
-    name="$(basename "$kt" .kt)"
-    kind="$(test_kind "$tid")"
-
-    sources_count="$(test_kt "$tid" | wc -l)"
-    if [ "$sources_count" -gt 1 ]; then
-        outdir="build/$tid/$name"
-    else
-        outdir="build/$tid"
-    fi
-    mkdir -p "$outdir/kt-out"
-
-    il="$outdir/$name.il"
-    asm="$outdir/$name.$kind"
-
-    # --- gen-il: kotlinc + plugin → .il (mtime-инкрементально) ---
-    if [ -f "$il" ] && [ "$il" -nt "$kt" ] && [ "$il" -nt "$PLUGIN_JAR" ]; then
-        echo "[just] $il up-to-date"
-    else
-        log_info "compiling $kt → $il"
-        rm -f "$outdir"/ir-dump-*.txt "$il"
-        kotlinc -Xplugin="$PLUGIN_JAR" \
-            -P "plugin:kotlin.dotnet:output.dir=$outdir" \
-            -P "plugin:kotlin.dotnet:backend=il" \
-            "$kt" -d "$outdir/kt-out"
-    fi
-    require_file "$il" "plugin did not produce $il"
-
-    # --- ilasm → .dll/.exe (mtime-инкрементально) ---
-    if [ -f "$asm" ] && [ "$asm" -nt "$il" ]; then
-        echo "[just] $asm up-to-date"
-    else
-        log_info "assembling → $asm"
-        ilasm "/$kind" "/output:$asm" "$il"
-    fi
-    require_file "$asm" "ilasm did not produce $asm"
-
-    # --- exe: копируем runtime DLL + runtimeconfig.json ---
-    if [ "$kind" = "exe" ]; then
-        # Runtime DLL: предпочитаем Release, откатываемся на Debug.
-        local runtime_dll=""
-        for cand in \
-            runtime/bin/Release/net10.0/KotlinDotnetRuntime.dll \
-            runtime/bin/Debug/net10.0/KotlinDotnetRuntime.dll; do
-            if [ -f "$cand" ]; then runtime_dll="$cand"; break; fi
-        done
-        if [ -z "$runtime_dll" ]; then
-            log_error "KotlinDotnetRuntime.dll not found (run 'just runtime' first)"
-            exit 1
-        fi
-        cp "$runtime_dll" "$outdir/"
-        printf '%s\n' "$RUNTIMECONFIG_JSON" > "$outdir/$name.runtimeconfig.json"
-    fi
-
-    if $no_test; then
-        return 0
-    fi
-
-    # --- verify ---
-    _verify "$tid" "$name" "$asm"
-}
-
-# _verify <testid> <name> <asm> — проверка вывода.
-# exe: прогон собранного образа; dll: запуск C#-consumer'а.
-# Ожидание — ключ expect (printf %b); без него — проверка непустоты.
-_verify() {
-    local tid="$1"
-    local name="$2"
-    local asm="$3"
-    local out expected consumer kind
-
-    kind="$(test_kind "$tid")"
-    if [ "$kind" = "dll" ]; then
-        consumer="$(test_consumer "$tid")"
-        [ -n "$consumer" ] || { echo "FAIL: $tid (dll without consumer in test.properties)"; exit 1; }
-        # dotnet run печатает рантайм-шум в stderr; программа — в stdout.
-        out="$(cd "$consumer" && timeout 180 dotnet run 2>/dev/null || true)"
-    else
-        out="$(timeout 30 dotnet "$asm" 2>/dev/null || true)"
-    fi
-
-    expected="$(test_prop "$tid" expect "" || true)"
-    if [ -n "$expected" ]; then
-        expected="$(printf '%b' "$expected")"
-        if [ "$out" != "$expected" ]; then
-            echo "FAIL: $tid"
-            echo "--- expected ---"
-            echo "$expected"
-            echo "--- got ---"
-            echo "$out"
-            exit 1
-        fi
-    elif [ -z "$out" ]; then
-        echo "FAIL: $tid (empty output)"
-        exit 1
-    fi
-    echo ">>> $tid/$name OK"
-}
-
-# --- S5 (ADR 0010): второй прогон на pe-бэкенде ---
-# Артефакты — в build/<tid>/pe/, ожидания те же, что на il-пути.
-# Для dll-тестов (00-int-add, 02-expr) pe-DLL временно подменяет
-# il-DLL по пути из HintPath consumer'а, затем восстанавливается.
-
+# _pe_build_one <kt> <testid> <kind> — собрать один .kt через pe-бэкенд
+# напрямую в build/<testid>/ (для multi-source тестов артефакты различаются
+# по имени исходника). Инкрементальности нет: pe всегда пересобирается.
 _pe_build_one() {
     local kt="$1"
     local tid="$2"
     local kind="$3"
-    local name outdir
+    local name outdir asm
     name="$(basename "$kt" .kt)"
-    outdir="build/$tid/pe"
+    outdir="build/$tid"
     mkdir -p "$outdir/kt-out"
 
-    log_info "pe: compiling $kt → $outdir/$name.$kind"
+    log_info "compiling $kt → $outdir/$name.$kind"
     kotlinc -Xplugin="$PLUGIN_JAR" \
         -P "plugin:kotlin.dotnet:output.dir=$outdir" \
-        -P "plugin:kotlin.dotnet:backend=pe" \
         -P "plugin:kotlin.dotnet:output.kind=$kind" \
         "$kt" -d "$outdir/kt-out"
 
-    local asm="$outdir/$name.$kind"
-    require_file "$asm" "pe backend did not produce $asm"
+    asm="$outdir/$name.$kind"
+    require_file "$asm" "plugin did not produce $asm"
 
     if [ "$kind" = "exe" ]; then
         local runtime_dll=""
@@ -262,89 +153,78 @@ _pe_build_one() {
         printf '%s\n' "$RUNTIMECONFIG_JSON" > "$outdir/$name.runtimeconfig.json"
     fi
 
-    # C#-harness: pe-артефакт должен открываться настоящим SRM.
+    # C#-harness: артефакт должен открываться настоящим SRM.
     if $no_test; then return 0; fi
     ( cd kotlin-dotnet-utils/verifier && timeout 120 dotnet run --no-launch-profile -- \
         "$PROJECT_ROOT/$asm" | grep -q "VERIFIER OK" ) \
-        || { echo "FAIL: $tid pe (verifier)"; exit 1; }
+        || { echo "FAIL: $tid ($name, verifier)"; exit 1; }
 }
 
+# _verify_pe <testid> — прогон артефактов теста.
+# exe: запуск каждого собранного образа; dll: запуск C#-consumer'а.
 _verify_pe() {
     local tid="$1"
-    local kind kt name expected expected_raw out consumer_dll backup
+    local kind kt name expected expected_raw out
 
     kind="$(test_kind "$tid")"
 
-    # Сборка всех исходников теста на pe-бэкенде (+ verifier на каждый).
-    while IFS= read -r kt; do
-        _pe_build_one "$kt" "$tid" "$kind"
-    done < <(test_kt "$tid")
-
     if [ "$kind" = "dll" ]; then
-        # Подмена DLL по пути из HintPath consumer'а с восстановлением
-        # (одна dll на тест; multi-source dll-тестов пока нет).
+        consumer="$(test_consumer "$tid")"
+        [ -n "$consumer" ] || { echo "FAIL: $tid (dll without consumer in test.properties)"; exit 1; }
         name="$(basename "$(test_kt "$tid" | head -n 1)" .kt)"
-        consumer_dll="build/$tid/$name.dll"
-        backup="build/$tid/${name}.il-dll.bak"
-        cp "$consumer_dll" "$backup"
-        cp "build/$tid/pe/$name.dll" "$consumer_dll"
-        out="$( cd "$(test_consumer "$tid")" && timeout 180 dotnet run 2>/dev/null || true )"
-        mv -f "$backup" "$consumer_dll"
-
+        # dotnet run печатает рантайм-шум в stderr; программа — в stdout.
+        out="$( cd "$consumer" && timeout 180 dotnet run 2>/dev/null || true )"
         expected_raw="$(test_prop "$tid" expect "" || true)"
         if [ -n "$expected_raw" ]; then
             expected="$(printf '%b' "$expected_raw")"
             if [ "$out" != "$expected" ]; then
-                echo "FAIL: $tid pe"
+                echo "FAIL: $tid"
                 echo "--- expected ---"; echo "$expected"
                 echo "--- got ---"; echo "$out"
                 exit 1
             fi
         elif [ -z "$out" ]; then
-            echo "FAIL: $tid pe (empty output)"
+            echo "FAIL: $tid (empty output)"
             exit 1
         fi
     else
         expected="$(printf '%b' "$(test_prop "$tid" expect)")"
         while IFS= read -r kt; do
             name="$(basename "$kt" .kt)"
-            out="$(timeout 30 dotnet "build/$tid/pe/$name.exe" 2>/dev/null || true)"
+            out="$(timeout 30 dotnet "build/$tid/$name.exe" 2>/dev/null || true)"
             if [ "$out" != "$expected" ]; then
-                echo "FAIL: $tid pe ($name)"
+                echo "FAIL: $tid ($name)"
                 echo "--- expected ---"; echo "$expected"
                 echo "--- got ---"; echo "$out"
                 exit 1
             fi
         done < <(test_kt "$tid")
     fi
-    echo ">>> $tid pe OK"
+    echo ">>> $tid OK"
 }
 
-# --- Тело: сборка по бэкендам из свойств теста (см. docs/test-format.md) ---
+# --- Тело: сборка теста (см. docs/test-format.md) ---
 case " $(test_backends "$testid") " in
-    *" il "*) do_il=true ;;
-    *) do_il=false ;;
-esac
-case " $(test_backends "$testid") " in
-    *" pe "*) do_pe=true ;;
-    *) do_pe=false ;;
+    *" il "*)
+        log_error "test '$testid': backends=il is not supported anymore (IL-text/ilasm path removed, see ADR 0012). Fix test.properties."
+        exit 1 ;;
 esac
 
-if $do_il; then
-    while IFS= read -r kt; do
-        _build_one "$kt" "$testid"
-    done < <(test_kt "$testid")
+if [ "$(test_kind "$testid")" != "exe" ] && [ "$(test_kind "$testid")" != "dll" ]; then
+    log_error "test '$testid': unknown kind '$(test_kind "$testid")'"
+    exit 1
 fi
 
-if $do_pe; then
-    if $no_test; then
-        # Только собрать pe-артефакты (без прогона и verifier).
-        while IFS= read -r kt; do
-            _pe_build_one "$kt" "$testid" "$(test_kind "$testid")"
-        done < <(test_kt "$testid")
-    else
-        _verify_pe "$testid"
-    fi
+if $no_test; then
+    # Только собрать артефакты (без прогона и verifier).
+    while IFS= read -r kt; do
+        _pe_build_one "$kt" "$testid" "$(test_kind "$testid")"
+    done < <(test_kt "$testid")
+else
+    while IFS= read -r kt; do
+        _pe_build_one "$kt" "$testid" "$(test_kind "$testid")"
+    done < <(test_kt "$testid")
+    _verify_pe "$testid"
 fi
 
 if $no_test; then

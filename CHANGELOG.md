@@ -4,6 +4,26 @@
 
 ## [Unreleased]
 
+### Removed — IL-текстовый путь (ilasm) удалён; PE — единственный вывод (ADR 0012, Phase 10.9)
+
+- Удалены `TextIlEmitter.kt`, `IlContext.kt` и тест `IlEmitterContractTest`;
+  интерфейс `IlEmitter` очищен (`text()` и `beginStaticMethod()` убраны,
+  `endStaticMethod` переименован в `endMethod`).
+- Из `DotnetIrGenerationExtension` удалена il-ветка и параметр `backend`;
+  CLI-опция плагина `backend` снята с регистрации — неизвестная опция
+  теперь fail-fast ошибка (чужие конфиги с `-P plugin:kotlin.dotnet:backend=il`
+  начнут падать — осознанно).
+- `NameMapper.methodName` больше не экранирует CIL-слова одинарными
+  кавычками (`RESERVED_CIL_WORDS` удалён); `PeIlEmitter` не снимает кавычки.
+- Скрипты: из `build-test.sh` удалён il-путь (gen-il → ilasm) вместе с
+  mtime-инкрементальностью по `.il` — pe теперь всегда пересобирается;
+  артефакты пишутся напрямую в `build/<id>/` (без подкаталога `pe/`,
+  swap-танец для dll-консьюмеров убран). Значение `backends=il` в
+  `test.properties` — ошибка конфигурации. Из `kotlinc-net.sh` убран флаг
+  `-il`; из `show.sh`/`justfile` — kind `il`/рецепт `show-il`;
+  `install-sdks.sh` больше не ставит NuGet-пакет `ilasm-cli`, PATH-шимы
+  `ilasm` убраны. `_resolve_last` переведён с `*.il` на `ir-dump-*.txt`.
+- Тесты: удалены `test-projects/00-int-add/manual.il|manual.dll`.
 ### Changed — dotnetutils: дескрипторы хэндлов вместо констант
 
 - Во всех хэндлах пары констант `TOKEN_TYPE`/`TOKEN_TYPE_SMALL` заменены на

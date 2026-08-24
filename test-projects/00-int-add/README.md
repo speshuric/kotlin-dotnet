@@ -4,32 +4,13 @@
 
 ## Этапы
 
-### Phase 2: manual.il (без компилятора Kotlin)
-
-Проверка что `ilasm` работает и runtime не нужен:
+### C# consumer
 
 ```bash
-source scripts/activate.sh
-cd test-projects/00-int-add
-ilasm /dll /output:manual.dll manual.il
-ildasm manual.dll | head -40    # инспекция (опционально)
-```
-
-### Phase 3: C# consumer manual.dll
-
-```bash
-cd csharp-test
-dotnet run    # печатает 5
-```
-
-### Phase 4–6: compiler plugin → Arithmetic.dll
-
-```bash
-# (после реализации плагина)
+just test 00-int-add
+# либо вручную:
 ./gradlew :compiler-plugin:jar
-kotlinc -Xplugin=compiler-plugin/build/libs/dotnet-compiler-plugin.jar Arithmetic.kt -d build/kt-out
-# плагин пишет build/Arithmetic.il
-ilasm /dll /output:build/Arithmetic.dll build/Arithmetic.il
-# переключить <HintPath> в csharp-test.csproj на ../../build/Arithmetic.dll
-cd csharp-test && dotnet run
+kotlinc -Xplugin=kotlin-dotnet-engine/compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar Arithmetic.kt -d build/kt-out
+# плагин пишет build/Arithmetic.dll
+cd csharp-test && dotnet run    # печатает 5
 ```

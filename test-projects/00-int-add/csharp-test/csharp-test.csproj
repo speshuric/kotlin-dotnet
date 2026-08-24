@@ -8,10 +8,8 @@
     <AssemblyName>csharp-test</AssemblyName>
   </PropertyGroup>
 
-  <!-- Ссылка на IL-сборку, сгенерированную через ilasm.
-       manual.dll — hand-written (Phase 2-3)
-       Arithmetic.dll — сгенерирована из Kotlin через плагин (Phase 5-6)
-       Путь относительный к .csproj. -->
+  <!-- Ссылка на сборку, сгенерированную компилятор-плагином (PE):
+       Arithmetic.dll из Kotlin. Путь относительный к .csproj. -->
   <ItemGroup>
     <Reference Include="Arithmetic">
       <HintPath>..\..\..\build\00-int-add\Arithmetic.dll</HintPath>

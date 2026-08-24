@@ -68,9 +68,10 @@ test_kind() {
     test_prop "$1" kind
 }
 
-# test_backends <id> — список бэкендов ("il", "pe", "il pe").
+# test_backends <id> — список бэкендов. Единственное допустимое
+# значение — "pe" (IL-текст/ilasm-путь удалён, ADR 0012).
 test_backends() {
-    test_prop "$1" backends "il pe"
+    test_prop "$1" backends "pe"
 }
 
 # test_desc <id> — однострочное описание.
@@ -169,10 +170,10 @@ resolve_selector() {
     esac
 }
 
-# _resolve_last — id с самым свежим .il под build/<id>/*.
-# Если ни у кого нет build-директории с .il — вернуть первый id.
+# _resolve_last — id с самым свежим ir-dump-* под build/<id>/*.
+# Если ни у кого нет build-директории с ir-dump — вернуть первый id.
 _resolve_last() {
-    local best_id first_id best_mtime=0 id dir il m
+    local best_id first_id best_mtime=0 id dir dump m
     # shellcheck disable=SC2086  # намеренный word-split
     first_id=$(
         for id in $TEST_IDS; do echo "$id"; break; done
@@ -182,16 +183,16 @@ _resolve_last() {
     for id in $TEST_IDS; do
         dir="build/$id"
         [ -d "$dir" ] || continue
-        # maxdepth 2: ловит build/<id>/*.il и per-source подпапки
-        while IFS= read -r il; do
-            if [ -f "$il" ]; then
-                m=$(stat -c %Y "$il" 2>/dev/null || stat -f %m "$il" 2>/dev/null || echo 0)
+        # maxdepth 2: ловит build/<id>/ir-dump-*.txt и per-source подпапки
+        while IFS= read -r dump; do
+            if [ -f "$dump" ]; then
+                m=$(stat -c %Y "$dump" 2>/dev/null || stat -f %m "$dump" 2>/dev/null || echo 0)
                 if [ "$m" -gt "$best_mtime" ]; then
                     best_mtime="$m"
                     best_id="$id"
                 fi
             fi
-        done < <(find "$dir" -maxdepth 2 -name '*.il' 2>/dev/null)
+        done < <(find "$dir" -maxdepth 2 -name 'ir-dump-*.txt' 2>/dev/null)
     done
     echo "$best_id"
 }

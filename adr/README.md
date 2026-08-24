@@ -15,3 +15,5 @@
 | 0009 | 2026-08-21 | Accepted | Порт write-path System.Reflection.Metadata на Kotlin (модуль dotnetutils) |
 | 0010 | 2026-08-22 | Accepted | Прямая генерация PE в compiler-plugin (замена IL-текста + ilasm) |
 | 0011 | 2026-08-22 | Accepted | Минимальный MetadataReader в dotnetutils (round-trip самопроверка) |
+| 0012 | 2026-08-24 | Implemented | Удаление IL-текстового пути (ilasm); единственный вывод — PE (реализация: Phase 10.9) |
+| 0013 | 2026-08-24 | Placeholder | Итераторы: общий дизайн (заглушка под задачу G-02) |

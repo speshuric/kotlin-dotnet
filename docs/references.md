@@ -35,7 +35,7 @@
 - .NET runtime: https://github.com/dotnet/runtime
 - Roslyn (C# компилятор, референс по codegen):
   https://github.com/dotnet/roslyn
-- ilasm — утилита для компиляции IL-текста в сборку
+- ilasm — историческая утилита компиляции IL-текста (из пути удалена; см. ADR 0012)
   (входит в .NET SDK)
 
 ## Библиотеки для эмиссии .NET-сборок (для запасного варианта)

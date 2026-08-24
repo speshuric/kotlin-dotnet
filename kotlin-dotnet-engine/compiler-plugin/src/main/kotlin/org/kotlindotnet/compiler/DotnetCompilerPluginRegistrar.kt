@@ -32,12 +32,9 @@ class DotnetCompilerPluginRegistrar : CompilerPluginRegistrar() {
         val outputDir = configuration.get(DotnetCommandLineProcessor.outputDirKey)
             ?.let(::File)
             ?: File("build")
-        // backend (ADR 0010): с S6 дефолт — pe; il остаётся как fallback
-        // через -P plugin:kotlin.dotnet:backend=il.
-        val backend = configuration.get(DotnetCommandLineProcessor.backendKey) ?: "pe"
         val outputKind = configuration.get(DotnetCommandLineProcessor.outputKindKey) ?: "exe"
         IrGenerationExtension.registerExtension(
-            DotnetIrGenerationExtension(outputDir, backend, outputKind)
+            DotnetIrGenerationExtension(outputDir, outputKind)
         )
     }
 }

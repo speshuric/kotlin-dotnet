@@ -5,8 +5,6 @@ import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.util.dump
 import java.io.File
-import org.kotlindotnet.compiler.il.IlEmitter
-import org.kotlindotnet.compiler.il.TextIlEmitter
 import org.kotlindotnet.compiler.util.Log
 
 /**
@@ -14,7 +12,7 @@ import org.kotlindotnet.compiler.util.Log
  *
  * - IR-dump: `ir-dump-<moduleFragment.name>.txt` в [outputDir]
  *   (best-effort, через [Log.warn] при неудаче).
- * - IL-генерация: `outputDir/<asmName>.il`. Ошибка эмиссии — не silent:
+ * - PE-генерация: `outputDir/<asmName>.<kind>`. Ошибка эмиссии — не silent:
  *   бросает `IllegalStateException` с контекстом (имя файла), что
  *   фейлит компиляцию (см. A-02, ADR 0007).
  *
@@ -24,7 +22,6 @@ import org.kotlindotnet.compiler.util.Log
  */
 class DotnetIrGenerationExtension(
     private val outputDir: File,
-    private val backend: String = "il",
     private val outputKind: String = "exe",
 ) : IrGenerationExtension {
 
@@ -45,42 +42,22 @@ class DotnetIrGenerationExtension(
 
         // Генерация — НЕ best-effort: ошибка эмиссии летит наружу и
         // фейлит компиляцию. visitor бросает TODO на неподдержанных узлах
-        // — это нужное поведение (fail-fast, не silent empty .il).
+        // — это нужное поведение (fail-fast, не silent empty output).
         for (irFile in moduleFragment.files) {
             val asmName = NameMapper.assemblyName(irFile)
 
-            if (backend == "pe") {
-                // ADR 0010: прямая генерация PE через dotnetutils.
-                val outFile = File(outputDir, "$asmName.$outputKind")
-                try {
-                    val emitter = org.kotlindotnet.compiler.pe.PeIlEmitter()
-                    val visitor = DotnetIrVisitor(emitter)
-                    irFile.accept(visitor, null)
-                    emitter.writeAssemblyTo(outFile, outputKind == "exe")
-                    Log.info("PE ($outputKind): ${outFile.absolutePath}")
-                } catch (e: Throwable) {
-                    outFile.delete()
-                    throw IllegalStateException(
-                        "PE emission failed for '${irFile.fileEntry.name}' → ${outFile.name}: ${e.message}",
-                        e,
-                    )
-                }
-                continue
-            }
-
-            val ilFile = File(outputDir, "$asmName.il")
+            // ADR 0010: прямая генерация PE через dotnetutils.
+            val outFile = File(outputDir, "$asmName.$outputKind")
             try {
-                val emitter: IlEmitter = TextIlEmitter()
+                val emitter = org.kotlindotnet.compiler.pe.PeIlEmitter()
                 val visitor = DotnetIrVisitor(emitter)
                 irFile.accept(visitor, null)
-                ilFile.writeText(emitter.text())
-                Log.info("IL: ${ilFile.absolutePath}")
+                emitter.writeAssemblyTo(outFile, outputKind == "exe")
+                Log.info("PE ($outputKind): ${outFile.absolutePath}")
             } catch (e: Throwable) {
-                // Удаляем потенциально пустой/битый .il, чтобы не вводить
-                // в заблуждение последующие шаги (ilasm).
-                ilFile.delete()
+                outFile.delete()
                 throw IllegalStateException(
-                    "IL emission failed for '${irFile.fileEntry.name}' → ${ilFile.name}: ${e.message}",
+                    "PE emission failed for '${irFile.fileEntry.name}' → ${outFile.name}: ${e.message}",
                     e,
                 )
             }

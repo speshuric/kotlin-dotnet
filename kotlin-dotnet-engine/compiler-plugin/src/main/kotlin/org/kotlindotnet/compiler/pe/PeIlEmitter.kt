@@ -380,7 +380,7 @@ class PeIlEmitter : IlEmitter {
         val cls = currentClass
             ?: throw IllegalStateException("Contract violation (declareField): no open class")
         check(!isStatic) { "static fields are not supported until Phase 13" }
-        cls.fields.add(FieldRec(cilType, name.removeSurrounding("'")))
+        cls.fields.add(FieldRec(cilType, name))
         return cls.fields.size - 1
     }
 
@@ -396,7 +396,7 @@ class PeIlEmitter : IlEmitter {
     ) {
         startMethod(
             MethodRec(
-                name.removeSurrounding("'"),
+                name,
                 returnType,
                 params.map { it.first },
                 isEntrypoint,
@@ -413,13 +413,6 @@ class PeIlEmitter : IlEmitter {
         )
     }
 
-    override fun beginStaticMethod(
-        name: String,
-        returnType: String,
-        params: List<Pair<String, String>>,
-        isEntrypoint: Boolean,
-    ) = beginMethod(name, returnType, params, isStatic = true, isEntrypoint = isEntrypoint)
-
     private fun startMethod(rec: MethodRec) {
         labelIds.clear()
         nextLabelId = 0
@@ -432,7 +425,7 @@ class PeIlEmitter : IlEmitter {
         // no-op: locals are encoded in encodeBody
     }
 
-    override fun endStaticMethod() {
+    override fun endMethod() {
         // Тело уже забуферизовано; deferred-кодирование — в endContainerClass.
         current = null
     }
@@ -533,11 +526,6 @@ class PeIlEmitter : IlEmitter {
     }
 
     // === Result ===
-
-    override fun text(): String =
-        throw UnsupportedOperationException(
-            "PeIlEmitter produces a binary assembly; use writeAssemblyTo() instead of text()"
-        )
 
     /** Сериализует собранную сборку в PE-файл (.exe/.dll). */
     fun writeAssemblyTo(outputFile: File, isExe: Boolean) {
@@ -718,7 +706,7 @@ class PeIlEmitter : IlEmitter {
      * (nil-scope ⇒ тип из текущего модуля).
      */
     private fun parseTypeName(s: String): TypeNameInfo {
-        var work = s.trim().removeSurrounding("'")
+        var work = s.trim()
         val asmMatch = Regex("""^\[([^\]]+)\]\s*(.*)$""").find(work)
         val assembly: String?
         if (asmMatch != null) {
@@ -773,11 +761,11 @@ class PeIlEmitter : IlEmitter {
         val sigMatch = Regex("""^(.+?)::(.+?)\s*\((.*)\)\s*$""").find(rest)
             ?: throw IllegalStateException("Cannot parse call ref member: '$ref'")
         // Имена могут приходить в CIL-экранировании ('box') — оно нужно
-        // только ilasm-тексту; в метаданных пишем сырое имя.
-        val methodName = sigMatch.groupValues[2].trim().removeSurrounding("'")
+        // только IL-тексту; в метаданных пишем сырое имя.
+        val methodName = sigMatch.groupValues[2].trim()
         val paramsRaw = sigMatch.groupValues[3].trim()
 
-        val qualified = sigMatch.groupValues[1].trim().removeSurrounding("'")
+        val qualified = sigMatch.groupValues[1].trim()
         val dotIdx = qualified.lastIndexOf('.')
         val ns = if (dotIdx >= 0) qualified.substring(0, dotIdx) else ""
         val typeName = if (dotIdx >= 0) qualified.substring(dotIdx + 1) else qualified
@@ -838,7 +826,7 @@ class PeIlEmitter : IlEmitter {
      *
      * Свои классы — ПРЯМО TypeDef: хэндлы предвычислены (порядок строк
      * фиксирован: &lt;Module&gt;, контейнер, классы), что канонично для
-     * csc/ilasm и не требует отдельных TypeRef-строк. NIL-scope TypeRef
+     * компилятору CIL-текста и не требует отдельных TypeRef-строк. NIL-scope TypeRef
      * для типов текущего модуля спецификацией допустим и эмпирически
      * работает на net10 CLR (проверено экспериментом, см.
      * TODO/PHASE-10.md §«Итоги»), но компиляторами не используется —
@@ -879,7 +867,7 @@ class PeIlEmitter : IlEmitter {
         val idx = member.lastIndexOf("::")
         require(idx > 0) { "Cannot parse field ref member: '$ref'" }
         val typePart = member.substring(0, idx).trim()
-        val fieldName = member.substring(idx + 2).trim().removeSurrounding("'")
+        val fieldName = member.substring(idx + 2).trim()
 
         val parent = resolveTypeEntity(typePart)
         val b = BlobBuilder()

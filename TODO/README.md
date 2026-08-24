@@ -90,7 +90,7 @@
 | 14 | Дизайн: итераторы (общий + специализированные по диапазонам/строкам) | [G-02-iterators.md](G-internal-design/G-02-iterators.md) | POST-9 (дизайн) | B-01 | TODO |
 | 15 | Дизайн: hash-коллизии и районы, где напоремся | [G-03-hash-design.md](G-internal-design/G-03-hash-design.md) | POST-9 (дизайн) | — | TODO |
 | 16 | Миграция тестов из kotlin-компилятора | [H-01-kotlin-test-migration.md](H-test-migration/H-01-kotlin-test-migration.md) | POST-PoC | Phase 9–12 done | TODO |
-| 17 | dotnetutils: порт write-path SRM → Kotlin (билдер .NET-сборок) | [I-01-metadata-builder.md](I-dotnetutils/I-01-metadata-builder.md) | POST-9 (review) | — (ADR 0009) | WIP |
+| 17 | dotnetutils: порт write-path SRM → Kotlin (билдер .NET-сборок) | [I-01-metadata-builder.md](I-dotnetutils/I-01-metadata-builder.md) | POST-9 (review) | — (ADR 0009) | DONE |
 | 18 | Идея: генерация C# по Kotlin для проработки кейсов | [I-02-csharp-codegen-idea.md](I-dotnetutils/I-02-csharp-codegen-idea.md) | POST-PoC | I-01 | TODO |
 | 19 | Декомпозиция PeIlEmitter (модель типов / парсер ссылок / сигнатуры / буфер опкодов / writer) — **сразу после Phase 10.9** | [J-01-pe-emitter-decomposition.md](J-pe-backend/J-01-pe-emitter-decomposition.md) | POST-10.9 (рефакторинг) | Phase 10, Phase 10.9 | TODO |
 

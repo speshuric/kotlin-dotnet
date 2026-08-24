@@ -100,11 +100,10 @@ import org.kotlindotnet.compiler.ir.KotlinOperators
  * контекст циклов (break/continue) — через [loopContexts] (стек
  * [LoopContext]).
  *
- * Зависит от абстракции [IlEmitter] (A-03), а не от конкретного
- * [TextIlEmitter]. Опкоды эмитятся через типобезопасные методы:
- * `emitter.opcode(IlOpcode.ADD)` для безоперандных, `emitter.ldcI4(n)`,
- * `emitter.ldarg(idx)`, `emitter.br(label)` — для типизированных
- * (короткие формы и экранирование инкапсулированы в [TextIlEmitter]).
+ * Зависит от абстракции [IlEmitter] (A-03). Опкоды эмитятся через
+ * типобезопасные методы: `emitter.opcode(IlOpcode.ADD)` для безоперандных,
+ * `emitter.ldcI4(n)`, `emitter.ldarg(idx)`, `emitter.br(label)` — для
+ * типизированных (короткие формы инкапсулированы в реализации эмиттера).
  */
 class DotnetIrVisitor(
     private val emitter: IlEmitter
@@ -458,7 +457,7 @@ class DotnetIrVisitor(
             emitter.opcode(IlOpcode.RET)
         }
 
-        emitter.endStaticMethod()
+        emitter.endMethod()
     }
 
     // =====================================================================
@@ -590,7 +589,7 @@ class DotnetIrVisitor(
         }
 
         emitter.opcode(IlOpcode.RET)
-        emitter.endStaticMethod()
+        emitter.endMethod()
     }
 
     /**
@@ -666,7 +665,7 @@ class DotnetIrVisitor(
             .filter { it.kind == IrParameterKind.Regular }
             .joinToString(", ") { cilTypeOf(it.type) }
         val retCil = cilTypeOf(realCallee.returnType)
-        val methodName = NameMapper.methodName(realCallee).removeSurrounding("'")
+        val methodName = NameMapper.methodName(realCallee)
         val ref =
             "$retCil instance ${qualifiedClassName(declaringClass)}::$methodName($paramSig)"
         emitter.opcode(IlOpcode.CALLVIRT, ref)

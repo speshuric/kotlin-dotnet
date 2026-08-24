@@ -129,7 +129,7 @@ fun countChars(s: String): Int {
 
 ### 5. Документ
 
-Создать `docs/iterator-design.md` + (опц.) ADR `0012-iterators.md`:
+Создать `docs/iterator-design.md` + (опц.) ADR [`0013-iterators-design.md`](../../adr/0013-iterators-design.md):
 - Специализации (таблица).
 - IL-паттерны (range / iterator / array / string).
 - Оптимизации (range, array-index, string-index).

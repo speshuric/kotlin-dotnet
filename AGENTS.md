@@ -7,9 +7,9 @@
 
 ## Архитектура
 
-### Общий подход (с S6/ADR 0010): IR → метаданные + IL → PE (без ilasm)
+### Общий подход (с ADR 0010/0012): IR → метаданные + IL → PE
 
-Pipeline (backend=pe, дефолт):
+Pipeline:
   исходный код Kotlin (.kt)
     → компилятор Kotlin (K2, bleeding edge версия)
     → Kotlin compiler plugin с IrGenerationExtension
@@ -18,16 +18,8 @@ Pipeline (backend=pe, дефолт):
       (MetadataBuilder + InstructionEncoder + ManagedPEBuilder)
     → .NET EXE/DLL напрямую из JVM
 
-Fallback (backend=il, legacy): IR → CIL-текст (.il) → ilasm.
-TextIlEmitter помечен @Deprecated, будет удалён.
-
-### Почему так (исторически: ilasm-путь, ADR 0001)
-1. Не нужно было реализовывать бинарный PE/CIL формат — ilasm делал
-   это за нас. С портом dotnetutils (ADR 0009) необходимость отпала.
-2. IL-текст человекочитаем — критично для отладки на этапе PoC
-   (осталось актуальным для fallback-пути).
-3. Весь pipeline в одном процессе (JVM).
-4. ilasm доступен в .NET SDK на всех платформах.
+Исторический IL-текстовый путь (IR → CIL-текст → ilasm) удалён
+(ADR 0012); PE — единственный формат вывода компилятора.
 
 ### Запасной вариант
 Если перехват IR через compiler plugin окажется невозможным или
@@ -106,7 +98,7 @@ Runtime-библиотека состоит из двух частей:
 
 - Kotlin: https://github.com/JetBrains/kotlin (v2.4.20-RC, shallow clone в `.sources/kotlin/`)
 - .NET runtime: https://github.com/dotnet/runtime (release/10.0, `.sources/dotnet-runtime/`)
-- ilasm — из NuGet `ilasm-cli`, `dotnet-ildasm` — NuGet global tool
+- `dotnet-ildasm` — NuGet global tool
 - Запасной вариант (если IL-текст не подойдёт): dnlib, System.Reflection.Metadata
 
 ## Маппинг типов
@@ -217,6 +209,10 @@ Runtime-библиотека состоит из двух частей:
 
 ## План работ (поэтапный)
 
+> **Гигиена сессии:** перед началом новой сессии или крупной задачи
+> выполнять `just clean build` (только build-артефакты; `.sdk`/`.sources`
+> и прочее не трогать).
+
 > **Статус обновлён: 2026-08-23.** Этапы 0–2 и Phase 9–10 выполнены
 > (`for`-loop — TODO Phase 11/G-02). См. `CHANGELOG.md` и `adr/`.
 
@@ -235,7 +231,7 @@ Runtime-библиотека состоит из двух частей:
 > не глобально в систему. Не захламлять машину версиями.
 > - JDK: локальная установка в `.sdk/jdk/` (Temurin 21)
 > - .NET SDK: локальная установка через `dotnet-install.sh --install-dir .sdk/dotnet/`
->   (ilasm — через NuGet `ilasm-cli`, `dotnet-ildasm` — через NuGet)
+>   (`dotnet-ildasm` — через NuGet)
 > - Gradle: локально в `.sdk/gradle/` (9.7.0)
 > - В дальнейшем — изоляция через контейнеры (Docker/Podman)
 
@@ -339,7 +335,7 @@ Runtime-библиотека состоит из двух частей:
 |---|---|---|---|
 | **9** ✅ | Циклы (for/while) + вызовы пользовательских функций + строковая интерполяция | — | высокий |
 | **10** ✅ | Классы: `.class`, поля, `.ctor`, instance-методы, `newobj`, наследование, интерфейсы, open/override. Итоги: TODO/PHASE-10.md | — | высокий |
-| **10.9** ← следующая | Удаление TextIlEmitter + ilasm-ветки (D1, отдельный коммит) | Phase 10 | высокий |
+| **10.9** ✅ | Удаление TextIlEmitter + ilasm-ветки: PE — единственный вывод (ADR 0012) | Phase 10 | высокий |
 | **11** | Массивы (`int32[]`) + `readLine` + базовые строки (length, substring, +) | runtime расширение | средний |
 | **12** | Nullable (`Nullable<T>`) + дженерики (минимальные) | ADR 0003 проверка на реальном дженерике | средний |
 | **13+** | Data classes, companion objects (+ статические члены), object declarations, enums, extension functions, коллекции (List/Map/Set через runtime) | runtime расширение | низкий |
@@ -381,8 +377,7 @@ Runtime-библиотека состоит из двух частей:
 - Тестовый проект `05-classes/`, помечен `test_backends=pe` в реестре;
   verifier расширен детальным дампом метаданных.
 
-**Следующая сессия — Phase 10.9**: удаление TextIlEmitter + ilasm-ветки
-(D1, отдельный коммит). Сразу после — выравнивающие задачи:
+**Следующая сессия**: выравнивающие задачи:
 **J-01** декомпозиция PeIlEmitter (файл разросся до ~1000 строк,
 TODO/J-pe-backend/) и **F-02** проектирование единого мэппинга имён
 (коллизии операторных имён, TODO/F-name-case-annotations/). Затем по
@@ -396,7 +391,7 @@ kotlin-dotnet/
 ├── .sdk/                        # Локальные SDK (не в git)
 │   ├── jdk/                      # JDK Temurin 21
 │   ├── kotlinc/                  # kotlin-compiler-2.4.20-RC.zip
-│   ├── dotnet/                   # .NET 10 SDK + ilasm-cli + dotnet-ildasm
+│   ├── dotnet/                   # .NET 10 SDK + dotnet-ildasm
 │   └── gradle/                   # Gradle 9.7.0
 ├── .sources/                    # Локальные исходники для референса (не в git)
 │   ├── kotlin/                   # shallow clone JetBrains/kotlin @ v2.4.20-RC
@@ -428,11 +423,9 @@ kotlin-dotnet/
 │   │       │   ├── TypeMapper.kt                     # Kotlin → CIL типы
 │   │       │   ├── NameMapper.kt                     # package → namespace, <File>Kt
 │   │       │   ├── StdlibResolver.kt                 # println/print → runtime
-│   │       │   ├── il/                               # legacy IL-текст (backend=il, @Deprecated)
-│   │       │   │   ├── IlEmitter.kt                  # интерфейс (реализуют оба бэкенда)
-│   │       │   │   ├── TextIlEmitter.kt              # CIL-текст + ilasm (будет удалён)
-│   │       │   │   ├── IlOpcode.kt                   # enum опкодов
-│   │       │   │   └── IlContext.kt                  # стек контекстов
+│   │       │   ├── il/                               # абстракция эмиттера
+│   │       │   │   ├── IlEmitter.kt                  # интерфейс (реализация: PeIlEmitter)
+│   │       │   │   └── IlOpcode.kt                   # enum опкодов
 │   │       │   ├── pe/                               # PE-бэкенд (ADR 0010, дефолт)
 │   │       │   │   └── PeIlEmitter.kt                # dotnetutils → бинарный PE
 │   │       │   ├── ir/                               # IR-константы (A-05)
@@ -443,7 +436,7 @@ kotlin-dotnet/
 │   │       └── resources/META-INF/services/
 │   │           ├── org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar
 │   │           └── org.jetbrains.kotlin.compiler.plugin.CommandLineProcessor
-│   └── dotnetutils/                # Порт write-path SRM → Kotlin (без ilasm)
+│   └── dotnetutils/                # Порт write-path SRM → Kotlin (прямая запись PE)
 │       ├── build.gradle.kts          # чистый kotlin-stdlib, без java.* в исходниках
 │       └── src/main/kotlin/org/kotlindotnet/dotnetutils/
 │           └── system/reflection/metadata/   # MetadataBuilder и окружение (ADR 0009)
@@ -475,7 +468,7 @@ kotlin-dotnet/
 │   ├── build-test.sh           # сборка + верификация одного теста
 │   ├── build.sh                # диспетчер: plugin | runtime | all
 │   ├── test.sh                 # диспетчер тестов: selector → id → build-test.sh
-│   ├── show.sh                 # il | ir | disasm × last | all | <testid> | <glob>
+│   ├── show.sh                 # ir | disasm × last | all | <testid> | <glob>
 │   └── clean.sh                # all | build | sdk | sources
 ├── discussions/                  # Архив чатов и логов (gitignored кроме README)
 ├── docs/                         # il-reference.md, references.md, generics-strategy.md,
@@ -514,8 +507,8 @@ kotlin-dotnet/
    dev-сборка).
 7. **Не встраиваться в Gradle Kotlin Multiplatform** как
    официальный target — пока отдельный инструмент/плагин.
-8. **IL-текст — основной формат вывода** (человекочитаемый,
-   отлаживаемый). Бинарный PE — через ilasm.
+8. **PE — единственный формат вывода компилятора** (прямая запись
+   через dotnetutils, без промежуточного IL-текста).
 9. **Каждый этап — с тестовым проектом**, который можно
    скомпилировать и запустить. Формат: 1 тест = 1 папка в
    `test-projects/` + `test.properties` (см. docs/test-format.md).

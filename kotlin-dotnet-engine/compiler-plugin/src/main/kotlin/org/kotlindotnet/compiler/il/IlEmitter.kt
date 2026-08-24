@@ -6,7 +6,7 @@ package org.kotlindotnet.compiler.il
  * Контракт «IL корректен» (A-03): реализации гарантируют, что
  * `beginX`/`endX` парны, тело сбалансировано, заголовок есть.
  * `opcode`/`ldcI4`/`ldarg`/.../`label`/`declareLocal` разрешены
- * только внутри метода (`beginStaticMethod` ... `endStaticMethod`).
+ * только внутри метода (`beginMethod` ... `endMethod`).
  *
  * Явные `begin/end` пары вместо лямбд `IlEmitter.() -> Unit`
  * (ADR 0005 — `this` в лямбде перекрывал бы `this@DotnetIrVisitor`).
@@ -14,10 +14,8 @@ package org.kotlindotnet.compiler.il
  * **A-04:** опкоды типизированы через [IlOpcode]. Общий метод
  * [opcode] покрывает опкод + строковые операнды; типизированные
  * хелперы ([ldcI4], [ldarg], [ldloc], [stloc], [ldstr], [br], ...)
- * инкапсулируют выбор коротких форм и экранирование — visitor
+ * инкапсулируют выбор коротких форм — visitor
  * не знает про `ldc.i4.0` vs `ldc.i4 0`.
- *
- * TODO(BinaryIlEmitter): `IlOpcode → байт` + сериализация операндов.
  */
 interface IlEmitter {
 
@@ -67,7 +65,7 @@ interface IlEmitter {
 
     /**
      * Открывает метод. Унификация static/instance (Phase 10):
-     * `isStatic = true` эквивалентно [beginStaticMethod]; `isStatic = false`
+     * `isStatic = true` — статический метод; `isStatic = false`
      * объявляет instance-метод (arg0 = this, параметры с индекса 1).
      *
      * @param params пары `cilType to paramName` — только Regular-параметры
@@ -88,21 +86,11 @@ interface IlEmitter {
     /** Открывает конструктор (specialname rtspecialname `.ctor`). */
     fun beginConstructor(params: List<Pair<String, String>>)
 
-    //=== Static method ===
-
-    /** Открывает статический метод. Делегат [beginMethod]`(isStatic = true)`. */
-    fun beginStaticMethod(
-        name: String,
-        returnType: String,
-        params: List<Pair<String, String>>,
-        isEntrypoint: Boolean = false
-    )
-
     /** Эмитит `.locals init (...)` если есть зарегистрированные локалки. */
     fun emitLocalsIfAny()
 
-    /** Закрывает статический метод. */
-    fun endStaticMethod()
+    /** Закрывает метод. */
+    fun endMethod()
 
     /** Сбрасывает состояние локалок/меток между методами. */
     fun resetMethodState()
@@ -126,7 +114,7 @@ interface IlEmitter {
      * Пример: `opcode(IlOpcode.BR, "IL_0")` → `br IL_0`.
      * Для опкодов без операндов: `opcode(IlOpcode.ADD)` → `add`.
      *
-     * Контракт: только внутри [beginStaticMethod] ... [endStaticMethod].
+     * Контракт: только внутри [beginMethod] ... [endMethod].
      * Короткие формы НЕ выбираются здесь — для типизированных
      * операций (ldc/ldarg/ldloc/stloc) используйте хелперы ниже.
      */
@@ -189,7 +177,4 @@ interface IlEmitter {
     fun stelemRef()
 
     //=== Result ===
-
-    /** Возвращает собранный IL-текст (с проверкой, что всё закрыто). */
-    fun text(): String
 }

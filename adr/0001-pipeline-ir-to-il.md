@@ -1,7 +1,8 @@
 # ADR 0001: Pipeline — IR → IL-текст → ilasm → .NET-сборка
 
 - **Дата:** 2026-08-17
-- **Статус:** Proposed
+- **Статус:** Superseded — IL-текстовая ветка удалена; см.
+  [0010](0010-compiler-plugin-pe-backend.md) и [0012](0012-remove-il-text-path.md)
 
 ## Контекст
 

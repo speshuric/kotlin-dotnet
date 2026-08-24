@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
-# scripts/show.sh — показать сгенерированный IL / IR-дамп / дизассемблированный DLL.
+# scripts/show.sh — показать IR-дамп / дизассемблированную сборку.
 #
 # Использование:
 #   show.sh <kind> <selector>
-#     kind     ∈ il | ir | disasm
+#     kind     ∈ ir | disasm
 #     selector ∈ last | all | <testid> | <glob>
 #
 # Примеры:
-#   show.sh il last            # новейший .il
-#   show.sh il all             # все .il
-#   show.sh il 04-loops        # build/04-loops/*.il
-#   show.sh il 00*             # glob по id
-#   show.sh disasm last        # ildasm новейшей .dll
+#   show.sh disasm last        # ildasm новейшей сборки (.dll/.exe)
 #   show.sh ir last            # новейший ir-dump
 set -euo pipefail
 
@@ -37,14 +33,13 @@ kind="${1:-}"
 selector="${2:-last}"
 
 if [ -z "$kind" ]; then
-    log_error "usage: $0 <kind: il|ir|disasm> <selector: last|all|<testid>|<glob>>"
+    log_error "usage: $0 <kind: ir|disasm> <selector: last|all|<testid>|<glob>>"
     exit 1
 fi
 
 # _pattern_for_kind — glob-шаблон файлов для данного kind.
 _pattern_for_kind() {
     case "$1" in
-        il)     echo '*.il' ;;
         ir)     echo 'ir-dump-*.txt' ;;
         disasm) echo '*.dll' ;;
         *) return 1 ;;
@@ -52,16 +47,21 @@ _pattern_for_kind() {
 }
 
 # _find_files <dir> <pattern> — напечатать файлы в dir (рекурсивно для 04-loops-spec).
+# Для disasm ловим и .exe (exe-тесты не имеют .dll).
 _find_files() {
     local dir="$1"
     local pat="$2"
     if [ -d "$dir" ]; then
-        # maxdepth 2: ловит build/<id>/*.il и build/04-loops-spec/<sub>/*.il
-        find "$dir" -maxdepth 2 -type f -name "$pat" 2>/dev/null | sort
+        # maxdepth 2: ловит build/<id>/* и build/04-loops-spec/<sub>/*
+        if [ "$pat" = "*.dll" ] && [ "${kind:-}" = "disasm" ]; then
+            find "$dir" -maxdepth 2 -type f \( -name '*.dll' -o -name '*.exe' \) 2>/dev/null | sort
+        else
+            find "$dir" -maxdepth 2 -type f -name "$pat" 2>/dev/null | sort
+        fi
     fi
 }
 
-# _filter_disasm — для disasm убрать KotlinDotnetRuntime.dll (это не наш код).
+# _filter_disasm — для disasm убрать runtime-DLL (это не наш код).
 _filter_disasm() {
     if [ "$kind" = "disasm" ]; then
         grep -v 'KotlinDotnetRuntime\.dll$' || true
@@ -133,7 +133,7 @@ fi
 
 # --- Действие ---
 case "$kind" in
-    il|ir)
+    ir)
         shown_count=0
         while IFS= read -r f; do
             echo "=== $f ==="
@@ -155,7 +155,7 @@ case "$kind" in
         log_info "disassembled $shown_count file(s) (selector=$selector)"
         ;;
     *)
-        log_error "unknown kind: '$kind' (expected: il | ir | disasm)"
+        log_error "unknown kind: '$kind' (expected: ir | disasm)"
         exit 1
         ;;
 esac

@@ -64,18 +64,12 @@ else
   "$SDK_DIR/dotnet-install.sh" --channel "$DOTNET_CHANNEL" --install-dir "$DOTNET_DIR" --no-path
   echo "    .NET installed: $("$DOTNET_DIR/dotnet" --version 2>&1 | head -1)"
 
-  # ilasm/ildasm не входят в .NET 10 SDK на Linux — ставим как global tools
+  # ildasm не входит в .NET 10 SDK на Linux — ставим как global tool
   # в $DOTNET_DIR/tools/ (внутри локального .sdk/)
   TOOLS_DIR="$DOTNET_DIR/tools"
   mkdir -p "$TOOLS_DIR"
   export DOTNET_ROOT="$DOTNET_DIR"
   export PATH="$DOTNET_DIR:$PATH"
-  if [ -x "$TOOLS_DIR/ilasm" ]; then
-    echo "    ilasm-cli already installed"
-  else
-    echo "    Installing ilasm-cli (NuGet tool) ..."
-    "$DOTNET_DIR/dotnet" tool install --tool-path "$TOOLS_DIR" ilasm-cli 2>/dev/null
-  fi
   if [ -x "$TOOLS_DIR/dotnet-ildasm" ]; then
     echo "    dotnet-ildasm already installed"
   else

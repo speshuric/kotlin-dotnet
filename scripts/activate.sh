@@ -29,11 +29,11 @@ _activate_dotnet() {
     export PATH="$JAVA_HOME/bin:$PATH"
   fi
 
-  # .NET + global tools (ilasm, dotnet-ildasm)
+  # .NET + global tools (dotnet-ildasm)
   export DOTNET_ROOT="$project_root/.sdk/dotnet"
   export DOTNET_CLI_TELEMETRY_OPTOUT=1
   export DOTNET_NOLOGO=1
-  # ilasm-cli собран под .NET 8; у нас только 10 → разрешить roll-forward
+  # dotnet-ildasm собран под старый .NET; у нас только 10 → разрешить roll-forward
   export DOTNET_ROLL_FORWARD=Major
   if [ -d "$DOTNET_ROOT" ]; then
     export PATH="$DOTNET_ROOT:$DOTNET_ROOT/tools:$PATH"

@@ -3,7 +3,8 @@
 Proof-of-concept компилятора Kotlin → .NET.
 
 Pipeline: исходник Kotlin → K2 compiler plugin (`IrGenerationExtension`) →
-обход IR-дерева → генерация CIL-текста (`.il`) → `ilasm` → .NET DLL/EXE.
+обход IR-дерева → генерация метаданных + IL через dotnetutils (порт
+System.Reflection.Metadata) → .NET DLL/EXE напрямую из JVM.
 
 Для управления сборкой и централизованного запуска команд проекта используется [just](https://github.com/casey/just). 
 
@@ -11,7 +12,7 @@ Pipeline: исходник Kotlin → K2 compiler plugin (`IrGenerationExtension
 
 ```bash
 # 1. Установить окружение (один раз).
-just bootstrap                          # JDK 21, kotlinc, .NET 10, Gradle, ilasm, исходники
+just bootstrap                          # JDK 21, kotlinc, .NET 10, Gradle, исходники
 source scripts/activate.sh              # активировать env в текущем шелле (java/kotlinc/dotnet в PATH)
 just plugin && just runtime             # собрать compiler-plugin JAR и KotlinDotnetRuntime.dll
 
@@ -54,7 +55,7 @@ dotnet build/demo/demo.exe
 ### Установка окружения (один раз)
 
 ```bash
-just bootstrap      # JDK 21, kotlinc 2.4.20-RC, .NET 10, Gradle 9.7.0, ilasm, dotnet-ildasm
+just bootstrap      # JDK 21, kotlinc 2.4.20-RC, .NET 10, Gradle 9.7.0, dotnet-ildasm
                     # + shallow clones исходников (JetBrains/kotlin, dotnet/runtime)
 ```
 
@@ -83,18 +84,9 @@ just test 00-int-add
 
 Ожидаемый вывод:
 ```
-[kotlin-dotnet] compiling test-projects/00-int-add/Arithmetic.kt → build/00-int-add/Arithmetic.il
+compiling test-projects/00-int-add/Arithmetic.kt → build/00-int-add/Arithmetic.dll
 ...
-[kotlin-dotnet] assembling → build/00-int-add/Arithmetic.dll
-...
->>> 00-int-add/Arithmetic OK
-```
-
-Повторный `just test 00-int-add` пропустит пересборку (mtime-инкрементальность):
-```
-[just] build/00-int-add/Arithmetic.il up-to-date
-[just] build/00-int-add/Arithmetic.dll up-to-date
->>> 00-int-add/Arithmetic OK
+>>> 00-int-add OK
 ```
 
 ### Тесты циклов и функций (Phase 9)
@@ -111,9 +103,6 @@ just list             # показать все рецепты
 just plugin           # собрать compiler-plugin JAR (Gradle)
 just runtime          # собрать KotlinDotnetRuntime.dll (C#, .NET 10)
 just compile <f.kt>   # CLI: .kt → .exe/.dll (через kotlinc-net.sh)
-just show-il          # показать последний сгенерированный IL
-just show-il all      # все IL-файлы
-just show-il 04-loops # IL конкретного теста
 just disasm last      # дизассемблировать последнюю DLL (dotnet-ildasm)
 just show-ir          # показать последний IR-дамп из плагина
 just clean build      # удалить только сборочные артефакты (build/, runtime/bin)
@@ -122,23 +111,14 @@ just clean             # удалить всё — build + .sdk + .sources (тр
 ```
 
 > **Структура `build/`:** артефакты изолированы по тестам — `build/<testid>/`
-> (напр. `build/04-loops/Loops.il`, `build/04-loops-spec/while_2_1/while_2_1.exe`).
-> `show-il`/`disasm`/`show-ir` принимают selector: `last` (по умолчанию) |
+> (напр. `build/04-loops/Loops.exe`, `build/04-loops-spec/while_2_1/while_2_1.exe`).
+> `disasm`/`show-ir` принимают selector: `last` (по умолчанию) |
 > `all` | `<testid>` | `<glob>`.
-
-### Ручной IL (без компилятора Kotlin, для отладки ilasm)
-
-```bash
-source scripts/activate.sh
-cd test-projects/00-int-add
-ilasm /dll /output:manual.dll manual.il
-dotnet-ildasm manual.dll | head -40
-```
 
 ### Интерактивная работа
 
 ```bash
-source scripts/activate.sh   # активировать env (java, kotlinc, dotnet, ilasm в PATH)
+source scripts/activate.sh   # активировать env (java, kotlinc, dotnet в PATH)
 source scripts/deactivate.sh # снять env
 ```
 
@@ -150,16 +130,16 @@ source scripts/deactivate.sh # снять env
       - `DotnetCompilerPluginRegistrar.kt` — регистрация через `CompilerPluginRegistrar`
       - `DotnetCommandLineProcessor.kt` — CLI-опция `output.dir` (ADR 0007)
       - `DotnetIrGenerationExtension.kt` — точка входа `IrGenerationExtension`
-      - `DotnetIrVisitor.kt` — обход IR-дерева → IL (Phase 0–9)
+      - `DotnetIrVisitor.kt` — обход IR-дерева → IL (Phase 0–10)
       - `TypeMapper.kt` — Kotlin → CIL маппинг примитивных типов
-      - `NameMapper.kt` — package → namespace / `<File>Kt` / method (с экранированием CIL-опкод-имён)
+      - `NameMapper.kt` — package → namespace / `<File>Kt` / method name
       - `StdlibResolver.kt` — `println`/`print` → KotlinDotnetRuntime
-      - `il/` — `IlEmitter` (интерфейс), `TextIlEmitter`, `IlOpcode`, `IlContext`
+      - `il/` — `IlEmitter` (интерфейс), `IlOpcode`
       - `ir/` — `IrOrigins`, `KotlinOperators`
       - `util/` — `Log`
     - `src/main/resources/META-INF/services/` — ServiceLoader-регистрация
   - `dotnetutils/` — порт write-path System.Reflection.Metadata → Kotlin
-    (создание .NET-сборок без ilasm; чистый kotlin-stdlib; ADR 0009)
+    (прямая генерация PE; чистый kotlin-stdlib; ADR 0009)
 - `runtime/` — KotlinDotnetRuntime (C#, .NET 10): `Print.cs` (println/print)
 - `test-projects/`
   - `00-int-add/` — `test_add(Int,Int): Int` → DLL + C# consumer
@@ -176,10 +156,10 @@ source scripts/deactivate.sh # снять env
   - `build-test.sh` — сборка + верификация одного теста
   - `build.sh` — диспетчер сборки (`plugin` | `runtime` | `all`)
   - `test.sh` — диспетчер тестов (selector → список id)
-  - `show.sh` — `il`/`ir`/`disasm` × `last`/`all`/`<testid>`/`<glob>`
+  - `show.sh` — `ir`/`disasm` × `last`/`all`/`<testid>`/`<glob>`
   - `clean.sh` — очистка (`all` | `build` | `sdk` | `sources`)
 - `justfile` — единая точка входа: `just bootstrap`, `just build`, `just test`, `just list`
-- `build/` (gitignored) — per-test артефакты: `build/<testid>/{*.il,*.dll,*.exe,...}`
+- `build/` (gitignored) — per-test артефакты: `build/<testid>/{*.dll,*.exe,ir-dump-*.txt,...}`
 - `.sdk/` (gitignored) — локальные JDK, kotlinc, .NET, Gradle
 - `.sources/` (gitignored, кроме README) — shallow clones JetBrains/kotlin + dotnet/runtime
 - `adr/` — Architecture Decision Records (0001–0008)

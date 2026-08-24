@@ -9,7 +9,7 @@ list:
 
 # === Окружение ===
 
-# Установить локальные SDK (JDK, kotlinc, .NET, Gradle, ilasm, dotnet-ildasm) в .sdk/.
+# Установить локальные SDK (JDK, kotlinc, .NET, Gradle, dotnet-ildasm) в .sdk/.
 sdks:
     ./scripts/install-sdks.sh
 
@@ -25,7 +25,6 @@ bootstrap: sdks sources
     echo "java:    $(java -version 2>&1 | head -1)"
     echo "kotlinc: $(kotlinc -version 2>&1 | head -1)"
     echo "dotnet:  $(dotnet --version 2>&1 | head -1)"
-    echo "ilasm:   $(command -v ilasm 2>&1 || echo NOT FOUND)"
     echo "ildasm:  $(command -v dotnet-ildasm 2>&1 || echo NOT FOUND)"
     echo "gradle:  $(cd kotlin-dotnet-engine && ./gradlew --version 2>&1 | grep '^Gradle ' | head -1)"
     echo ""
@@ -74,13 +73,13 @@ test-short: test-smoke
 
 # === Отладка ===
 
-# Показать сгенерированный IL. selector: last (по умолчанию) | all | <testid> | <glob>.
-show-il selector="last":
-    ./scripts/show.sh il {{selector}}
-
 # Дизассемблировать DLL через dotnet-ildasm. selector: last | all | <testid> | <glob>.
 disasm selector="last":
     ./scripts/show.sh disasm {{selector}}
+
+# Синоним disasm (бывший show-il: IL теперь смотрят через ildasm дизассемблер).
+show-il selector="last":
+    @./scripts/show.sh disasm {{selector}}
 
 # Показать IR-дамп из плагина. selector: last | all | <testid> | <glob>.
 show-ir selector="last":

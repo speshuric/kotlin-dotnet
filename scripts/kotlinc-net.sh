@@ -5,12 +5,11 @@
 #   ./scripts/kotlinc-net.sh <file.kt>              # → build/<name>/<name>.exe
 #   ./scripts/kotlinc-net.sh <file.kt> -dll         # → build/<name>/<name>.dll
 #   ./scripts/kotlinc-net.sh <file.kt> -o out.exe   # явное имя выхода
-#   ./scripts/kotlinc-net.sh <file.kt> -il            # старый путь (IL-текст + ilasm)
 #   ./scripts/kotlinc-net.sh <file.kt> --rebuild-plugin  # пересобрать плагин
 #
-# Дефолт с S6/ADR 0010 — backend=pe (прямая запись PE без ilasm).
+# Прямая запись PE (ADR 0010/0012), без ilasm.
 #
-# Артефакты (.il, ir-dump, .exe/.dll) складываются в build/<name>/
+# Артефакты (ir-dump, .exe/.dll) складываются в build/<name>/
 # (per-test layout). Plugin JAR и KotlinDotnetRuntime.dll должны быть
 # собраны заранее (just plugin && just runtime), если не указан
 # --rebuild-plugin.
@@ -35,14 +34,11 @@ kt_file=""
 output=""
 mode="exe"
 rebuild_plugin=false
-pe_backend=true   # S6/ADR 0010: дефолт
 
 while [ $# -gt 0 ]; do
   case "$1" in
     -dll)      mode="dll"; shift ;;
     -exe)      mode="exe"; shift ;;
-    -pe)       pe_backend=true; shift ;;
-    -il)       pe_backend=false; shift ;;
     -o)        output="$2"; shift 2 ;;
     --rebuild-plugin) rebuild_plugin=true; shift ;;
     -h|--help)
@@ -76,38 +72,22 @@ fi
 out_dir="$(dirname "$output")"
 mkdir -p "$out_dir" "$outdir/kt-out"
 
-# --- Шаг 1: kotlinc + plugin → .il (il-путь) или .exe/.dll (pe-путь, ADR 0010) ---
-if $pe_backend; then
-  log_info "compiling $kt_file → $output (backend=pe)"
-  kotlinc -Xplugin="$PLUGIN_JAR" \
-    -P "plugin:kotlin.dotnet:output.dir=$outdir" \
-    -P "plugin:kotlin.dotnet:backend=pe" \
-    -P "plugin:kotlin.dotnet:output.kind=$mode" \
-    "$kt_file" -d "$outdir/kt-out"
-  # Плагин пишет в per-test layout ($outdir/$name.$kind); при явном
-  # -o переносим на запрошенный путь.
-  if [ "$output" != "$outdir/${name}.${mode}" ]; then
-    require_file "$outdir/${name}.${mode}" "plugin did not produce $outdir/${name}.${mode}"
-    mkdir -p "$out_dir"
-    mv "$outdir/${name}.${mode}" "$output"
-  fi
-  require_file "$output" "plugin did not produce $output"
-else
-  il_file="$outdir/${name}.il"
-  log_info "compiling $kt_file → $il_file"
-  rm -f "$outdir"/ir-dump-*.txt "$il_file"
-  kotlinc -Xplugin="$PLUGIN_JAR" \
-    -P "plugin:kotlin.dotnet:output.dir=$outdir" \
-    "$kt_file" -d "$outdir/kt-out"
-
-  require_file "$il_file" "plugin did not produce $il_file"
-
-  # --- Шаг 2: ilasm → .exe/.dll ---
-  log_info "assembling → $output"
-  ilasm "/${mode}" "/output:$output" "$il_file"
+# --- Шаг 1: kotlinc + plugin → .exe/.dll (ADR 0010) ---
+log_info "compiling $kt_file → $output"
+kotlinc -Xplugin="$PLUGIN_JAR" \
+  -P "plugin:kotlin.dotnet:output.dir=$outdir" \
+  -P "plugin:kotlin.dotnet:output.kind=$mode" \
+  "$kt_file" -d "$outdir/kt-out"
+# Плагин пишет в per-test layout ($outdir/$name.$kind); при явном
+# -o переносим на запрошенный путь.
+if [ "$output" != "$outdir/${name}.${mode}" ]; then
+  require_file "$outdir/${name}.${mode}" "plugin did not produce $outdir/${name}.${mode}"
+  mkdir -p "$out_dir"
+  mv "$outdir/${name}.${mode}" "$output"
 fi
+require_file "$output" "plugin did not produce $output"
 
-# --- Шаг 3 (только EXE): runtime DLL + runtimeconfig.json ---
+# --- Шаг 2 (только EXE): runtime DLL + runtimeconfig.json ---
 if [ "$mode" = "exe" ]; then
   runtime_dll="runtime/bin/Release/net10.0/KotlinDotnetRuntime.dll"
   require_file "$runtime_dll" "KotlinDotnetRuntime.dll not found at $runtime_dll (run 'just runtime' first)"
