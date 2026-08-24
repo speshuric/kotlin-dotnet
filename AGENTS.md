@@ -91,7 +91,6 @@ Runtime-библиотека состоит из двух частей:
 - Kotlin: https://github.com/JetBrains/kotlin (v2.4.20-RC, shallow clone в `.sources/kotlin/`)
 - .NET runtime: https://github.com/dotnet/runtime (release/10.0, `.sources/dotnet-runtime/`)
 - `dotnet-ildasm` — NuGet global tool
-- Запасной вариант (если IL-текст не подойдёт): dnlib, System.Reflection.Metadata
 
 ## Маппинг типов
 
