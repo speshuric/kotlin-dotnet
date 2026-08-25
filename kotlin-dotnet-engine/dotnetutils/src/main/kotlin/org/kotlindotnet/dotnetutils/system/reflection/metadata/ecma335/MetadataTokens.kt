@@ -200,6 +200,9 @@ object MetadataTokens {
     fun propertyDefinitionHandle(rowNumber: Int): PropertyDefinitionHandle =
         PropertyDefinitionHandle.fromRowId(toRowId(rowNumber))
 
+    fun assemblyDefinitionHandle(rowNumber: Int): AssemblyDefinitionHandle =
+        AssemblyDefinitionHandle.fromRowId(toRowId(rowNumber))
+
     fun standaloneSignatureHandle(rowNumber: Int): StandaloneSignatureHandle =
         StandaloneSignatureHandle.fromRowId(toRowId(rowNumber))
 

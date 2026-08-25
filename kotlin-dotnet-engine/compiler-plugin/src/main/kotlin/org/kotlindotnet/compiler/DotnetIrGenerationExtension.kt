@@ -23,6 +23,7 @@ import org.kotlindotnet.compiler.util.Log
 class DotnetIrGenerationExtension(
     private val outputDir: File,
     private val outputKind: String = "exe",
+    private val config: String = "release",
 ) : IrGenerationExtension {
 
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
@@ -49,7 +50,7 @@ class DotnetIrGenerationExtension(
             // ADR 0010: прямая генерация PE через dotnetutils.
             val outFile = File(outputDir, "$asmName.$outputKind")
             try {
-                val emitter = org.kotlindotnet.compiler.pe.PeIlEmitter()
+                val emitter = org.kotlindotnet.compiler.pe.PeIlEmitter(isDebug = config == "debug")
                 val visitor = DotnetIrVisitor(emitter)
                 irFile.accept(visitor, null)
                 emitter.writeAssemblyTo(outFile, outputKind == "exe")

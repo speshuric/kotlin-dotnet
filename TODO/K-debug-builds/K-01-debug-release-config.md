@@ -1,6 +1,6 @@
 # K-01: Сборка в debug и release режимах
 
-- **Статус:** TODO (исследование зафиксировано 2026-08-26)
+- **Статус:** WIP — L1 DONE, L2 не начат
 - **Разметка:** POST-PoC (L1 можно раньше — см. «Уровни»)
 - **Зависимости:** Phase 10.9 (PE — единственный вывод), dotnetutils (I-01)
 - **ADR:** не требуется (решение техническое, конфликтов архитектуры нет)
@@ -51,6 +51,22 @@ Kotlin-сборки **от конфига не зависят вообще**: б
 Эффект L1: JIT не оптимизирует debug-сборку, корректные стектрейсы
 без инлайна; в отладчике можно ставить breakpoints на строки метода
 вручную (без пошагового маппинга строк). PDB по-прежнему нет.
+
+**L1 сделано:**
+- `PeIlEmitter(isDebug)` + `PeReferenceResolver.addAssemblyDebuggableAttribute`
+  (TypeRef DebuggableAttribute/DebuggingModes → MemberRef .ctor →
+  CustomAttribute на AssemblyDef со значением 0x0107);
+- `MetadataTokens.assemblyDefinitionHandle(rowNumber)` добавлен в
+  dotnetutils (паритет с upstream SRM);
+- CLI-опция `-P plugin:kotlin.dotnet:config=debug|release`
+  (дефолт release), реестр — `docs/plugin-options.md`;
+- проброс из скриптов: `build-test.sh` передаёт свой `--debug/--release`,
+  `kotlinc-net.sh` получил флаги `--debug/--release`;
+- проверка: настоящий SRM (`PEReader`) видит 1 CustomAttribute
+  (parent=AssemblyDefinition, value=01-00-07-01-00-00-00-00) у debug-EXE
+  и 0 у release-EXE; dotnet-ildasm assembly-level `.custom` НЕ рендерит
+  (ограничение тулзы, атрибут в образе есть); полная сетка зелёная
+  в обоих режимах (verifier пропускает атрибут).
 
 ### Уровень 2 — настоящий debug-опыт (portable PDB)
 

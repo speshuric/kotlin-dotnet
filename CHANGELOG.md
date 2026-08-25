@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+### Added — debug/release режимы генерируемой сборки (K-01 L1)
+
+- CLI-опция плагина `-P plugin:kotlin.dotnet:config=debug|release`
+  (дефолт `release`); `debug` ставит assembly-level
+  `DebuggableAttribute(DebuggingModes = 0x0107)` — как csc `/debug+`:
+  JIT без оптимизаций, корректные стектрейсы.
+- Скрипты: `build-test.sh` пробрасывает свой `--debug/--release` в плагин;
+  `kotlinc-net.sh` получил флаги `--debug`/`--release`.
+- dotnetutils: `MetadataTokens.assemblyDefinitionHandle` (паритет upstream).
+
 ### Removed — IL-текстовый путь (ilasm) удалён; PE — единственный вывод (ADR 0012, Phase 10.9)
 
 - Удалены `TextIlEmitter.kt`, `IlContext.kt` и тест `IlEmitterContractTest`;

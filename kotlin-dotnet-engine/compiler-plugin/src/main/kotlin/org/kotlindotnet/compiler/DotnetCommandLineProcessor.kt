@@ -15,6 +15,9 @@ import org.jetbrains.kotlin.config.CompilerConfigurationKey
  *   (IR-dump, PE-файлы). Дефолт — `build/` (задаётся в
  *   [DotnetIrGenerationExtension], а не здесь).
  * - `output.kind` — тип сборки: `exe` | `dll`.
+ * - `config` — режим сборки: `debug` | `release`. Debug добавляет
+ *   assembly-level DebuggableAttribute (K-01 L1); release — без атрибута
+ *   (как csc без /debug).
  *
  * Принцип: плагин не хардкодит `build/` — путь получает через
  * [CompilerConfiguration]. Один фокус — одна опция (A-02).
@@ -46,12 +49,18 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
     internal val outputKindKey: CompilerConfigurationKey<String> =
         Companion.outputKindKey
 
+    internal val configKey: CompilerConfigurationKey<String> =
+        Companion.configKey
+
     companion object {
         internal val outputDirKey: CompilerConfigurationKey<String> =
             CompilerConfigurationKey.create("output.dir")
 
         internal val outputKindKey: CompilerConfigurationKey<String> =
             CompilerConfigurationKey.create("output.kind")
+
+        internal val configKey: CompilerConfigurationKey<String> =
+            CompilerConfigurationKey.create("config")
     }
 
     override val pluginOptions: Collection<AbstractCliOption> = listOf(
@@ -69,6 +78,13 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
             required = false,
             allowMultipleOccurrences = false,
         ),
+        CliOption(
+            optionName = "config",
+            valueDescription = "<debug|release>",
+            description = "Build configuration: debug adds assembly-level DebuggableAttribute. Default: release.",
+            required = false,
+            allowMultipleOccurrences = false,
+        ),
     )
 
     override fun processOption(
@@ -81,6 +97,10 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
             "output.kind" -> {
                 check(value in setOf("exe", "dll")) { "Unknown output.kind: $value (expected exe|dll)" }
                 configuration.put(outputKindKey, value)
+            }
+            "config" -> {
+                check(value in setOf("debug", "release")) { "Unknown config: $value (expected debug|release)" }
+                configuration.put(configKey, value)
             }
             else -> error("Unknown option: ${option.optionName}")
         }

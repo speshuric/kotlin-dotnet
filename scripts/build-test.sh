@@ -132,10 +132,11 @@ _pe_build_one() {
     outdir="build/$tid"
     mkdir -p "$outdir/kt-out"
 
-    log_info "compiling $kt → $outdir/$name.$kind"
+    log_info "compiling $kt → $outdir/$name.$kind (config=$config)"
     kotlinc -Xplugin="$PLUGIN_JAR" \
         -P "plugin:kotlin.dotnet:output.dir=$outdir" \
         -P "plugin:kotlin.dotnet:output.kind=$kind" \
+        -P "plugin:kotlin.dotnet:config=$config" \
         "$kt" -d "$outdir/kt-out"
 
     asm="$outdir/$name.$kind"

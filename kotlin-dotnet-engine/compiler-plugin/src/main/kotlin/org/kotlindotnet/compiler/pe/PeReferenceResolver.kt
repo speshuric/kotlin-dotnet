@@ -7,7 +7,9 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataB
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.TypeReferenceHandle
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.AssemblyVersion
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.BlobEncoder
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addCustomAttribute
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataTokens
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.SignatureCallingConvention
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addAssemblyReference
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addMemberReference
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addTypeReference
@@ -71,6 +73,46 @@ internal class PeReferenceResolver(
             name = metadata.getOrAddString(f.fieldName),
             signature = metadata.getOrAddBlob(b),
         ).toEntityHandle()
+    }
+
+    /**
+     * Assembly-level [DebuggableAttribute] (System.Diagnostics) — K-01 L1.
+     *
+     * @param modes битовая маска DebuggingModes; csc /debug+ использует
+     *        Default|IgnoreSymbolStoreSequencePoints|EnableEditAndContinue|
+     *        DisableOptimizations = 0x0107, release-сборки атрибут не ставят.
+     */
+    fun addAssemblyDebuggableAttribute(modes: Int) {
+        val attrType = typeRef(SYSTEM_RUNTIME_ASSEMBLY, "System.Diagnostics", "DebuggableAttribute")
+        val modesType = typeRef(SYSTEM_RUNTIME_ASSEMBLY, "System.Diagnostics", "DebuggingModes")
+        val sig = BlobBuilder()
+        BlobEncoder(sig).methodSignature(
+            convention = SignatureCallingConvention.DEFAULT,
+            genericParameterCount = 0,
+            isInstanceMethod = true,
+        ).parameters(
+            1,
+            returnType = { it.void() },
+            parameters = { ps ->
+                ps.addParameter().type().type(modesType.toEntityHandle(), isValueType = true)
+            },
+        )
+        val ctor =
+            metadata.addMemberReference(
+                parent = attrType.toEntityHandle(),
+                name = metadata.getOrAddString(".ctor"),
+                signature = metadata.getOrAddBlob(sig),
+            )
+        // CustomAttribute value: prolog (0x0001), int32 arg, 0 named args.
+        val value = BlobBuilder()
+        value.writeInt16(1)
+        value.writeInt32(modes)
+        value.writeInt16(0)
+        metadata.addCustomAttribute(
+            MetadataTokens.assemblyDefinitionHandle(1).toEntityHandle(),
+            ctor.toEntityHandle(),
+            metadata.getOrAddBlob(value),
+        )
     }
 
     /** Разрешает имя типа в EntityHandle (TypeDefOrRef), см. классовую документацию. */

@@ -33,8 +33,9 @@ class DotnetCompilerPluginRegistrar : CompilerPluginRegistrar() {
             ?.let(::File)
             ?: File("build")
         val outputKind = configuration.get(DotnetCommandLineProcessor.outputKindKey) ?: "exe"
+        val config = configuration.get(DotnetCommandLineProcessor.configKey) ?: "release"
         IrGenerationExtension.registerExtension(
-            DotnetIrGenerationExtension(outputDir, outputKind)
+            DotnetIrGenerationExtension(outputDir, outputKind, config)
         )
     }
 }

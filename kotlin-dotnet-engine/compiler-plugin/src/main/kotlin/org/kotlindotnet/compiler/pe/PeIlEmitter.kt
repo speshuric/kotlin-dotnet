@@ -34,7 +34,10 @@ import kotlin.uuid.Uuid
  * TypeDef вместо NIL-scope TypeRef для своих типов и т.д.) — ADR 0010,
  * TODO/PHASE-10.md §«Итоги».
  */
-class PeIlEmitter : IlEmitter {
+class PeIlEmitter(
+    /** K-01 L1: debug-сборка → assembly-level DebuggableAttribute(0x0107). */
+    private val isDebug: Boolean = false,
+) : IlEmitter {
 
     private val metadata = MetadataBuilder()
     private val ilStream = BlobBuilder()
@@ -76,6 +79,15 @@ class PeIlEmitter : IlEmitter {
 
     private val labelIds = HashMap<String, Int>()
     private var nextLabelId = 0
+
+    private companion object {
+        /**
+         * System.Diagnostics.DebuggingModes для debug-сборки:
+         * Default | IgnoreSymbolStoreSequencePoints | EnableEditAndContinue |
+         * DisableOptimizations (= csc /debug+).
+         */
+        const val DEBUGGABLE_MODES_DEBUG: Int = 0x0001 or 0x0002 or 0x0004 or 0x0100
+    }
 
     // === IlEmitter: assembly / module ===
 
@@ -171,6 +183,11 @@ class PeIlEmitter : IlEmitter {
             resolveBaseEntity = refs::resolveBaseEntity,
             resolveTypeEntity = refs::resolveTypeEntity,
         )
+
+        // 8. Assembly-level атрибуты: Debuggable для debug-сборок (K-01).
+        if (isDebug) {
+            refs.addAssemblyDebuggableAttribute(DEBUGGABLE_MODES_DEBUG)
+        }
     }
 
     // === User classes (Phase 10) ===

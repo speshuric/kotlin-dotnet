@@ -9,6 +9,7 @@
 |---|---|---|---|
 | `output.dir` | путь | `build/` | Директория артефактов плагина (ir-dump, PE-файл). См. ADR 0007 |
 | `output.kind` | `exe` \| `dll` | `exe` | Тип сборки на выходе |
+| `config` | `debug` \| `release` | `release` | Режим сборки: `debug` добавляет assembly-level `DebuggableAttribute(0x0107)` — JIT без оптимизаций, как csc `/debug+`; `release` — без атрибута |
 
 Примечания:
 
@@ -25,6 +26,4 @@
 
 ## Планируемые опции
 
-- `config=debug|release` — уровень 1 задачи
-  [K-01](../TODO/K-debug-builds/K-01-debug-release-config.md):
-  DebuggableAttribute + JIT без оптимизаций.
+- (пока нет; кандидат — portable PDB / sequence points)

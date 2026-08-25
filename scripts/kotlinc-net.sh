@@ -5,6 +5,7 @@
 #   ./scripts/kotlinc-net.sh <file.kt>              # → build/<name>/<name>.exe
 #   ./scripts/kotlinc-net.sh <file.kt> -dll         # → build/<name>/<name>.dll
 #   ./scripts/kotlinc-net.sh <file.kt> -o out.exe   # явное имя выхода
+#   ./scripts/kotlinc-net.sh <file.kt> --debug      # debug-сборка (DebuggableAttribute)
 #   ./scripts/kotlinc-net.sh <file.kt> --rebuild-plugin  # пересобрать плагин
 #
 # Прямая запись PE (ADR 0010/0012), без ilasm.
@@ -33,12 +34,15 @@ cd "$PROJECT_ROOT"
 kt_file=""
 output=""
 mode="exe"
+build_config="release"
 rebuild_plugin=false
 
 while [ $# -gt 0 ]; do
   case "$1" in
     -dll)      mode="dll"; shift ;;
     -exe)      mode="exe"; shift ;;
+    --debug)   build_config="debug"; shift ;;
+    --release) build_config="release"; shift ;;
     -o)        output="$2"; shift 2 ;;
     --rebuild-plugin) rebuild_plugin=true; shift ;;
     -h|--help)
@@ -73,10 +77,11 @@ out_dir="$(dirname "$output")"
 mkdir -p "$out_dir" "$outdir/kt-out"
 
 # --- Шаг 1: kotlinc + plugin → .exe/.dll (ADR 0010) ---
-log_info "compiling $kt_file → $output"
+log_info "compiling $kt_file → $output (config=$build_config)"
 kotlinc -Xplugin="$PLUGIN_JAR" \
   -P "plugin:kotlin.dotnet:output.dir=$outdir" \
   -P "plugin:kotlin.dotnet:output.kind=$mode" \
+  -P "plugin:kotlin.dotnet:config=$build_config" \
   "$kt_file" -d "$outdir/kt-out"
 # Плагин пишет в per-test layout ($outdir/$name.$kind); при явном
 # -o переносим на запрошенный путь.
