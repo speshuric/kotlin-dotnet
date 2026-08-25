@@ -163,7 +163,7 @@ source scripts/deactivate.sh # снять env
 - `.sdk/` (gitignored) — локальные JDK, kotlinc, .NET, Gradle
 - `.sources/` (gitignored, кроме README) — shallow clones JetBrains/kotlin + dotnet/runtime
 - `adr/` — Architecture Decision Records (0001–0008)
-- `docs/` — `il-reference.md`, `references.md`, `generics-strategy.md`
+- `docs/` — `plugin-options.md`, `il-reference.md`, `references.md`, `generics-strategy.md`
 - `TODO/` — план выравнивающих задач + `PHASE-9.md`
 - `AGENTS.md` — полное описание архитектуры, плана, принципов
 

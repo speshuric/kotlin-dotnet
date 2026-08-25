@@ -462,7 +462,8 @@ kotlin-dotnet/
 │   ├── show.sh                 # ir | disasm × last | all | <testid> | <glob>
 │   └── clean.sh                # all | build | sdk | sources
 ├── discussions/                  # Архив чатов и логов (gitignored кроме README)
-├── docs/                         # il-reference.md, references.md, generics-strategy.md,
+├── docs/                         # plugin-options.md (CLI-опции плагина), il-reference.md,
+│   │                             # references.md, generics-strategy.md,
 │   │                             # test-format.md (формат тестов)
 │   ├── test-format.md            # 1 тест = 1 папка + test.properties
 ├── TODO/                         # Выравнивающие задачи + PHASE-9.md (см. TODO/README.md)

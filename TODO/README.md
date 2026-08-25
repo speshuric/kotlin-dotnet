@@ -93,6 +93,7 @@
 | 17 | dotnetutils: порт write-path SRM → Kotlin (билдер .NET-сборок) | [I-01-metadata-builder.md](I-dotnetutils/I-01-metadata-builder.md) | POST-9 (review) | — (ADR 0009) | DONE |
 | 18 | Идея: генерация C# по Kotlin для проработки кейсов | [I-02-csharp-codegen-idea.md](I-dotnetutils/I-02-csharp-codegen-idea.md) | POST-PoC | I-01 | TODO |
 | 19 | Декомпозиция PeIlEmitter (модель типов / парсер ссылок / сигнатуры / буфер опкодов / writer) — **сразу после Phase 10.9** | [J-01-pe-emitter-decomposition.md](J-pe-backend/J-01-pe-emitter-decomposition.md) | POST-10.9 (рефакторинг) | Phase 10, Phase 10.9 | TODO |
+| 20 | Debug/release сборки: DebuggableAttribute + CLI config (L1), portable PDB (L2) | [K-01-debug-release-config.md](K-debug-builds/K-01-debug-release-config.md) | POST-10.9 (L1), POST-PoC (L2) | Phase 10.9, J-01 | TODO |
 
 ## Краткая карта тем
 
@@ -107,6 +108,7 @@ G. Internal design (POST-9)        — лямбды, итераторы, hash
 H. Test migration (POST-PoC)       — перенос тестов из kotlin-компилятора
 I. dotnetutils (POST-9 review)     — порт write-path SRM → Kotlin, идеи
 J. PE backend (POST-10.9)          — декомпозиция PeIlEmitter
+K. Debug builds (POST-10.9/PoC)    — debug/release: атрибут, CLI, PDB
 ```
 
 ## Связь с AGENTS.md
