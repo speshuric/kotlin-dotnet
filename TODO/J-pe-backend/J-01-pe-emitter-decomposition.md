@@ -4,7 +4,28 @@
 - **Разметка:** POST-10.9 (после удаления TextIlEmitter)
 - **Зависимости:** Phase 10 (текущее состояние), Phase 10.9 (удаление
   ilasm-ветки упростит контракт IlEmitter и уберёт двойную семантику)
-- **Статус:** TODO
+- **Статус:** DONE (2026-08-26)
+
+## Итог
+
+`PeIlEmitter.kt` (958 строк) разбит на 8 файлов в `compiler/pe/`:
+
+| Файл | Строк | Ответственность |
+|---|---|---|
+| `PeIlEmitter.kt` | 410 | контракт [IlEmitter], порядок вставки строк, оркестрация endContainerClass |
+| `PeRecords.kt` | 59 | FieldRec/MethodRec/ClassRec, константы |
+| `MemberRefParser.kt` | 137 | чистый парсинг call/field/type-ref'ов |
+| `PeSignatures.kt` | 118 | сигнатуры, CIL-типовой DSL (resolver инъекцией) |
+| `PeBodyEncoder.kt` | 108 | Op-иерархия + кодирование тел |
+| `PeTypeDefWriter.kt` | 144 | синтез дефолтных ctor, диапазоны групп, TypeDef-строки |
+| `PeReferenceResolver.kt` | 154 | резолв операндов, кэши TypeRef/AssemblyRef |
+| `PeImageWriter.kt` | 46 | PE-сериализация |
+
+Доступ к модели из resolver'а — инъекция колбэков
+(findOwnMethod/describeOwnMethods/findOwnTypeDefRow). Приёмка:
+grep-критерии (парсер не знает ModelRec — 0 совпадений; сигнатуры не знают
+парсер — 0), полная сетка 7/7 зелёная, дампы dotnet-ildasm образов
+03-hello/04-loops/05-classes побайтово идентичны до/после (без учёта MVID).
 
 ## Контекст
 
