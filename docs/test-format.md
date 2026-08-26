@@ -36,6 +36,7 @@ test-projects/<test-id>/
 | `expect`    | нет*       | —            | Ожидаемый stdout (`\n`-escape). Для `exe` — прогон собранного образа; для `dll` — stdout consumer'а. Без `expect` проверяется только непустота вывода |
 | `desc`      | да*        | —            | Однострочное описание (показывается в списках тестов) |
 | `type`      | нет        | `kotlin`     | `kotlin` — обычный тест; `gradle-image` — образ строит Gradle-тест модуля `dotnetutils` (исходников `.kt` нет) |
+| `dump-grep` | нет        | —            | Шаблон `grep -E`, который обязан встретиться в `ir-dump-*.txt` собранного артефакта (проверяется для каждого source). Для приёмки функций чтения IR (секция `recognized-annotations`) без влияния на вывод программы |
 
 \* Для `type=kotlin` обязательны `kind` и `desc`; для `type=gradle-image`
 обязательны `expect` и `desc`.

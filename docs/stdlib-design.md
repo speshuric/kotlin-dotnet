@@ -114,16 +114,26 @@ kotlin-dotnet-engine/
 `val annotations: List<IrAnnotation>`
 (`.sources/kotlin/compiler/ir/ir.tree/src/org/jetbrains/kotlin/ir/declarations/IrAnnotationContainer.kt`).
 
+Проверено по исходникам апстрима (v2.4.20-RC) и экспериментом с плагином:
+- контейнер аннотаций — `IrAnnotationContainer` (`val annotations:
+  List<IrAnnotation>`); **`IrFile` его реализует**
+  (`compiler/ir/ir.tree/gen/.../IrFile.kt: IrFile : IrPackageFragment(),
+  IrMutableAnnotationContainer, ...`), т.е. файловые таргеты (`@file:`)
+  доступны тем же доступом, отдельного канала не требуется;
+- **`IrConst` в этой версии НЕ дженерик** (`gen/.../IrConst.kt`):
+  `abstract var value: Any?`, тег — `kind: IrConstKind` (sealed class,
+  `IrConstKind.String` и т.д.); строковый аргумент аннотации —
+  приведение к `IrConst` + проверка kind;
+- значение берётся из `annotation.arguments[i]` (обычные Ir-выражения).
+
 Алгоритм чтения своего трансляционного атрибута:
 1. В visitor'е на узле-цели (класс/функция/property/поле/конструктор)
    пройтись по `declaration.annotations`;
 2. Из `annotation.typeRef.classOrNull?.owner` взять fqName класса-аннотации
-   и сравнить с ожидаемым (`kotlin.dotnet.annotations.DotnetName`);
-3. Значение — из `annotation.arguments[i]` (обычные Ir-выражения;
-   `@DotnetName("X")` даст `IrConst<String>`).
-
-Отдельно проверить маленьким экспериментом: файловые таргеты
-(`@file:...`) видны через IrFile/IrModuleFragment.
+   и сопоставить с реестром распознаваемых имён
+   ([StdlibAnnotations] в компиляторе; до появления нашего пакета допускается
+   совпадение по простому имени — см. комментарий в файле);
+3. Значение — из `annotation.arguments[i]`: `(arg as? IrConst)` с kind String.
 
 Свойства аннотаций:
 - Наши аннотации **не эмитируются** в метаданные результирующей сборки

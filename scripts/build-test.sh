@@ -149,6 +149,20 @@ _pe_build_one() {
     asm="$outdir/$name.$kind"
     require_file "$asm" "plugin did not produce $asm"
 
+    # IR-dump content gate: when the test declares dump-grep, the pattern
+    # must match the dump of this artifact (acceptance for IR-reading
+    # features; see docs/test-format.md). Dumps are best-effort output of
+    # the plugin - a missing file with a declared pattern is an error.
+    local pattern
+    pattern="$(test_dump_grep "$tid")"
+    if [ -n "$pattern" ]; then
+        local dump
+        dump="$(ls "$outdir"/ir-dump-*.txt 2>/dev/null | head -n 1 || true)"
+        [ -n "$dump" ] || { echo "FAIL: $tid [$cfg] $name (ir-dump missing for dump-grep)"; exit 1; }
+        grep -Eq -- "$pattern" "$dump" \
+            || { echo "FAIL: $tid [$cfg] $name (dump-grep no match: $pattern)"; exit 1; }
+    fi
+
     if [ "$kind" = "exe" ]; then
         local runtime_dll=""
         for cand in \

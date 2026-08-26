@@ -118,6 +118,14 @@ test_sources_glob() {
     test_prop "$1" sources "*.kt"
 }
 
+# test_dump_grep <id> — шаблон, который обязан встретиться в ir-dump
+# собранного артефакта (grep -E, проверяется по каждому source).
+# Пусто — проверка не выполняется. Служит приёмкой функций чтения IR
+# (например секции recognized-annotations), не меняя вывод программы.
+test_dump_grep() {
+    test_prop "$1" dump-grep ""
+}
+
 # tests_list — напечатать "id<TAB>kind<TAB>description".
 tests_list() {
     local id k

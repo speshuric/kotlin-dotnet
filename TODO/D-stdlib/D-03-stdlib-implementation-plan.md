@@ -17,7 +17,13 @@
 
 ## Шаги
 
-### Шаг 1. Чтение аннотаций из IR (+ инструментальная видимость)
+### Шаг 1. Чтение аннотаций из IR (+ инструментальная видимость) — DONE (2026-08-28)
+
+Реализация: StdlibAnnotations.kt (реестр + ридер AnnotationReader),
+секция recognized-annotations в ir-dump, ключ dump-grep в тест-формате,
+e2e-тест 06-annotations. Нюанс версии: IrAnnotation — это
+IrConstructorCall без typeRef; класс аннотации резолвится через
+symbol.owner (IrConstructor).parent;
 
 - В `DotnetIrVisitor` научиться извлекать аннотации деклараций через
   `IrAnnotationContainer.annotations` (механика — §5 дизайн-дока).
