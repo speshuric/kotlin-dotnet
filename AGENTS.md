@@ -464,7 +464,9 @@ kotlin-dotnet/
 ├── discussions/                  # Архив чатов и логов (gitignored кроме README)
 ├── docs/                         # plugin-options.md (CLI-опции плагина), il-reference.md,
 │   │                             # references.md, generics-strategy.md,
-│   │                             # test-format.md (формат тестов)
+│   │                             # test-format.md (формат тестов),
+│   │                             # identifier-mapping.md (маппинг имён),
+│   │                             # debug-support.md (отладка)
 │   ├── test-format.md            # 1 тест = 1 папка + test.properties
 ├── TODO/                         # Выравнивающие задачи + PHASE-9.md (см. TODO/README.md)
 ├── adr/                          # Architecture Decision Records

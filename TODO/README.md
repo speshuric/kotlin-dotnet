@@ -86,6 +86,7 @@
 | 11 | IR: какая платформа/проходы (tailrec и др.) | [E-01-ir-platform-investigation.md](E-ir-platform/E-01-ir-platform-investigation.md) | PRE-9 (исследование), POST-9 (фикс) | — | TODO |
 | 12 | PascalCase/camelCase: аннотации @kotlinToPascalCase / @dotnetFromPascalCase | [F-01-name-case-annotations.md](F-name-case-annotations/F-01-name-case-annotations.md) | POST-9 (план), POST-PoC (механика) | — | TODO |
 | 12a | Проектирование единого мэппинга имён (коллизии операторных имён, CIL-слова, аксессоры) — **приоритет после Phase 10.9** | [F-02-name-mapping-design.md](F-name-case-annotations/F-02-name-mapping-design.md) | POST-10 (дизайн) | F-01, Phase 10 | TODO |
+| 12b | Спецификация маппинга идентификаторов Kotlin↔.NET (таблица, атрибут KotlinIdentifier, @DotnetName, политики object/companion) | [F-03-identifier-mapping-spec.md](F-name-case-annotations/F-03-identifier-mapping-spec.md) | POST-PoC | F-01, F-02, Phase 13 | TODO |
 | 13 | Дизайн: лямбды и захват контекста | [G-01-lambdas-capture.md](G-internal-design/G-01-lambdas-capture.md) | POST-9 (дизайн), POST-10 (реализация) | B-01, A-03 | TODO |
 | 14 | Дизайн: итераторы (общий + специализированные по диапазонам/строкам) | [G-02-iterators.md](G-internal-design/G-02-iterators.md) | POST-9 (дизайн) | B-01 | TODO |
 | 15 | Дизайн: hash-коллизии и районы, где напоремся | [G-03-hash-design.md](G-internal-design/G-03-hash-design.md) | POST-9 (дизайн) | — | TODO |
