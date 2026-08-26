@@ -585,7 +585,15 @@ kotlin-dotnet/
     > нужен только при запуске `just`/`gradlew`/`kotlinc`/`dotnet`
     > напрямую из шелла в обход скриптов.
 
-18. **IDE (IntelliJ IDEA).** Открывать корень репозитория: корневой
+18. **Изменения в dotnetutils — сверять с апстримом.** Модуль — зеркало
+    write-path `System.Reflection.Metadata`; перед правкой и после —
+    сверять видимость/структуру файлов с оригиналом. Апстрим лежит в
+    `.sources/dotnet-runtime/src/libraries/System.Reflection.Metadata/src/`
+    (shallow clone, база зафиксирована в
+    `kotlin-dotnet-engine/dotnetutils/README.md`); если директории нет —
+    `scripts/install-sources.sh`. Отклонения от апстрима (вырезанное,
+    переименованное) документируются в шапке файла в разделе Deviations.
+19. **IDE (IntelliJ IDEA).** Открывать корень репозитория: корневой
     `settings.gradle.kts` подключает движок как composite build.
     Локальные инструменты подхватываются автоматически:
     - JDK 21 для тулчейна — через `org.gradle.java.installations.paths`

@@ -92,6 +92,8 @@
 | 16 | Миграция тестов из kotlin-компилятора | [H-01-kotlin-test-migration.md](H-test-migration/H-01-kotlin-test-migration.md) | POST-PoC | Phase 9–12 done | TODO |
 | 17 | dotnetutils: порт write-path SRM → Kotlin (билдер .NET-сборок) | [I-01-metadata-builder.md](I-dotnetutils/I-01-metadata-builder.md) | POST-9 (review) | — (ADR 0009) | DONE |
 | 18 | Идея: генерация C# по Kotlin для проработки кейсов | [I-02-csharp-codegen-idea.md](I-dotnetutils/I-02-csharp-codegen-idea.md) | POST-PoC | I-01 | TODO |
+| 18a | Паритет с апстримом SRM: публичный API, internal-сходство, минимальная видимость, покрытие тестами | [I-04-visibility-upstream-parity.md](I-dotnetutils/I-04-visibility-upstream-parity.md) | cleanup-проход + критерий ревью | ADR 0009, принцип 18 | TODO |
+| 18b | Фабрики хэндлов: единый generic-подход | [I-03-generic-handle-factory.md](I-dotnetutils/I-03-generic-handle-factory.md) | POST-PoC | I-01 | TODO |
 | 19 | Декомпозиция PeIlEmitter (модель типов / парсер ссылок / сигнатуры / буфер опкодов / writer) — **сразу после Phase 10.9** | [J-01-pe-emitter-decomposition.md](J-pe-backend/J-01-pe-emitter-decomposition.md) | POST-10.9 (рефакторинг) | Phase 10, Phase 10.9 | DONE |
 | 20 | Debug/release сборки: DebuggableAttribute + CLI config (L1), portable PDB (L2) | [K-01-debug-release-config.md](K-debug-builds/K-01-debug-release-config.md) | POST-10.9 (L1), POST-PoC (L2) | Phase 10.9, J-01 | WIP (L1 DONE, L2 в работе) |
 | 21 | **SRM не читает наш portable PDB** (Document.Name OOB) — разбор, артефакты, эталон | [k-02-srm-pdb-oob/README.md](K-debug-builds/k-02-srm-pdb-oob/README.md) | приоритет (блокер L2) | K-01 | TODO |

@@ -418,7 +418,7 @@ internal fun MetadataBuilder.serializeGenericParamConstraintTable(writer: BlobBu
         writer.writeReference(row.constraint, sizes.typeDefOrRefCodedIndexIsSmall)
     }
 }
-internal fun MetadataBuilder.serializeDocumentTable(
+private fun MetadataBuilder.serializeDocumentTable(
     writer: BlobBuilder,
     stringMap: IntArray,
     sizes: MetadataSizes,
@@ -431,7 +431,7 @@ internal fun MetadataBuilder.serializeDocumentTable(
     }
 }
 
-internal fun MetadataBuilder.serializeMethodDebugInformationTable(
+private fun MetadataBuilder.serializeMethodDebugInformationTable(
     writer: BlobBuilder,
     sizes: MetadataSizes,
 ) {
@@ -441,7 +441,7 @@ internal fun MetadataBuilder.serializeMethodDebugInformationTable(
     }
 }
 
-internal fun MetadataBuilder.serializeLocalScopeTable(
+private fun MetadataBuilder.serializeLocalScopeTable(
     writer: BlobBuilder,
     sizes: MetadataSizes,
 ) {
@@ -455,7 +455,7 @@ internal fun MetadataBuilder.serializeLocalScopeTable(
     }
 }
 
-internal fun MetadataBuilder.serializeLocalVariableTable(
+private fun MetadataBuilder.serializeLocalVariableTable(
     writer: BlobBuilder,
     stringMap: IntArray,
     sizes: MetadataSizes,
