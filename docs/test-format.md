@@ -94,3 +94,12 @@ SRM (`kotlin-dotnet-utils/verifier`) и должен выдать `VERIFIER OK`.
 2. Создать `test.properties` (шаблон выше; первая строка — ссылка на этот документ).
 3. Зафиксировать ожидаемый вывод в `expect`.
 4. `./scripts/build-test.sh <id>` до зелёного; `just test all` — регрессия.
+
+## Конфигурации debug/release
+
+Каждый тест автоматически собирается и проверяется в обеих
+конфигурациях (`config=debug` и `config=release`): генерация,
+читаемость сборки и PDB настоящим SRM, запуск в dotnet со сравнением
+вывода с `expect`. Тест-свойствам это никак не касается; точечный
+прогон одной конфигурации — `build-test.sh <id> --debug|--release`
+(см. docs/debug-support.md).

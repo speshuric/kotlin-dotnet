@@ -1,6 +1,7 @@
 package org.kotlindotnet.compiler.pe
 
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.BlobBuilder
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataBuilder
 
 /**
  * Кодирование элементов portable PDB, которых нет в write-path SRM
@@ -18,27 +19,73 @@ internal object PePdbEncoder {
         val endColumn: Int,
     )
 
-    /** Blob sequence points для single-document метода (только записи). */
+    /**
+     * Sequence points blob for a single-document method.
+     *
+     * Format mirrors the SRM reader (`SequencePointCollection.Enumerator`,
+     * portable PDB spec): header `compressed(localSignatureRid = 0)`;
+     * then per record: `compressed(offset)` (absolute for the first,
+     * delta afterwards), `compressed(deltaLines)`, then
+     * `compressed(deltaColumns)` unsigned when `deltaLines == 0`,
+     * signed otherwise; for the first non-hidden record the absolute
+     * `compressed(startLine)` / `compressed(startColumn)` follow, later
+     * records use signed deltas from the previous start position.
+     */
     fun encodeSequencePoints(builder: BlobBuilder, points: List<SequencePointRecord>) {
-        for (sp in points) {
-            writeCompressedUnsigned(builder, sp.offset)
-            writeCompressedSigned(builder, sp.startLine)
-            writeCompressedUnsigned(builder, sp.startColumn)
-            writeCompressedSigned(builder, sp.endLine)
-            writeCompressedUnsigned(builder, sp.endColumn)
+        // Several IR nodes may start at the same IL offset; the format
+        // encodes a zero offset delta as a document switch, so only the
+        // first point per offset is kept. Zero-range points (start == end)
+        // are dropped: the reader treats them as hidden and skips their
+        // start fields, which breaks alignment.
+        val unique = points
+            .filter { it.startLine != it.endLine || it.startColumn != it.endColumn }
+            .distinctBy { it.offset }
+        writeCompressedUnsigned(builder, 0) // local signature rid
+
+        var previousOffset = 0
+        var previousStartLine = -1
+        var previousStartColumn = 0
+
+        unique.forEachIndexed { index, sp ->
+            val deltaOffset = if (index == 0) sp.offset else sp.offset - previousOffset
+            writeCompressedUnsigned(builder, deltaOffset)
+
+            val deltaLines = sp.endLine - sp.startLine
+            val deltaColumns = sp.endColumn - sp.startColumn
+            writeCompressedUnsigned(builder, deltaLines)
+            if (deltaLines == 0) {
+                writeCompressedUnsigned(builder, deltaColumns)
+            } else {
+                writeCompressedSigned(builder, deltaColumns)
+            }
+
+            if (previousStartLine < 0) {
+                writeCompressedUnsigned(builder, sp.startLine)
+                writeCompressedUnsigned(builder, sp.startColumn)
+            } else {
+                writeCompressedSigned(builder, sp.startLine - previousStartLine)
+                writeCompressedSigned(builder, sp.startColumn - previousStartColumn)
+            }
+
+            previousOffset = sp.offset
+            previousStartLine = sp.startLine
+            previousStartColumn = sp.startColumn
         }
     }
 
     /**
-     * Имя Document (формат csc/Roslyn): путь разбивается на сегменты по
-     * "/", каждый пишется как [compressed length][UTF8]; для абсолютного
-     * пути первый сегмент пустой (корень файловой системы).
+     * Document name (SRM `BlobHeap.GetDocumentName`, PPDB spec):
+     * first byte is the ASCII directory separator ('/'), followed by one
+     * compressed handle per path segment; each handle points to a sub-blob
+     * of the #Blob heap holding the UTF8 segment text. Absolute paths
+     * start with an empty root segment.
      */
-    fun encodeDocumentName(builder: BlobBuilder, path: String) {
+    fun encodeDocumentName(metadata: MetadataBuilder, builder: BlobBuilder, path: String) {
+        builder.writeByte('/'.code.toByte())
         for (segment in path.split('/')) {
-            val bytes = segment.toByteArray(Charsets.UTF_8)
-            writeCompressedUnsigned(builder, bytes.size)
-            builder.writeBytes(bytes)
+            val segmentBlob = BlobBuilder().also { it.writeBytes(segment.toByteArray(Charsets.UTF_8)) }
+            val handle = metadata.getOrAddBlob(segmentBlob)
+            writeCompressedUnsigned(builder, handle.getHeapOffset())
         }
     }
 

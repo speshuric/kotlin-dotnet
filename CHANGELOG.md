@@ -13,6 +13,17 @@
 - Скрипты: `build-test.sh` пробрасывает свой `--debug/--release` в плагин;
   `kotlinc-net.sh` получил флаги `--debug`/`--release`.
 - dotnetutils: `MetadataTokens.assemblyDefinitionHandle` (паритет upstream).
+- Portable PDB для debug-сборок: sidecar `<name>.pdb` (сырой BSJB,
+  версия `PDB v1.0`) с Document (SHA-256 исходника), MethodDebugInformation
+  с дельта-кодированными sequence points из IR, LocalScope/LocalVariable
+  с именами локалов; dotnetutils получил debug-таблицы и `PdbBuilder`
+  (паритет структуры апстрима). Читается настоящим SRM.
+- E2E-матрица в `build-test.sh`: каждый тест собирается и проверяется
+  в ОБОИХ режимах (генерация, читаемость SRM, запуск в dotnet с
+  сравнением вывода); точечный прогон — `--debug`/`--release`.
+- `kotlin-dotnet-utils/pdbcheck` — gate читаемости portable PDB через
+  `MetadataReaderProvider.FromPortablePdbStream`.
+- docs/debug-support.md — сводный отчёт по реализации отладки.
 
 ### Removed — IL-текстовый путь (ilasm) удалён; PE — единственный вывод (ADR 0012, Phase 10.9)
 

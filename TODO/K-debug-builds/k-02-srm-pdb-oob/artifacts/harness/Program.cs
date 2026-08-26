@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection.Metadata;
-using System.Reflection.PortableExecutable;
 using System.Reflection.Metadata.Ecma335;
 
 using var provider = MetadataReaderProvider.FromPortablePdbStream(new FileStream(args[0], FileMode.Open, FileAccess.Read, FileShare.Read));
@@ -12,25 +11,34 @@ Console.WriteLine($"Documents: {md.Documents.Count}");
 foreach (var dh in md.Documents)
 {
     var d = md.GetDocument(dh);
-    var hashLen = d.Hash.IsNil ? 0 : md.GetBlobBytes(d.Hash).Length;
-    Console.WriteLine($"  doc: {md.GetString(d.Name)} hashAlgo={d.HashAlgorithm} hashBytes={hashLen}");
+    try
+    {
+        var bytes = md.GetBlobBytes(d.Name);
+        var text = System.Text.Encoding.UTF8.GetString(bytes.Skip(1).ToArray());
+        Console.WriteLine($"  doc: {text} hashBytes={bytes.Length}");
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine($"  doc NAME FAIL: {e.GetType().Name}: {e.Message}");
+    }
 }
 
 Console.WriteLine($"MethodDebugInformation rows: {md.MethodDebugInformation.Count}");
-int totalSp = 0;
-foreach (var h in md.MethodDebugInformation)
+foreach (var mh in md.MethodDebugInformation)
 {
-    var mdi = md.GetMethodDebugInformation(h);
-    var sps = mdi.GetSequencePoints().ToList();
-    totalSp += sps.Count;
-    if (sps.Count > 0)
+    var token = MetadataTokens.GetToken(mh);
+    try
     {
-        var token = MetadataTokens.GetToken(h);
-        var docSet = mdi.Document.IsNil ? "nil" : "set";
-        Console.WriteLine($"  method token=0x{token:X8} doc={docSet} spCount={sps.Count}");
-        foreach (var sp in sps.Take(3))
-            Console.WriteLine($"    offset={sp.Offset} lines {sp.StartLine}:{sp.StartColumn}-{sp.EndLine}:{sp.EndColumn}");
+        var mdi = md.GetMethodDebugInformation(mh);
+        var sps = mdi.GetSequencePoints().ToList();
+        var first = sps.Count > 0 ? $"first=({sps[0].Offset},{sps[0].StartLine}:{sps[0].StartColumn})" : "empty";
+        Console.WriteLine($"  0x{token:X8} sp={sps.Count} {first}");
+    }
+    catch (Exception e)
+    {
+        var blob = mdi.SequencePoints.IsNil ? Array.Empty<byte>() : md.GetBlobBytes(mdi.SequencePoints);
+        Console.WriteLine($"  0x{token:X8} FAIL {e.GetType().Name}: {e.Message}; blob({blob.Length})={Convert.ToHexString(blob)}");
     }
 }
+
 Console.WriteLine($"LocalScopes: {md.LocalScopes.Count}, LocalVariables: {md.LocalVariables.Count}");
-Console.WriteLine($"TOTAL sequence points: {totalSp}");

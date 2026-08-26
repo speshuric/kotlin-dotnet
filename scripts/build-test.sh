@@ -34,13 +34,15 @@ source "$PROJECT_ROOT/scripts/tests.sh"
 
 # --- Разбор аргументов ---
 testid=""
-config="debug"
+
 no_test=false
 
+flag_debug=false
+flag_release=false
 while [ $# -gt 0 ]; do
     case "$1" in
-        --debug)   config="debug"; shift ;;
-        --release) config="release"; shift ;;
+        --debug)   flag_debug=true; shift ;;
+        --release) flag_release=true; shift ;;
         --no-test) no_test=true; shift ;;
         -h|--help)
             sed -n '2,/^$/p' "$0" | sed 's/^# \?//'
@@ -56,6 +58,10 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+CONFIGS="debug release"
+if $flag_debug && ! $flag_release; then CONFIGS="debug"; fi
+if $flag_release && ! $flag_debug; then CONFIGS="release"; fi
+
 if [ -z "$testid" ]; then
     log_error "usage: $0 <testid> [--debug|--release] [--no-test]"
     exit 1
@@ -66,7 +72,7 @@ if ! test_exists "$testid"; then
     exit 1
 fi
 
-log_info "build-test: $testid (config=$config, no-test=$no_test)"
+log_info "build-test: $testid (no-test=$no_test)"
 
 RUNTIMECONFIG_JSON='{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.11"},"rollForward":"Major"}}'
 
@@ -120,23 +126,24 @@ if [ ! -f "$PLUGIN_JAR" ]; then
 fi
 require_file "$PLUGIN_JAR" "plugin JAR not found: $PLUGIN_JAR (run 'just plugin')"
 
-# _pe_build_one <kt> <testid> <kind> — собрать один .kt через pe-бэкенд
-# напрямую в build/<testid>/ (для multi-source тестов артефакты различаются
-# по имени исходника). Инкрементальности нет: pe всегда пересобирается.
+# _pe_build_one <cfg> <tid> <kind> <kt> - compile one .kt via the PE backend
+# into build/<tid>/<cfg>/ (multi-source tests distinguish artifacts by the
+# source file name). No incrementality: PE is always rebuilt.
 _pe_build_one() {
-    local kt="$1"
+    local cfg="$1"
     local tid="$2"
     local kind="$3"
+    local kt="$4"
     local name outdir asm
     name="$(basename "$kt" .kt)"
-    outdir="build/$tid"
+    outdir="build/$tid/$cfg"
     mkdir -p "$outdir/kt-out"
 
-    log_info "compiling $kt → $outdir/$name.$kind (config=$config)"
+    log_info "compiling $kt → $outdir/$name.$kind (config=$cfg)"
     kotlinc -Xplugin="$PLUGIN_JAR" \
         -P "plugin:kotlin.dotnet:output.dir=$outdir" \
         -P "plugin:kotlin.dotnet:output.kind=$kind" \
-        -P "plugin:kotlin.dotnet:config=$config" \
+        -P "plugin:kotlin.dotnet:config=$cfg" \
         "$kt" -d "$outdir/kt-out"
 
     asm="$outdir/$name.$kind"
@@ -154,54 +161,68 @@ _pe_build_one() {
         printf '%s\n' "$RUNTIMECONFIG_JSON" > "$outdir/$name.runtimeconfig.json"
     fi
 
-    # C#-harness: артефакт должен открываться настоящим SRM.
     if $no_test; then return 0; fi
+
+    # SRM: the assembly must open with the real reader (verifier)...
     ( cd kotlin-dotnet-utils/verifier && timeout 120 dotnet run --no-launch-profile -- \
         "$PROJECT_ROOT/$asm" | grep -q "VERIFIER OK" ) \
-        || { echo "FAIL: $tid ($name, verifier)"; exit 1; }
+        || { echo "FAIL: $tid [$cfg] $name (assembly verifier)"; exit 1; }
+
+    # ...and the sidecar PDB through FromPortablePdbStream (pdbcheck).
+    local pdb="$outdir/$name.pdb"
+    require_file "$pdb" "missing sidecar PDB for $name ($cfg)"
+    ( cd kotlin-dotnet-utils/pdbcheck && timeout 120 dotnet run --no-launch-profile --no-build -- \
+        "$PROJECT_ROOT/$pdb" | grep -q "PDB OK" ) \
+        || { echo "FAIL: $tid [$cfg] $name (pdb readable)"; exit 1; }
 }
 
-# _verify_pe <testid> — прогон артефактов теста.
-# exe: запуск каждого собранного образа; dll: запуск C#-consumer'а.
-_verify_pe() {
+# Build all sources of a test into a single configuration.
+_pe_build_config() {
+    local cfg="$1"
+    local tid="$2"
+    local kind
+    kind="$(test_kind "$tid")"
+    while IFS= read -r kt; do
+        _pe_build_one "$cfg" "$tid" "$kind" "$kt"
+    done < <(test_kt "$tid")
+}
+
+# _verify_config <tid> <cfg> - run artifacts of one configuration.
+# exe: run each image; dll: copy to the consumer's legacy path and run it.
+_verify_config() {
     local tid="$1"
+    local cfg="$2"
     local kind kt name expected expected_raw out
 
     kind="$(test_kind "$tid")"
+    expected_raw="$(test_prop "$tid" expect "" || true)"
+    expected="$(printf '%b' "$expected_raw")"
 
     if [ "$kind" = "dll" ]; then
+        local consumer
         consumer="$(test_consumer "$tid")"
         [ -n "$consumer" ] || { echo "FAIL: $tid (dll without consumer in test.properties)"; exit 1; }
-        name="$(basename "$(test_kt "$tid" | head -n 1)" .kt)"
-        # dotnet run печатает рантайм-шум в stderr; программа — в stdout.
+        local first_name
+        first_name="$(basename "$(test_kt "$tid" | head -n 1)" .kt)"
+        cp "build/$tid/$cfg/$first_name.dll" "build/$tid/$first_name.dll"
         out="$( cd "$consumer" && timeout 180 dotnet run 2>/dev/null || true )"
-        expected_raw="$(test_prop "$tid" expect "" || true)"
-        if [ -n "$expected_raw" ]; then
-            expected="$(printf '%b' "$expected_raw")"
-            if [ "$out" != "$expected" ]; then
-                echo "FAIL: $tid"
-                echo "--- expected ---"; echo "$expected"
-                echo "--- got ---"; echo "$out"
-                exit 1
-            fi
-        elif [ -z "$out" ]; then
-            echo "FAIL: $tid (empty output)"
-            exit 1
-        fi
     else
-        expected="$(printf '%b' "$(test_prop "$tid" expect)")"
         while IFS= read -r kt; do
             name="$(basename "$kt" .kt)"
-            out="$(timeout 30 dotnet "build/$tid/$name.exe" 2>/dev/null || true)"
-            if [ "$out" != "$expected" ]; then
-                echo "FAIL: $tid ($name)"
-                echo "--- expected ---"; echo "$expected"
-                echo "--- got ---"; echo "$out"
-                exit 1
-            fi
+            out="$(timeout 30 dotnet "build/$tid/$cfg/$name.exe" 2>/dev/null || true)"
+            [ "$kind" = "exe" ] || break
         done < <(test_kt "$tid")
     fi
-    echo ">>> $tid OK"
+
+    if [ -n "$expected" ] && [ "$out" != "$expected" ]; then
+        echo "FAIL: $tid [$cfg]"
+        echo "--- expected ---"; echo "$expected"
+        echo "--- got ---"; echo "$out"
+        exit 1
+    elif [ -z "$expected" ] && [ -z "$out" ]; then
+        echo "FAIL: $tid [$cfg] (empty output)"
+        exit 1
+    fi
 }
 
 # --- Тело: сборка теста (см. docs/test-format.md) ---
@@ -211,22 +232,24 @@ case " $(test_backends "$testid") " in
         exit 1 ;;
 esac
 
+
+
 if [ "$(test_kind "$testid")" != "exe" ] && [ "$(test_kind "$testid")" != "dll" ]; then
     log_error "test '$testid': unknown kind '$(test_kind "$testid")'"
     exit 1
 fi
 
-if $no_test; then
-    # Только собрать артефакты (без прогона и verifier).
-    while IFS= read -r kt; do
-        _pe_build_one "$kt" "$testid" "$(test_kind "$testid")"
-    done < <(test_kt "$testid")
-else
-    while IFS= read -r kt; do
-        _pe_build_one "$kt" "$testid" "$(test_kind "$testid")"
-    done < <(test_kt "$testid")
-    _verify_pe "$testid"
-fi
+for cfg in $CONFIGS; do
+    if $no_test; then
+        while IFS= read -r kt; do
+            _pe_build_one "$cfg" "$testid" "$(test_kind "$testid")" "$kt"
+        done < <(test_kt "$testid")
+    else
+        _pe_build_config "$cfg" "$testid"
+        _verify_config "$testid" "$cfg"
+        echo ">>> $testid [$cfg] OK"
+    fi
+done
 
 if $no_test; then
     log_info "done: $testid (no-test)"

@@ -57,12 +57,10 @@ class DotnetIrGenerationExtension(
                 val visitor = DotnetIrVisitor(emitter)
                 irFile.accept(visitor, null)
                 emitter.writeAssemblyTo(outFile, outputKind == "exe")
-                if (config == "debug") {
-                    // Sidecar portable PDB next to the executable.
-                    val pdbFile = File(outputDir, "$asmName.pdb")
-                    emitter.writePortablePdbTo(pdbFile)
-                    Log.info("PDB: ${pdbFile.absolutePath}")
-                }
+                // Sidecar portable PDB next to the assembly (both configs).
+                val pdbFile = File(outputDir, "$asmName.pdb")
+                emitter.writePortablePdbTo(pdbFile)
+                Log.info("PDB: ${pdbFile.absolutePath}")
                 Log.info("PE ($outputKind): ${outFile.absolutePath}")
             } catch (e: Throwable) {
                 outFile.delete()

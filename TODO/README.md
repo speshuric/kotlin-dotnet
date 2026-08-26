@@ -95,8 +95,8 @@
 | 18a | Паритет с апстримом SRM: публичный API, internal-сходство, минимальная видимость, покрытие тестами | [I-04-visibility-upstream-parity.md](I-dotnetutils/I-04-visibility-upstream-parity.md) | cleanup-проход + критерий ревью | ADR 0009, принцип 18 | TODO |
 | 18b | Фабрики хэндлов: единый generic-подход | [I-03-generic-handle-factory.md](I-dotnetutils/I-03-generic-handle-factory.md) | POST-PoC | I-01 | TODO |
 | 19 | Декомпозиция PeIlEmitter (модель типов / парсер ссылок / сигнатуры / буфер опкодов / writer) — **сразу после Phase 10.9** | [J-01-pe-emitter-decomposition.md](J-pe-backend/J-01-pe-emitter-decomposition.md) | POST-10.9 (рефакторинг) | Phase 10, Phase 10.9 | DONE |
-| 20 | Debug/release сборки: DebuggableAttribute + CLI config (L1), portable PDB (L2) | [K-01-debug-release-config.md](K-debug-builds/K-01-debug-release-config.md) | POST-10.9 (L1), POST-PoC (L2) | Phase 10.9, J-01 | WIP (L1 DONE, L2 в работе) |
-| 21 | **SRM не читает наш portable PDB** (Document.Name OOB) — разбор, артефакты, эталон | [k-02-srm-pdb-oob/README.md](K-debug-builds/k-02-srm-pdb-oob/README.md) | приоритет (блокер L2) | K-01 | TODO |
+| 20 | Debug/release сборки: DebuggableAttribute + CLI config (L1), portable PDB (L2) | [K-01-debug-release-config.md](K-debug-builds/K-01-debug-release-config.md) | POST-10.9 (L1), POST-PoC (L2) | Phase 10.9, J-01 | DONE (L1+L2) |
+| 21 | **SRM не читает наш portable PDB** (Document.Name OOB) — разбор, артефакты, эталон | [k-02-srm-pdb-oob/README.md](K-debug-builds/k-02-srm-pdb-oob/README.md) | приоритет (блокер L2) | K-01 | DONE |
 | 22 | Cleanup: язык комментариев + вычистка id задач из кода | [A-08-comments-language-task-ids.md](A-infrastructure/A-08-comments-language-task-ids.md) | отдельная cleanup-сессия | правила AGENTS 15–16 | TODO |
 
 ## Краткая карта тем

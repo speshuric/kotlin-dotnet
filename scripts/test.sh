@@ -63,7 +63,7 @@ require_file "$RUNTIME_DLL" "runtime DLL not found: $RUNTIME_DLL"
 failed=0
 passed=0
 for id in $ids; do
-    if "$PROJECT_ROOT/scripts/build-test.sh" "$id" --release; then
+    if "$PROJECT_ROOT/scripts/build-test.sh" "$id"; then
         passed=$((passed + 1))
     else
         failed=$((failed + 1))

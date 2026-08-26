@@ -81,7 +81,16 @@ private fun MetadataBuilder.serializeTablesHeader(writer: BlobBuilder, metadataS
     if (!metadataSizes.guidReferenceIsSmall) heapSizes = heapSizes or HeapSizeFlag.GUID_HEAP_LARGE
     if (!metadataSizes.blobReferenceIsSmall) heapSizes = heapSizes or HeapSizeFlag.BLOB_HEAP_LARGE
 
-    val sortedTables = MetadataSizes.SORTED_TYPE_SYSTEM_TABLES
+    // Standalone PDB: declare sortedness only for debug tables actually
+    // present (csc reference marks LocalScope and CustomDebugInformation).
+    val sortedTables =
+        if (metadataSizes.isStandalonePdb) {
+            listOf(TableIndex.LOCAL_SCOPE, TableIndex.CUSTOM_DEBUG_INFORMATION)
+                .filter { metadataSizes.isPresent(it) }
+                .fold(0uL) { acc, t -> acc or (1uL shl t.value) }
+        } else {
+            MetadataSizes.SORTED_TYPE_SYSTEM_TABLES
+        }
 
     writer.writeUInt32(0u) // reserved
     writer.writeByte(MetadataBuilder.METADATA_FORMAT_MAJOR_VERSION)

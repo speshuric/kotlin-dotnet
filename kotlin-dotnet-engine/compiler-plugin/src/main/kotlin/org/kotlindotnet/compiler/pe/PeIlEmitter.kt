@@ -400,18 +400,24 @@ class PeIlEmitter(
         val mvid = mvidBytes ?: throw IllegalStateException("assemblyHeader missing mvid")
 
         val pdbMetadata = MetadataBuilder()
-        // Standalone PDB не содержит Module/Assembly/TypeDef строк — только
-        // debug-таблицы и кучи.
+        // Standalone PDB contains no Module/Assembly/TypeDef rows - only
+        // debug tables and heaps.
 
-        // Document: SHA-256 хеш исходника, язык — кастомный Kotlin GUID.
-        val hashAlgorithmSha256 = "8829d00f-11b8-4213-878b-b6e63a996c8e"
+        // Document: SHA-256 hash of the source file; language is a
+        // project-defined Kotlin GUID.
+        // Document.HashAlgorithm / Language GUIDs per Portable PDB spec
+        // (dotnet/runtime docs/design/specs/PortablePdb-Metadata.md,
+        // section "Document table rows"; local copy:
+        // .sources/dotnet-runtime/docs/design/specs/PortablePdb-Metadata.md).
+        val hashAlgorithmSha256 = "8829d00f-11b8-4213-878b-770e8597ac16"
+        // Kotlin has no registered language GUID; spec allows arbitrary
+        // values (readers interpret them freely) - project-defined constant.
         val languageKotlin = "6fa7c4e1-9c0b-4c2e-a1d3-5b7f900ab177"
         val sourceBytes = File(src).readBytes()
         val digest = java.security.MessageDigest.getInstance("SHA-256").digest(sourceBytes)
         val hashBlob = BlobBuilder().also { it.writeBytes(digest) }
         val hashHandle = pdbMetadata.getOrAddBlob(hashBlob)
-        // Имя документа: blob с compressed-length префиксом + UTF8 (PPDB spec).
-        val nameBlob = BlobBuilder().also { PePdbEncoder.encodeDocumentName(it, File(src).absolutePath) }
+        val nameBlob = BlobBuilder().also { PePdbEncoder.encodeDocumentName(pdbMetadata, it, File(src).absolutePath) }
         val document = pdbMetadata.addDocument(
             name = pdbMetadata.getOrAddBlob(nameBlob),
             hashAlgorithm = pdbMetadata.getOrAddGuid(fixedGuid(hashAlgorithmSha256.toString())),
@@ -423,11 +429,14 @@ class PeIlEmitter(
         for ((methodRowId, rec) in methodsWithRows()) {
             if (rec.seqPoints.isEmpty() && rec.locals.none { it.name != null }) continue
 
-            if (rec.seqPoints.isNotEmpty()) {
+            val meaningfulPoints = rec.seqPoints
+                .filter { it.startLine != it.endLine || it.startColumn != it.endColumn }
+                .distinctBy { it.offset }
+            if (meaningfulPoints.isNotEmpty()) {
                 val spBlob = BlobBuilder()
                 PePdbEncoder.encodeSequencePoints(
                     spBlob,
-                    rec.seqPoints.map {
+                    meaningfulPoints.map {
                         PePdbEncoder.SequencePointRecord(it.offset, it.startLine, it.startColumn, it.endLine, it.endColumn)
                     },
                 )
