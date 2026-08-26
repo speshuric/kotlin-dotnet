@@ -14,6 +14,9 @@ internal class FieldRec(val cilType: String, val name: String) {
     var handle: FieldDefinitionHandle = MetadataTokens.fieldDefinitionHandle(0)
 }
 
+/** Local variable: CIL type plus the IR name used in the PDB. */
+internal data class LocalRec(val cilType: String, val name: String?)
+
 internal class MethodRec(
     val name: String,
     val retCil: String,
@@ -37,7 +40,11 @@ internal class MethodRec(
         attributesOverride?.toInt() ?: attributes
 
     val ops = mutableListOf<Op>()
-    val locals = mutableListOf<String>()
+    val locals = mutableListOf<LocalRec>()
+
+    /** Sequence points marked by the visitor; offsets are filled by the encoder. */
+    val seqPoints = mutableListOf<SequencePoint>()
+
     var handle: MethodDefinitionHandle = MetadataTokens.methodDefinitionHandle(0)
     var bodyOffset = -1
 }

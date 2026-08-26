@@ -89,6 +89,10 @@ class MetadataBuilder(
     internal val typeRefTable = ArrayList<TypeRefRow>()
     internal val typeSpecTable = ArrayList<TypeSpecRow>()
     internal val standAloneSigTable = ArrayList<StandaloneSigRow>()
+    internal val documentTable = ArrayList<DocumentRow>()
+    internal val methodDebugInformationTable = ArrayList<MethodDebugInformationRow>()
+    internal val localScopeTable = ArrayList<LocalScopeRow>()
+    internal val localVariableTable = ArrayList<LocalVariableRow>()
 
     // --- heap state ---
 
@@ -399,7 +403,11 @@ class MetadataBuilder(
      * Returns serialized metadata (sizes, string heap, string map) for the
      * current builder state.
      */
-    internal fun getSerializedMetadata(externalRowCounts: IntArray, metadataVersionByteCount: Int): SerializedMetadata {
+    internal fun getSerializedMetadata(
+        externalRowCounts: IntArray,
+        metadataVersionByteCount: Int,
+        isStandalonePdb: Boolean = false,
+    ): SerializedMetadata {
         val stringHeapBuilder = HeapBlobBuilder(stringHeapCapacity)
         val stringMap = serializeStringHeap(stringHeapBuilder)
 
@@ -410,7 +418,7 @@ class MetadataBuilder(
             guidBuilder.count,
         )
 
-        val sizes = MetadataSizes(getRowCounts(), externalRowCounts, heapSizes, metadataVersionByteCount)
+        val sizes = MetadataSizes(getRowCounts(), externalRowCounts, heapSizes, metadataVersionByteCount, isStandalonePdb)
 
         return SerializedMetadata(sizes, stringHeapBuilder, stringMap)
     }
@@ -442,8 +450,8 @@ class MetadataBuilder(
         // reserved
         builder.writeUInt16(0.toUShort())
 
-        // number of streams (#~, #Strings, #US, #GUID, #Blob)
-        builder.writeUInt16(5.toUShort())
+        // number of streams (#~, #Strings, #US, #GUID, #Blob[, #Pdb])
+        builder.writeUInt16((if (sizes.isStandalonePdb) 6 else 5).toUShort())
 
         var offsetFromStartOfMetadata = sizes.metadataHeaderSize
         offsetFromStartOfMetadata = serializeStreamHeader(
@@ -470,14 +478,22 @@ class MetadataBuilder(
             sizes.getAlignedHeapSize(HeapIndex.GUID),
             "#GUID",
         )
-        serializeStreamHeader(
+        offsetFromStartOfMetadata = serializeStreamHeader(
             builder,
             offsetFromStartOfMetadata,
             sizes.getAlignedHeapSize(HeapIndex.BLOB),
             "#Blob",
         )
+        if (sizes.isStandalonePdb) {
+            // Поток #Pdb — последний: после #~, куч и их выравнивания.
+            val pdbOffset = sizes.metadataSize - MetadataSizes.PDB_STREAM_SIZE
+            serializeStreamHeader(builder, pdbOffset, MetadataSizes.PDB_STREAM_SIZE, "#Pdb")
+        }
 
-        assert(builder.count - startPosition == sizes.metadataHeaderSize)
+        if (builder.count - startPosition != sizes.metadataHeaderSize)
+            throw IllegalStateException(
+                "hdr written=${builder.count - startPosition} calc=${sizes.metadataHeaderSize} pdb=${sizes.isStandalonePdb}",
+            )
     }
 
     /** Writes one stream header; returns the offset right after the stream. */

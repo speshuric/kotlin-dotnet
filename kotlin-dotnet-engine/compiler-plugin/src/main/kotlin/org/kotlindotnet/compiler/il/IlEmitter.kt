@@ -3,7 +3,7 @@ package org.kotlindotnet.compiler.il
 /**
  * Абстракция IL-эмиттера.
  *
- * Контракт «IL корректен» (A-03): реализации гарантируют, что
+ * Контракт «IL корректен»: реализации гарантируют, что
  * `beginX`/`endX` парны, тело сбалансировано, заголовок есть.
  * `opcode`/`ldcI4`/`ldarg`/.../`label`/`declareLocal` разрешены
  * только внутри метода (`beginMethod` ... `endMethod`).
@@ -56,8 +56,6 @@ interface IlEmitter {
     fun endClass()
 
     /**
-     * Объявляет поле текущего класса; возвращает его индекс (0-based в классе).
-     * Вызывать только между [beginClass] и [endClass].
      */
     fun declareField(cilType: String, name: String, isStatic: Boolean): Int
 
@@ -70,8 +68,8 @@ interface IlEmitter {
      *
      * @param params пары `cilType to paramName` — только Regular-параметры
      *        (receiver не входит).
-     * @param attributesOverride явные MethodAttributes (Phase 10.7:
-     *        Virtual/NewSlot для open/override); null → по умолчанию
+     * @param attributesOverride explicit MethodAttributes
+     *        (Virtual/NewSlot for open/override); null → defaults
      *        (Public|HideBySig[|Static], ctor +SpecialName|RTSpecialName).
      */
     fun beginMethod(
@@ -97,8 +95,17 @@ interface IlEmitter {
 
     //=== Locals / labels ===
 
-    /** Регистрирует локальную переменную, возвращает её индекс. */
-    fun declareLocal(cilType: String): Int
+    /**
+     * Registers a local variable and returns its index.
+     * [name] is the IR name used for debug tables; may be null.
+     */
+    fun declareLocal(cilType: String, name: String? = null): Int
+
+    /**
+     * Records a sequence point: binds the current position in the IL
+     * stream to a source line range. No-op by default.
+     */
+    fun markSequencePoint(startLine: Int, startColumn: Int, endLine: Int, endColumn: Int) {}
 
     /** Генерирует уникальную метку IL_<n>. */
     fun newLabel(): String

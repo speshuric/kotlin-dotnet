@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.config.CompilerConfigurationKey
  *   [DotnetIrGenerationExtension], а не здесь).
  * - `output.kind` — тип сборки: `exe` | `dll`.
  * - `config` — режим сборки: `debug` | `release`. Debug добавляет
- *   assembly-level DebuggableAttribute (K-01 L1); release — без атрибута
+ *   assembly-level DebuggableAttribute; release — без атрибута
  *   (как csc без /debug).
  *
  * Принцип: плагин не хардкодит `build/` — путь получает через

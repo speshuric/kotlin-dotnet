@@ -36,15 +36,20 @@ system.reflection.metadata/            Metadata, Handles.TypeSystem, Blobs
 ## Ограничения
 
 - Только write-path; reader (`PEReader`/`MetadataReader`) не портирован.
-- Отсечено: Edit-and-Continue, WinMD, Portable PDB, пулинг билдеров,
-  DebugDirectory.
+- Отсечено: Edit-and-Continue, WinMD, пулинг билдеров, DebugDirectory.
+- Portable PDB: частично (K-01 L2) — debug-таблицы Document /
+  MethodDebugInformation / LocalScope / LocalVariable и standalone-корень
+  через `PdbBuilder`; ImportScope/LocalConstant/StateMachineMethod не
+  портированы.
 - Чистый Kotlin stdlib: прямые `import java.*` запрещены.
 
 ## Тесты
 
 Юнит-тесты — golden-bytes порты тестов dotnet/runtime
 (`tests/Metadata/Ecma335`, `tests/PortableExecutable`) +
-адаптированные факты. E2E — тест `05-pe-hello`
+адаптированные факты; для debug-таблиц — кейсы в
+`MetadataBuilderAddTests.kt` по апстримным `Add*` и smoke
+`PdbBuilderSmokeTest.kt` (самосогласованность standalone-образа). E2E — тест `05-pe-hello`
 (`just test 05-pe-hello`): hello-world EXE собирается этим модулем,
 проверяется запуском через `dotnet` и C#-harness'ом
 `kotlin-dotnet-utils/verifier`.

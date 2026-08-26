@@ -50,10 +50,19 @@ class DotnetIrGenerationExtension(
             // ADR 0010: прямая генерация PE через dotnetutils.
             val outFile = File(outputDir, "$asmName.$outputKind")
             try {
-                val emitter = org.kotlindotnet.compiler.pe.PeIlEmitter(isDebug = config == "debug")
+                val emitter = org.kotlindotnet.compiler.pe.PeIlEmitter(
+                    isDebug = config == "debug",
+                    sourceFile = File(irFile.fileEntry.name).absolutePath,
+                )
                 val visitor = DotnetIrVisitor(emitter)
                 irFile.accept(visitor, null)
                 emitter.writeAssemblyTo(outFile, outputKind == "exe")
+                if (config == "debug") {
+                    // Sidecar portable PDB next to the executable.
+                    val pdbFile = File(outputDir, "$asmName.pdb")
+                    emitter.writePortablePdbTo(pdbFile)
+                    Log.info("PDB: ${pdbFile.absolutePath}")
+                }
                 Log.info("PE ($outputKind): ${outFile.absolutePath}")
             } catch (e: Throwable) {
                 outFile.delete()

@@ -7,6 +7,14 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ILOpCode
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataBuilder
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataTokens
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addDocument
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addMethodDebugInformation
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addLocalScope
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addLocalVariable
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.PdbBuilder
+import org.kotlindotnet.dotnetutils.system.reflection.portableexecutable.Characteristics
+import org.kotlindotnet.dotnetutils.system.reflection.portableexecutable.ManagedPEBuilder
+import org.kotlindotnet.dotnetutils.system.reflection.portableexecutable.PEHeaderBuilder
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.AssemblyVersion
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MethodBodyStreamEncoder
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addMethodDefinition
@@ -35,8 +43,10 @@ import kotlin.uuid.Uuid
  * TODO/PHASE-10.md §«Итоги».
  */
 class PeIlEmitter(
-    /** K-01 L1: debug-сборка → assembly-level DebuggableAttribute(0x0107). */
+    /** Debug build → assembly-level DebuggableAttribute(0x0107). */
     private val isDebug: Boolean = false,
+    /** Source file path, used as the PDB Document entry. */
+    private val sourceFile: String? = null,
 ) : IlEmitter {
 
     private val metadata = MetadataBuilder()
@@ -80,14 +90,9 @@ class PeIlEmitter(
     private val labelIds = HashMap<String, Int>()
     private var nextLabelId = 0
 
-    private companion object {
-        /**
-         * System.Diagnostics.DebuggingModes для debug-сборки:
-         * Default | IgnoreSymbolStoreSequencePoints | EnableEditAndContinue |
-         * DisableOptimizations (= csc /debug+).
-         */
-        const val DEBUGGABLE_MODES_DEBUG: Int = 0x0001 or 0x0002 or 0x0004 or 0x0100
-    }
+    /** MVID сборки в байтах — Id потока #Pdb. */
+    private var mvidBytes: ByteArray? = null
+
 
     // === IlEmitter: assembly / module ===
 
@@ -98,7 +103,7 @@ class PeIlEmitter(
         metadata.addModule(
             generation = 0,
             moduleName = metadata.getOrAddString(assemblyName),
-            mvid = metadata.getOrAddGuid(Uuid.random()),
+            mvid = Uuid.random().also { mvidBytes = it.toByteArray() }.let { metadata.getOrAddGuid(it) },
             encId = MetadataTokens.guidHandle(0),
             encBaseId = MetadataTokens.guidHandle(0),
         )
@@ -139,9 +144,11 @@ class PeIlEmitter(
             m.handle = MetadataTokens.methodDefinitionHandle(i + 1)
         }
 
-        // 3. Кодирование тел.
+        // 3. Кодирование тел (+ захват sequence points).
         for (m in orderedMethods) {
-            m.bodyOffset = bodyEncoder.encode(m)
+            val r = bodyEncoder.encode(m)
+            m.bodyOffset = r.bodyOffset
+            m.seqPoints.clear(); m.seqPoints.addAll(r.sequencePoints)
         }
 
         // 4. FieldDef-строки (по классам, в порядке объявления классов).
@@ -184,7 +191,7 @@ class PeIlEmitter(
             resolveTypeEntity = refs::resolveTypeEntity,
         )
 
-        // 8. Assembly-level атрибуты: Debuggable для debug-сборок (K-01).
+        // 8. Assembly-level attributes: Debuggable for debug builds.
         if (isDebug) {
             refs.addAssemblyDebuggableAttribute(DEBUGGABLE_MODES_DEBUG)
         }
@@ -273,10 +280,14 @@ class PeIlEmitter(
 
     // === Locals / labels ===
 
-    override fun declareLocal(cilType: String): Int {
+    override fun declareLocal(cilType: String, name: String?): Int {
         val m = requireCurrent("declareLocal")
-        m.locals.add(cilType)
+        m.locals.add(LocalRec(cilType, name))
         return m.locals.size - 1
+    }
+
+    override fun markSequencePoint(startLine: Int, startColumn: Int, endLine: Int, endColumn: Int) {
+        requireCurrent("markSequencePoint").ops.add(SeqPointOp(startLine, startColumn, endLine, endColumn))
     }
 
     override fun newLabel(): String {
@@ -378,6 +389,100 @@ class PeIlEmitter(
         )
     }
 
+    /**
+     * Writes a sidecar portable PDB: one Document for the source,
+     * MethodDebugInformation with sequence points, LocalScope/LocalVariable.
+     * Call after [writeAssemblyTo] in debug mode.
+     */
+    fun writePortablePdbTo(outputFile: File) {
+        check(moduleInitialized) { "nothing was emitted (assemblyHeader missing)" }
+        val src = sourceFile ?: return
+        val mvid = mvidBytes ?: throw IllegalStateException("assemblyHeader missing mvid")
+
+        val pdbMetadata = MetadataBuilder()
+        // Standalone PDB не содержит Module/Assembly/TypeDef строк — только
+        // debug-таблицы и кучи.
+
+        // Document: SHA-256 хеш исходника, язык — кастомный Kotlin GUID.
+        val hashAlgorithmSha256 = "8829d00f-11b8-4213-878b-b6e63a996c8e"
+        val languageKotlin = "6fa7c4e1-9c0b-4c2e-a1d3-5b7f900ab177"
+        val sourceBytes = File(src).readBytes()
+        val digest = java.security.MessageDigest.getInstance("SHA-256").digest(sourceBytes)
+        val hashBlob = BlobBuilder().also { it.writeBytes(digest) }
+        val hashHandle = pdbMetadata.getOrAddBlob(hashBlob)
+        // Имя документа: blob с compressed-length префиксом + UTF8 (PPDB spec).
+        val nameBlob = BlobBuilder().also { PePdbEncoder.encodeDocumentName(it, File(src).absolutePath) }
+        val document = pdbMetadata.addDocument(
+            name = pdbMetadata.getOrAddBlob(nameBlob),
+            hashAlgorithm = pdbMetadata.getOrAddGuid(fixedGuid(hashAlgorithmSha256.toString())),
+            hash = hashHandle,
+            language = pdbMetadata.getOrAddGuid(fixedGuid(languageKotlin.toString())),
+        )
+
+        var firstVariableRowId = 1
+        for ((methodRowId, rec) in methodsWithRows()) {
+            if (rec.seqPoints.isEmpty() && rec.locals.none { it.name != null }) continue
+
+            if (rec.seqPoints.isNotEmpty()) {
+                val spBlob = BlobBuilder()
+                PePdbEncoder.encodeSequencePoints(
+                    spBlob,
+                    rec.seqPoints.map {
+                        PePdbEncoder.SequencePointRecord(it.offset, it.startLine, it.startColumn, it.endLine, it.endColumn)
+                    },
+                )
+                pdbMetadata.addMethodDebugInformation(
+                    document = document,
+                    sequencePoints = pdbMetadata.getOrAddBlob(spBlob),
+                )
+            }
+
+            val namedLocals = rec.locals.filter { it.name != null }
+            if (namedLocals.isNotEmpty()) {
+                val startVariable = firstVariableRowId
+                namedLocals.forEachIndexed { slot, local ->
+                    pdbMetadata.addLocalVariable(
+                        attributes = 0,
+                        index = rec.locals.indexOf(local),
+                        name = pdbMetadata.getOrAddString(local.name!!),
+                    )
+                    firstVariableRowId++
+                }
+                val maxOffset = rec.seqPoints.maxOfOrNull { it.offset } ?: 0
+                pdbMetadata.addLocalScope(
+                    method = MetadataTokens.getRowNumber(rec.handle.toEntityHandle()),
+                    importScope = 0,
+                    variableList = startVariable,
+                    constantList = firstVariableRowId,
+                    startOffset = 0u,
+                    length = (maxOffset + 1).toUInt(),
+                )
+            }
+        }
+
+        val ep = entrypoint
+        val entrypointToken =
+            if (ep == null) 0 else MetadataTokens.getToken(ep.toEntityHandle())
+
+        // Standalone portable PDB → PE-образ (как в Roslyn): метаданные без IL.
+        val image = PdbBuilder(pdbMetadata, mvid, entrypointToken).build()
+
+        outputFile.parentFile?.mkdirs()
+        outputFile.writeBytes(image.toArray())
+    }
+
+    /** Методы с предвыделенными row id (порядок MethodDef таблицы). */
+    private fun methodsWithRows(): List<Pair<Int, MethodRec>> = buildList {
+        var rowId = 1
+        containerMethods.forEach { add(rowId++ to it) }
+        classes.forEach { cls -> cls.methods.forEach { add(rowId++ to it) } }
+    }
+
+    private fun fixedGuid(hex: String): Uuid {
+        val u = java.util.UUID.fromString(hex)
+        return Uuid.fromLongs(u.mostSignificantBits, u.leastSignificantBits)
+    }
+
     // === internals: hooks for PeReferenceResolver ===
 
     private fun findOwnMethod(info: MemberRefParser.CallInfo): MethodRec? {
@@ -405,7 +510,7 @@ class PeIlEmitter(
 
     /**
      * Row id своего класса по имени (`Ns.Name`, без скобочной сборки),
-     * либо null. Row id предвычисляется: 1=&lt;Module&gt;, 2=контейнер,
+     * либо null. Row id предвычисляется: 1=<Module>, 2=контейнер,
      * классы — далее по порядку объявления.
      */
     private fun findOwnTypeDefRow(t: MemberRefParser.TypeNameInfo): Int? {
@@ -424,4 +529,12 @@ class PeIlEmitter(
         ILOpCode.entries.firstOrNull { it.name == op.name }
             ?: throw IllegalStateException("No ILOpCode counterpart for ${op.name}")
 
+    private companion object {
+        /**
+         * System.Diagnostics.DebuggingModes для debug-сборки:
+         * Default | IgnoreSymbolStoreSequencePoints | EnableEditAndContinue |
+         * DisableOptimizations (= csc /debug+).
+         */
+        const val DEBUGGABLE_MODES_DEBUG: Int = 0x0001 or 0x0002 or 0x0004 or 0x0100
+    }
 }

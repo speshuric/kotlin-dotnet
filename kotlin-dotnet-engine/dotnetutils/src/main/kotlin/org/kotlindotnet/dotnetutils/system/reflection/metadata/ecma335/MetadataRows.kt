@@ -112,3 +112,30 @@ internal data class TypeDefRow(
 internal data class TypeRefRow(val resolutionScope: Int, val name: StringHandle, val namespace: StringHandle)
 internal data class TypeSpecRow(val signature: BlobHandle)
 internal data class StandaloneSigRow(val signature: BlobHandle)
+
+internal data class DocumentRow(
+    val name: BlobHandle,
+    val hashAlgorithm: GuidHandle,
+    val hash: BlobHandle,
+    val language: GuidHandle,
+)
+
+internal data class MethodDebugInformationRow(
+    val document: Int,
+    val sequencePoints: BlobHandle,
+)
+
+internal data class LocalScopeRow(
+    val method: Int,
+    val importScope: Int,
+    val variableList: Int,
+    val constantList: Int,
+    val startOffset: UInt,
+    val length: UInt,
+)
+
+internal data class LocalVariableRow(
+    val attributes: Short,
+    val index: Short,
+    val name: StringHandle,
+)

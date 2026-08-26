@@ -1,6 +1,6 @@
 # K-01: Сборка в debug и release режимах
 
-- **Статус:** WIP — L1 DONE, L2 не начат
+- **Статус:** WIP — L1 DONE; L2 реализован, SRM-верификация в работе
 - **Разметка:** POST-PoC (L1 можно раньше — см. «Уровни»)
 - **Зависимости:** Phase 10.9 (PE — единственный вывод), dotnetutils (I-01)
 - **ADR:** не требуется (решение техническое, конфликтов архитектуры нет)
@@ -69,6 +69,29 @@ Kotlin-сборки **от конфига не зависят вообще**: б
   в обоих режимах (verifier пропускает атрибут).
 
 ### Уровень 2 — настоящий debug-опыт (portable PDB)
+
+**L2 сделано (структура):**
+- dotnetutils: debug-таблицы Document / MethodDebugInformation /
+  LocalScope / LocalVariable (rows, Add*, сериализаторы, размеры,
+  handles — по апстримным именам); standalone-вариант корня вынесен
+  в `PdbBuilder` (порт Ecma335.PdbBuilder; build() отдаёт готовый
+  PE-образ — отклонение задокументировано в шапке файла);
+- компилятор: `PePdbEncoder` (compressed integers ECMA II.23.2,
+  sequence-point blob, имя документа), visitor ставит sequence points
+  по `fileEntry.getSourceRangeInfo`, локалы получают имена из IR
+  (`declareLocal(cilType, name)`), `PeIlEmitter.writePortablePdbTo`
+  пишет sidecar `.pdb` в debug-режиме;
+- тесты: Add*-кейсы 4 таблиц в `MetadataBuilderAddTests`,
+  `PdbBuilderSmokeTest` (самосогласованность образа);
+- **известная проблема:** SRM не читает Document.Name из нашего PDB
+  (репродукция и разбор — ниже, «Известная проблема»).
+
+##### Известная проблема: SRM не читает наш PDB
+
+Вынесено в отдельную задачу **[K-02](k-02-srm-pdb-oob/README.md)**
+(описание, артефакты, эталонный csc-PDB, проверенные гипотезы).
+Приоритет высокий: проект в неконсистентном состоянии — PDB
+генерируется, но не читается эталонным ридером.
 
 4. Порт PdbBuilder из upstream SRM (System.Reflection.Metadata.Ecma335):
    standalone-метаданные #Pdb + #Us, таблицы Document /

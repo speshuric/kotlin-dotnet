@@ -31,6 +31,14 @@ internal class LdcI4Op(val value: Int) : Op
 internal class LdcI8Op(val value: Long) : Op
 internal class LdcR4Op(val value: Float) : Op
 internal class LdcR8Op(val value: Double) : Op
+
+/** Pseudo-op: sequence point mark (offset of the next real instruction). */
+internal class SeqPointOp(
+    val startLine: Int,
+    val startColumn: Int,
+    val endLine: Int,
+    val endColumn: Int,
+) : Op
 internal enum class LocalKind { LDARG, LDLOC, STLOC }
 internal class LocalOp(val kind: LocalKind, val index: Int) : Op
 
@@ -50,8 +58,10 @@ internal class PeBodyEncoder(
     /** CIL-имя типа → TypeDefOrRef (для box/newarr). */
     private val resolveTypeEntity: (String) -> EntityHandle,
 ) {
-    /** Кодирует тело [m], возвращает оффсет в IL-потоке. */
-    fun encode(m: MethodRec): Int {
+    data class Result(val bodyOffset: Int, val sequencePoints: List<SequencePoint>)
+
+    /** Encodes body [m]; returns its stream offset and captured sequence points. */
+    fun encode(m: MethodRec): Result {
         val codeBuilder = BlobBuilder()
         val flow = ControlFlowBuilder()
         val encoder = InstructionEncoder(codeBuilder, flow)
@@ -59,8 +69,16 @@ internal class PeBodyEncoder(
 
         fun labelHandle(id: Int): LabelHandle = handles.getOrPut(id) { encoder.defineLabel() }
 
+        val capturedSeqPoints = ArrayList<SequencePoint>()
+
         for (op in m.ops) {
             when (op) {
+                is SeqPointOp -> {
+                    // Offset of the next real instruction == current stream position.
+                    capturedSeqPoints.add(
+                        SequencePoint(codeBuilder.count, op.startLine, op.startColumn, op.endLine, op.endColumn),
+                    )
+                }
                 is InstOp -> encoder.opCode(op.code)
                 is LdStrOp -> encoder.loadString(metadata.getOrAddUserString(op.value))
                 is BranchOp -> encoder.branch(op.code, labelHandle(op.labelId))
@@ -98,11 +116,13 @@ internal class PeBodyEncoder(
                 val b = BlobBuilder()
                 val lv = BlobEncoder(b).localVariableSignature(m.locals.size)
                 for (t in m.locals) {
-                    PeSignatures.applyCilType(lv.addVariable().type(), t, resolveTypeEntity)
+                    PeSignatures.applyCilType(lv.addVariable().type(), t.cilType, resolveTypeEntity)
                 }
                 metadata.addStandaloneSignature(metadata.getOrAddBlob(b))
             }
 
-        return bodyStream.addMethodBody(encoder, localVariablesSignature = localsSig)
+        val bodyOffset = bodyStream.addMethodBody(encoder, localVariablesSignature = localsSig)
+        return Result(bodyOffset, capturedSeqPoints)
     }
+
 }

@@ -4,8 +4,9 @@
 // Origin: dotnet/runtime release/10.0, MIT License (c) .NET Foundation
 // See adr/0009-srm-port-to-kotlin.md for porting conventions.
 //
-// Deviations: standalone-debug-metadata branch is cut (Portable PDB scope
-// per ADR 0009); isStandaloneDebugMetadata is always false.
+// Deviations: EnC branches are cut. Standalone (#Pdb) layout is reachable
+// only via the internal constructor used by PdbBuilder (upstream keeps
+// the same split: PdbBuilder owns the extra #Pdb stream).
 
 package org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335
 
@@ -18,10 +19,13 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.BlobBuilder
  * Metadata root consists of a metadata header followed by metadata streams
  * (#~, #Strings, #US, #Guid and #Blob).
  */
-class MetadataRootBuilder(
+class MetadataRootBuilder private constructor(
     private val tablesAndHeaps: MetadataBuilder,
-    metadataVersion: String? = null,
-    val suppressValidation: Boolean = false,
+    metadataVersion: String?,
+    val suppressValidation: Boolean,
+    /** Non-null → standalone portable PDB ("PDB\u0000" + #Pdb stream). */
+    private val standalonePdbId: ByteArray?,
+    private val standalonePdbEntryPointToken: Int,
 ) {
     /** Metadata version string. */
     val metadataVersion: String
@@ -33,7 +37,9 @@ class MetadataRootBuilder(
         get() = serializedMetadata.sizes
 
     init {
-        val version = metadataVersion ?: DEFAULT_METADATA_VERSION_STRING
+        val isStandalonePdb = standalonePdbId != null
+        if (isStandalonePdb) require(standalonePdbId.size == 16) { "id must be a 16-byte GUID" }
+        val version = metadataVersion ?: if (isStandalonePdb) "PDB v1.0" else DEFAULT_METADATA_VERSION_STRING
 
         val metadataVersionByteCount = BlobUtilities.getUTF8ByteCount(version).first
 
@@ -45,8 +51,23 @@ class MetadataRootBuilder(
         serializedMetadata = tablesAndHeaps.getSerializedMetadata(
             MetadataBuilder.EMPTY_ROW_COUNTS,
             metadataVersionByteCount,
+            isStandalonePdb,
         )
     }
+
+    /** Апстримный публичный ctor (regular assembly). */
+    constructor(
+        tablesAndHeaps: MetadataBuilder,
+        metadataVersion: String? = null,
+        suppressValidation: Boolean = false,
+    ) : this(tablesAndHeaps, metadataVersion, suppressValidation, null, 0)
+
+    /** Для [PdbBuilder]: standalone portable PDB. */
+    internal constructor(
+        tablesAndHeaps: MetadataBuilder,
+        pdbId: ByteArray,
+        entryPointToken: Int,
+    ) : this(tablesAndHeaps, null, false, pdbId, entryPointToken)
 
     /**
      * Serializes metadata root content into the given [BlobBuilder].
@@ -82,6 +103,14 @@ class MetadataRootBuilder(
 
         // #Strings, #US, #Guid, #Blob streams
         tablesAndHeaps.writeHeapsTo(builder, serializedMetadata.stringHeap)
+
+        standalonePdbId?.let { id ->
+            // #Pdf stream per Portable PDB spec:
+            // Id (MVID, 16 bytes), EntryPtTok (4), ReferencedTypeSystemTokens (64x00).
+            builder.writeBytes(id)
+            builder.writeInt32(standalonePdbEntryPointToken)
+            repeat(64) { builder.writeByte(0.toByte()) }
+        }
     }
 
     companion object {

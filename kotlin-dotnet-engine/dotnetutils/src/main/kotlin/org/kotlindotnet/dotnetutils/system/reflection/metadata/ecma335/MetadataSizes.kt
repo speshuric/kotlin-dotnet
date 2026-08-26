@@ -21,12 +21,17 @@ internal class MetadataSizes(
     val externalRowCounts: IntArray,
     val heapSizes: IntArray,
     metadataVersionByteCount: Int,
+    /** Standalone portable PDB layout ("PDB\0" + #Pdb stream); toggled by PdbBuilder. */
+    internal var isStandalonePdb: Boolean = false
 ) {
     companion object {
         private const val STREAM_ALIGNMENT = 4
 
         // Call the length of the string (including the terminator) m (we require m <= 255).
         const val MAX_METADATA_VERSION_BYTE_COUNT = 0xff - 1
+
+        /** #Pdb stream payload (эталон csc net10): Id (16) + EntryPtTok (4) + токены (44). */
+        internal const val PDB_STREAM_SIZE: Int = 64
 
         // Call it via [MetadataSizes] so that the masks stay next to their C# original.
         internal val SORTED_TYPE_SYSTEM_TABLES: ULong = run {
@@ -84,6 +89,18 @@ internal class MetadataSizes(
     internal val typeOrMethodDefCodedIndexIsSmall: Boolean
         get() = isCodedIndexSmall(1, TableIndex.TYPE_DEF, TableIndex.METHOD_DEF)
 
+    // ImportScope/LocalConstant rows are never
+    // produced by the compiler, but their reference sizes are needed for
+    // LocalScope row layout.
+    internal val documentReferenceIsSmall: Boolean
+        get() = isReferenceSmall(0, TableIndex.DOCUMENT)
+    internal val importScopeReferenceIsSmall: Boolean
+        get() = isReferenceSmall(0, TableIndex.IMPORT_SCOPE)
+    internal val localVariableReferenceIsSmall: Boolean
+        get() = isReferenceSmall(0, TableIndex.LOCAL_VARIABLE)
+    internal val localConstantReferenceIsSmall: Boolean
+        get() = isReferenceSmall(0, TableIndex.LOCAL_CONSTANT)
+
 
     val presentTablesMask: ULong = computeNonEmptyTableMask(rowCounts)
     val externalTablesMask: ULong = computeNonEmptyTableMask(externalRowCounts)
@@ -136,6 +153,10 @@ internal class MetadataSizes(
         val typeDefReferenceSize = if (isReferenceSmall(0, TableIndex.TYPE_DEF)) small else large
         val typeDefOrRefCodedIndexSize = if (isCodedIndexSmall(2, TableIndex.TYPE_DEF, TableIndex.TYPE_REF, TableIndex.TYPE_SPEC)) small else large
         val typeOrMethodDefCodedIndexSize = if (isCodedIndexSmall(1, TableIndex.TYPE_DEF, TableIndex.METHOD_DEF)) small else large
+        val documentReferenceSize = if (documentReferenceIsSmall) small else large
+        val importScopeReferenceSize = if (importScopeReferenceIsSmall) small else large
+        val localVariableReferenceSize = if (localVariableReferenceIsSmall) small else large
+        val localConstantReferenceSize = if (localConstantReferenceIsSmall) small else large
 
         size += getTableSize(TableIndex.MODULE, 2 + 3 * guidReferenceSize + stringReferenceSize)
         size += getTableSize(TableIndex.TYPE_REF, resolutionScopeCodedIndexSize + stringReferenceSize + stringReferenceSize)
@@ -187,6 +208,17 @@ internal class MetadataSizes(
         size += getTableSize(TableIndex.GENERIC_PARAM_CONSTRAINT, genericParamReferenceSize + typeDefOrRefCodedIndexSize)
 
         // +1 for terminating 0 byte
+        // Debug tables: before the common stream alignment below.
+        if (isStandalonePdb) {
+            size += getTableSize(TableIndex.DOCUMENT, stringReferenceSize + 2 * guidReferenceSize + blobReferenceSize)
+            size += getTableSize(TableIndex.METHOD_DEBUG_INFORMATION, documentReferenceSize + blobReferenceSize)
+            size += getTableSize(
+                TableIndex.LOCAL_SCOPE,
+                methodDefReferenceSize + importScopeReferenceSize + localVariableReferenceSize +
+                    localConstantReferenceSize + 4 + 4,
+            )
+            size += getTableSize(TableIndex.LOCAL_VARIABLE, 2 + 2 + stringReferenceSize)
+        }
         size = BitArithmetic.align(size + 1, STREAM_ALIGNMENT)
         metadataTableStreamSize = size
 
@@ -194,6 +226,7 @@ internal class MetadataSizes(
         size += getAlignedHeapSize(HeapIndex.USER_STRING)
         size += getAlignedHeapSize(HeapIndex.GUID)
         size += getAlignedHeapSize(HeapIndex.BLOB)
+
 
         metadataStreamStorageSize = size
     }
@@ -214,12 +247,16 @@ internal class MetadataSizes(
                 metadataVersionPaddedLength +
                 2 + // storage header: reserved
                 2 + // stream count
-                regularStreamHeaderSizes
+                regularStreamHeaderSizes +
+                // "#Pdb" stream header: 8 (offset+size) + align(5,4)=8 → 16
+                (if (isStandalonePdb) 16 else 0)
         }
 
     /** Total size of metadata (header and all streams). */
     val metadataSize: Int
-        get() = metadataHeaderSize + metadataStreamStorageSize
+        get() =
+            metadataHeaderSize + metadataStreamStorageSize +
+                (if (isStandalonePdb) PDB_STREAM_SIZE else 0)
 
     fun getAlignedHeapSize(index: HeapIndex): Int {
         val i = index.ordinal

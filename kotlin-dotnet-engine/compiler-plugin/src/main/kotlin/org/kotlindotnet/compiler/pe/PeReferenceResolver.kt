@@ -76,7 +76,7 @@ internal class PeReferenceResolver(
     }
 
     /**
-     * Assembly-level [DebuggableAttribute] (System.Diagnostics) — K-01 L1.
+     * Assembly-level [DebuggableAttribute] (System.Diagnostics).
      *
      * @param modes битовая маска DebuggingModes; csc /debug+ использует
      *        Default|IgnoreSymbolStoreSequencePoints|EnableEditAndContinue|

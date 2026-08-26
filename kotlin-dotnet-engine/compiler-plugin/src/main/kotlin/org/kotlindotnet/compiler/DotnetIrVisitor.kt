@@ -2,6 +2,7 @@ package org.kotlindotnet.compiler
 
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.IrElementBase
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrAnonymousInitializer
 import org.jetbrains.kotlin.ir.declarations.IrClass
@@ -100,7 +101,7 @@ import org.kotlindotnet.compiler.ir.KotlinOperators
  * контекст циклов (break/continue) — через [loopContexts] (стек
  * [LoopContext]).
  *
- * Зависит от абстракции [IlEmitter] (A-03). Опкоды эмитятся через
+ * Зависит от абстракции [IlEmitter]. Опкоды эмитятся через
  * типобезопасные методы: `emitter.opcode(IlOpcode.ADD)` для безоперандных,
  * `emitter.ldcI4(n)`, `emitter.ldarg(idx)`, `emitter.br(label)` — для
  * типизированных (короткие формы инкапсулированы в реализации эмиттера).
@@ -111,6 +112,9 @@ class DotnetIrVisitor(
 
     /** Индексы локальных переменных по их символу (в текущем методе). */
     private val variableIndices = mutableMapOf<IrVariable, Int>()
+
+    /** Line map of the current file, used for sequence points. */
+    private var fileEntry: org.jetbrains.kotlin.ir.IrFileEntry? = null
 
     /**
      * Стек контекстов циклов для break/continue (Phase 9).
@@ -144,6 +148,7 @@ class DotnetIrVisitor(
     // =====================================================================
 
     override fun visitFile(declaration: IrFile, data: Nothing?) {
+        fileEntry = declaration.fileEntry
         val ns = NameMapper.namespace(declaration)
         val cls = NameMapper.containerClass(declaration)
         val asm = NameMapper.assemblyName(declaration)
@@ -753,7 +758,7 @@ class DotnetIrVisitor(
         when (element) {
             is IrVariable -> {
                 val cilType = TypeMapper.mapType(element.type)
-                val idx = emitter.declareLocal(cilType)
+                val idx = emitter.declareLocal(cilType, element.name.asString())
                 variableIndices[element] = idx
                 element.initializer?.let { collectLocals(it) }
             }
@@ -804,6 +809,7 @@ class DotnetIrVisitor(
     }
 
     private fun emitStatement(e: IrElement, data: Nothing?) {
+        emitSequencePointFor(e)
         when (e) {
             is IrReturn -> emitReturn(e, data)
             is IrVariable -> emitVariable(e, data)
@@ -829,6 +835,23 @@ class DotnetIrVisitor(
             }
             else -> e.accept(this, data)
         }
+    }
+
+    /**
+     * Emits a sequence point for the node's source range.
+     * PDB lines/columns are 1-based; SourceRangeInfo is 0-based.
+     */
+    private fun emitSequencePointFor(e: IrElement) {
+        val fe = fileEntry ?: return
+        val base = e as? IrElementBase ?: return
+        if (base.startOffset < 0 || base.endOffset < 0) return
+        val info = fe.getSourceRangeInfo(base.startOffset, base.endOffset)
+        emitter.markSequencePoint(
+            info.startLineNumber + 1,
+            info.startColumnNumber + 1,
+            info.endLineNumber + 1,
+            info.endColumnNumber + 1,
+        )
     }
 
     private fun emitExpr(e: IrExpression, data: Nothing?) {

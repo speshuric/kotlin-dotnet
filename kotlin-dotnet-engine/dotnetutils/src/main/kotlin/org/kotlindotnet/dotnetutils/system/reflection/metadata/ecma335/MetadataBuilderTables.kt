@@ -17,6 +17,9 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.AssemblyDefinitio
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.AssemblyFileHandle
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.AssemblyReferenceHandle
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.BlobHandle
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.DocumentHandle
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.LocalScopeHandle
+import org.kotlindotnet.dotnetutils.system.reflection.metadata.LocalVariableHandle
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ConstantHandle
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.CustomAttributeHandle
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.DeclarativeSecurityAttributeHandle
@@ -146,6 +149,10 @@ fun MetadataBuilder.getRowCount(table: TableIndex): Int = when (table) {
     TableIndex.TYPE_DEF -> typeDefTable.size
     TableIndex.TYPE_REF -> typeRefTable.size
     TableIndex.TYPE_SPEC -> typeSpecTable.size
+    TableIndex.DOCUMENT -> documentTable.size
+    TableIndex.METHOD_DEBUG_INFORMATION -> methodDebugInformationTable.size
+    TableIndex.LOCAL_SCOPE -> localScopeTable.size
+    TableIndex.LOCAL_VARIABLE -> localVariableTable.size
     // debug tables (cut):
     TableIndex.DOCUMENT, TableIndex.METHOD_DEBUG_INFORMATION,
     TableIndex.LOCAL_SCOPE, TableIndex.LOCAL_VARIABLE,
@@ -199,9 +206,52 @@ fun MetadataBuilder.getRowCounts(): IntArray {
     rowCounts[TableIndex.TYPE_DEF.value] = typeDefTable.size
     rowCounts[TableIndex.TYPE_REF.value] = typeRefTable.size
     rowCounts[TableIndex.TYPE_SPEC.value] = typeSpecTable.size
+    rowCounts[TableIndex.DOCUMENT.value] = documentTable.size
+    rowCounts[TableIndex.METHOD_DEBUG_INFORMATION.value] = methodDebugInformationTable.size
+    rowCounts[TableIndex.LOCAL_SCOPE.value] = localScopeTable.size
+    rowCounts[TableIndex.LOCAL_VARIABLE.value] = localVariableTable.size
 
     return rowCounts
 }
+
+fun MetadataBuilder.addDocument(
+    name: BlobHandle,
+    hashAlgorithm: GuidHandle,
+    hash: BlobHandle,
+    language: GuidHandle,
+): DocumentHandle {
+    documentTable.add(DocumentRow(name, hashAlgorithm, hash, language))
+    return DocumentHandle.fromRowId(documentTable.size)
+}
+
+fun MetadataBuilder.addMethodDebugInformation(
+    document: DocumentHandle,
+    sequencePoints: BlobHandle,
+) {
+    methodDebugInformationTable.add(
+        MethodDebugInformationRow(if (document.isNil) 0 else document.rowId, sequencePoints),
+    )
+}
+
+fun MetadataBuilder.addLocalScope(
+    method: Int,
+    importScope: Int,
+    variableList: Int,
+    constantList: Int,
+    startOffset: UInt,
+    length: UInt,
+): LocalScopeHandle {
+    localScopeTable.add(LocalScopeRow(method, importScope, variableList, constantList, startOffset, length))
+    return LocalScopeHandle.fromRowId(localScopeTable.size)
+}
+
+fun MetadataBuilder.addLocalVariable(attributes: Int, index: Int, name: StringHandle): LocalVariableHandle {
+    require(attributes.toUInt() <= UShort.MAX_VALUE.toUInt()) { "attributes out of range" }
+    require(index.toUInt() <= UShort.MAX_VALUE.toUInt()) { "index out of range" }
+    localVariableTable.add(LocalVariableRow(attributes.toShort(), index.toShort(), name))
+    return LocalVariableHandle.fromRowId(localVariableTable.size)
+}
+
 
 // ---------------------------------------------------------------------------
 // Building

@@ -54,6 +54,10 @@ internal fun MetadataBuilder.serializeMetadataTables(
     if (metadataSizes.isPresent(TableIndex.FILE)) serializeFileTable(writer, stringMap, metadataSizes)
     if (metadataSizes.isPresent(TableIndex.EXPORTED_TYPE)) serializeExportedTypeTable(writer, stringMap, metadataSizes)
     if (metadataSizes.isPresent(TableIndex.MANIFEST_RESOURCE)) serializeManifestResourceTable(writer, stringMap, metadataSizes)
+    if (metadataSizes.isPresent(TableIndex.DOCUMENT)) serializeDocumentTable(writer, stringMap, metadataSizes)
+    if (metadataSizes.isPresent(TableIndex.METHOD_DEBUG_INFORMATION)) serializeMethodDebugInformationTable(writer, metadataSizes)
+    if (metadataSizes.isPresent(TableIndex.LOCAL_SCOPE)) serializeLocalScopeTable(writer, metadataSizes)
+    if (metadataSizes.isPresent(TableIndex.LOCAL_VARIABLE)) serializeLocalVariableTable(writer, stringMap, metadataSizes)
     if (metadataSizes.isPresent(TableIndex.NESTED_CLASS)) serializeNestedClassTable(writer, metadataSizes)
     if (metadataSizes.isPresent(TableIndex.GENERIC_PARAM)) serializeGenericParamTable(writer, stringMap, metadataSizes)
     if (metadataSizes.isPresent(TableIndex.METHOD_SPEC)) serializeMethodSpecTable(writer, metadataSizes)
@@ -62,7 +66,11 @@ internal fun MetadataBuilder.serializeMetadataTables(
     writer.writeByte(0.toByte())
     writer.align(4)
 
-    assert(metadataSizes.metadataTableStreamSize == writer.count - startPosition)
+    if (metadataSizes.metadataTableStreamSize != writer.count - startPosition)
+        throw IllegalStateException(
+            "tbl written=${writer.count - startPosition} calc=${metadataSizes.metadataTableStreamSize} " +
+                "present=${metadataSizes.presentTablesMask.toString(16)}",
+        )
 }
 
 private fun MetadataBuilder.serializeTablesHeader(writer: BlobBuilder, metadataSizes: MetadataSizes) {
@@ -410,3 +418,52 @@ internal fun MetadataBuilder.serializeGenericParamConstraintTable(writer: BlobBu
         writer.writeReference(row.constraint, sizes.typeDefOrRefCodedIndexIsSmall)
     }
 }
+internal fun MetadataBuilder.serializeDocumentTable(
+    writer: BlobBuilder,
+    stringMap: IntArray,
+    sizes: MetadataSizes,
+) {
+    for (row in documentTable) {
+        writer.writeReference(serializeHandle(row.name), sizes.blobReferenceIsSmall)
+        writer.writeReference(serializeHandle(row.hashAlgorithm), sizes.guidReferenceIsSmall)
+        writer.writeReference(serializeHandle(row.hash), sizes.blobReferenceIsSmall)
+        writer.writeReference(serializeHandle(row.language), sizes.guidReferenceIsSmall)
+    }
+}
+
+internal fun MetadataBuilder.serializeMethodDebugInformationTable(
+    writer: BlobBuilder,
+    sizes: MetadataSizes,
+) {
+    for (row in methodDebugInformationTable) {
+        writer.writeReference(row.document, sizes.documentReferenceIsSmall)
+        writer.writeReference(serializeHandle(row.sequencePoints), sizes.blobReferenceIsSmall)
+    }
+}
+
+internal fun MetadataBuilder.serializeLocalScopeTable(
+    writer: BlobBuilder,
+    sizes: MetadataSizes,
+) {
+    for (row in localScopeTable) {
+        writer.writeReference(row.method, sizes.methodDefReferenceIsSmall)
+        writer.writeReference(row.importScope, sizes.importScopeReferenceIsSmall)
+        writer.writeReference(row.variableList, sizes.localVariableReferenceIsSmall)
+        writer.writeReference(row.constantList, sizes.localConstantReferenceIsSmall)
+        writer.writeUInt32(row.startOffset)
+        writer.writeUInt32(row.length)
+    }
+}
+
+internal fun MetadataBuilder.serializeLocalVariableTable(
+    writer: BlobBuilder,
+    stringMap: IntArray,
+    sizes: MetadataSizes,
+) {
+    for (row in localVariableTable) {
+        writer.writeUInt16(row.attributes.toUShort())
+        writer.writeUInt16(row.index.toUShort())
+        writer.writeReference(serializeHandle(stringMap, row.name), sizes.stringReferenceIsSmall)
+    }
+}
+
