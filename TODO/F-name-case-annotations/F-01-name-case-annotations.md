@@ -90,7 +90,8 @@ ADR 0005 зафиксировал verbatim-маппинг (PoC). PascalCase-ре
 
 ### 4. ADR
 
-Создать `adr/0010-name-case-annotations.md`:
+Создать `adr/0014-name-case-annotations.md` (имя 0010 занято —
+`adr/0010-compiler-plugin-pe-backend.md`):
 - Статус: Proposed (план, не реализовано).
 - Контракт аннотаций (см. выше).
 - Связь с ADR 0005 (verbatim — baseline; эти аннотации — opt-in).
