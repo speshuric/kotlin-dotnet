@@ -85,6 +85,12 @@ show-il selector="last":
 show-ir selector="last":
     ./scripts/show.sh ir {{selector}}
 
+# Убить Kotlin compile daemon: kotlinc может подхватывать старый
+# plugin jar после пересборки (ловили на K-02). После --rerun-tasks
+# или ручной пересборки jar вызывай перед компиляцией .kt.
+kill-daemon:
+    pkill -f "[K]otlinCompileDaemon" || true
+
 # === Очистка ===
 
 # Очистка. category: all (по умолчанию) | build | sdk | sources. Bare clean = all (требует пере-bootstrap!).

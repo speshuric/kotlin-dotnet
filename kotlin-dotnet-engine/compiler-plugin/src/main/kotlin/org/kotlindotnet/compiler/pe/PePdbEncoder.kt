@@ -29,11 +29,17 @@ internal object PePdbEncoder {
         }
     }
 
-    /** Имя Document: blob с compressed-length префиксом + UTF8. */
+    /**
+     * Имя Document (формат csc/Roslyn): путь разбивается на сегменты по
+     * "/", каждый пишется как [compressed length][UTF8]; для абсолютного
+     * пути первый сегмент пустой (корень файловой системы).
+     */
     fun encodeDocumentName(builder: BlobBuilder, path: String) {
-        val bytes = path.toByteArray(Charsets.UTF_8)
-        writeCompressedUnsigned(builder, bytes.size)
-        builder.writeBytes(bytes)
+        for (segment in path.split('/')) {
+            val bytes = segment.toByteArray(Charsets.UTF_8)
+            writeCompressedUnsigned(builder, bytes.size)
+            builder.writeBytes(bytes)
+        }
     }
 
     private fun writeCompressedUnsigned(b: BlobBuilder, value: Int) {

@@ -5,9 +5,8 @@ using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Reflection.Metadata.Ecma335;
 
-using var pdbFs = File.OpenRead(args[0]);
-using var pdbPe = new PEReader(pdbFs);
-var md = pdbPe.GetMetadataReader();
+using var provider = MetadataReaderProvider.FromPortablePdbStream(new FileStream(args[0], FileMode.Open, FileAccess.Read, FileShare.Read));
+var md = provider.GetMetadataReader();
 
 Console.WriteLine($"Documents: {md.Documents.Count}");
 foreach (var dh in md.Documents)

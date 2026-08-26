@@ -109,7 +109,7 @@ class MetadataRootBuilder private constructor(
             // Id (MVID, 16 bytes), EntryPtTok (4), ReferencedTypeSystemTokens (64x00).
             builder.writeBytes(id)
             builder.writeInt32(standalonePdbEntryPointToken)
-            repeat(64) { builder.writeByte(0.toByte()) }
+            repeat(MetadataSizes.PDB_STREAM_SIZE - 20) { builder.writeByte(0.toByte()) }
         }
     }
 

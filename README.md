@@ -14,7 +14,7 @@ System.Reflection.Metadata) → .NET DLL/EXE напрямую из JVM.
 # 1. Установить окружение (один раз).
 just bootstrap                          # JDK 21, kotlinc, .NET 10, Gradle, исходники
 source scripts/activate.sh              # активировать env в текущем шелле (java/kotlinc/dotnet в PATH)
-just plugin && just runtime             # собрать compiler-plugin JAR и KotlinDotnetRuntime.dll
+just build                              # собрать всё: plugin + runtime + тесты
 
 # 2. Написать Kotlin.
 cat > /tmp/demo.kt <<'EOF'
