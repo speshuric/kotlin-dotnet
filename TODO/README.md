@@ -81,8 +81,9 @@
 | 6b | Разбить org.kotlindotnet.compiler на подпакеты | [A-07-package-split.md](A-infrastructure/A-07-package-split.md) | PRE-9 | A-01–A-05, B-01 | DONE |
 | 7 | Visitor scaffolding: план-карта обработчиков Ir-узлов | [B-01-visitor-node-map.md](B-visitor-scaffolding/B-01-visitor-node-map.md) | PRE-9 (карта), POST-9 (реализация) | A-05 | DONE |
 | 8 | TypeMapper: Unit vs void, рефакторинг | [C-01-typemapper-unit-void.md](C-typemapper/C-01-typemapper-unit-void.md) | PRE-10 | — | TODO |
-| 9 | kotlin-dotnet-stdlib: каркас + неявный импорт | [D-01-stdlib-skeleton.md](D-stdlib/D-01-stdlib-skeleton.md) | PRE-10 (каркас), POST-9 (механика) | A-01, A-05 | TODO |
-| 10 | StdlibResolver → разрешение через stdlib | [D-02-resolve-stdlib-call.md](D-stdlib/D-02-resolve-stdlib-call.md) | POST-9 | D-01 | TODO |
+| 9 | kotlin-dotnet-stdlib: каркас + неявный импорт | [D-01-stdlib-skeleton.md](D-stdlib/D-01-stdlib-skeleton.md) | PRE-10 (каркас), POST-9 (механика) | A-01, A-05 | SUPERSEDED → D-03 (шаг 4) |
+| 10 | StdlibResolver → разрешение через stdlib | [D-02-resolve-stdlib-call.md](D-stdlib/D-02-resolve-stdlib-call.md) | POST-9 | D-01 | SUPERSEDED → D-03 (шаги 2, 6) |
+| 9c | Дизайн + план внедрения stdlib (решения Р1–Р4, ADR 0014) | [D-03-stdlib-implementation-plan.md](D-stdlib/D-03-stdlib-implementation-plan.md) | активный трек | дизайн: docs/stdlib-design.md; F-03 слой 0.2 | WIP (дизайн DONE, реализация TODO) |
 | 11 | IR: какая платформа/проходы (tailrec и др.) | [E-01-ir-platform-investigation.md](E-ir-platform/E-01-ir-platform-investigation.md) | PRE-9 (исследование), POST-9 (фикс) | — | TODO |
 | 12 | PascalCase/camelCase: аннотации @kotlinToPascalCase / @dotnetFromPascalCase | [F-01-name-case-annotations.md](F-name-case-annotations/F-01-name-case-annotations.md) | POST-9 (план), POST-PoC (механика) | — | TODO |
 | 12a | Проектирование единого мэппинга имён (коллизии операторных имён, CIL-слова, аксессоры) — **приоритет после Phase 10.9** | [F-02-name-mapping-design.md](F-name-case-annotations/F-02-name-mapping-design.md) | POST-10 (дизайн) | F-01, Phase 10 | TODO |
@@ -106,7 +107,7 @@
 A. Infrastructure (PRE-9)         — логирование, IlEmitter-контракт, extension, scripts
 B. Visitor scaffolding (PRE-9 map) — план-карта обработчиков Ir-узлов
 C. TypeMapper (PRE-10)             — Unit↔void, рефакторинг
-D. kotlin-dotnet-stdlib (PRE-10)   — каркас, неявный импорт, resolver
+D. kotlin-dotnet-stdlib (POST-10)   — дизайн+план D-03, каркас, resolver, режимы строгости
 E. IR platform (PRE-9 research)    — какая платформа генерила IR (tailrec)
 F. Name-case annotations (POST-9)  — PascalCase/camelCase через аннотации
 G. Internal design (POST-9)        — лямбды, итераторы, hash
