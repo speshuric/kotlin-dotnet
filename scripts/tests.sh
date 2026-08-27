@@ -1,44 +1,44 @@
-# scripts/tests.sh — реестр тестов: **1 тест = 1 папка** в test-projects/.
+# scripts/tests.sh — test registry: **1 test = 1 folder** in test-projects/.
 #
-# Формат папки теста и файла свойств — docs/test-format.md (обязателен к
-# прочтению при добавлении/изменении тестов).
+# The test folder / properties-file format is docs/test-format.md (required
+# reading before adding or changing tests).
 #
-# НЕ исполняется напрямую; подключается через
+# Not executed directly; sourced via
 #   source "$PROJECT_ROOT/scripts/tests.sh"
 #
-# Предполагает, что common.sh уже подключен (PROJECT_ROOT, log_*) и что
-# текущая директория — корень проекта (так делают build/test/show-скрипты).
+# Expects common.sh to be sourced already (PROJECT_ROOT, log_*) and the
+# current directory to be the project root (as the build/test/show scripts do).
 #
-# Имена тестов нигде не хардкодятся: тест = подпапка test-projects/,
-# содержащая test.properties. Папка без test.properties тестом не считается
-# (может хранить служебные/вспомогательные материалы).
+# Test names are never hardcoded: a test = a subfolder of test-projects/
+# containing test.properties. A folder without test.properties is not a test
+# (it may hold service/auxiliary material).
 
 TESTS_ROOT="test-projects"
 PROPS_NAME="test.properties"
 
-# test_ids — напечатать id всех тестов (по одному на строку).
+# test_ids — print the ids of all tests (one per line).
 test_ids() {
     local d
     for d in "$TESTS_ROOT"/*/; do
         [ -n "$d" ] || continue
-        [ -f "${d}${PROPS_NAME}" ] || continue # без свойств — не тест
+        [ -f "${d}${PROPS_NAME}" ] || continue # no properties — not a test
         basename "$d"
     done
 }
 
-# TEST_IDS — id через пробел (для for-циклов и сообщений об ошибках).
+# TEST_IDS — space-separated ids (for for-loops and error messages).
 TEST_IDS="$(test_ids | paste -sd' ' -)"
 
-# test_exists <id> — exit 0 если папка теста с test.properties существует.
+# test_exists <id> — exit 0 if the test folder with test.properties exists.
 test_exists() {
     [ -f "$TESTS_ROOT/$1/$PROPS_NAME" ]
 }
 
-# test_prop <id> <key> [default] — значение ключа из test.properties.
+# test_prop <id> <key> [default] — value of a key from test.properties.
 #
-# Правила: первая строка `key=value`; пробелы по краям значения обрезаются;
-# пустое значение эквивалентно отсутствующему ключу; '\n' внутри значения
-# раскрывается вызывающим кодом через printf '%b'.
+# Rules: first `key=value` line; whitespace around the value is trimmed;
+# an empty value is equivalent to a missing key; '\n' inside the value
+# is expanded by the calling code via printf '%b'.
 test_prop() {
     local id="$1" key="$2" def="${3-}"
     local f="$TESTS_ROOT/$id/$PROPS_NAME" v
@@ -61,30 +61,30 @@ test_prop() {
     return 1
 }
 
-# --- Аксессоры атрибутов ---
+# --- Attribute accessors ---
 
 # test_kind <id> — "exe" | "dll".
 test_kind() {
     test_prop "$1" kind
 }
 
-# test_backends <id> — список бэкендов. Единственное допустимое
-# значение — "pe" (IL-текст/ilasm-путь удалён, ADR 0012).
+# test_backends <id> — list of backends. The only permitted
+# value is "pe" (the IL-text/ilasm path was removed, ADR 0012).
 test_backends() {
     test_prop "$1" backends "pe"
 }
 
-# test_desc <id> — однострочное описание.
+# test_desc <id> — one-line description.
 test_desc() {
     test_prop "$1" desc
 }
 
-# test_type <id> — "kotlin" (по умолчанию) | "gradle-image".
+# test_type <id> — "kotlin" (default) | "gradle-image".
 test_type() {
     test_prop "$1" type "kotlin"
 }
 
-# test_consumer <id> — полный путь к C#-consumer'у или пусто.
+# test_consumer <id> — full path to the C# consumer, or empty.
 test_consumer() {
     local rel
     rel="$(test_prop "$1" consumer "")" || { echo ""; return 0; }
@@ -95,8 +95,8 @@ test_consumer() {
     fi
 }
 
-# test_kt <id> — раскрытые пути исходников (по одному на строку),
-# относительно корня проекта. Ошибка, если glob не совпал ни с чем.
+# test_kt <id> — expanded source paths (one per line),
+# relative to the project root. Error if the glob matches nothing.
 test_kt() {
     local id="$1" d="$TESTS_ROOT/$1" g f any=""
     g="$(test_sources_glob "$id")" || return 1
@@ -113,35 +113,41 @@ test_kt() {
     fi
 }
 
-# test_sources_glob <id> — сырой glob исходников из свойств.
+# test_sources_glob <id> — raw source glob from the properties.
 test_sources_glob() {
     test_prop "$1" sources "*.kt"
 }
 
-# test_dump_grep <id> — шаблон, который обязан встретиться в ir-dump
-# собранного артефакта (grep -E, проверяется по каждому source).
-# Пусто — проверка не выполняется. Служит приёмкой функций чтения IR
-# (например секции recognized-annotations), не меняя вывод программы.
+# test_dump_grep <id> — pattern that must appear in the ir-dump of
+# the built artifact (grep -E, checked per source).
+# Empty — check is skipped. Serves as acceptance for the IR-reading features
+# (e.g. recognized-annotations sections) without changing program output.
 test_dump_grep() {
     test_prop "$1" dump-grep ""
 }
 
-# tests_list — напечатать "id<TAB>kind<TAB>description".
+# test_own_stdlib <id> — "true" if the test is compiled against our own
+# stdlib-jar (-no-stdlib -cp <our>.jar) instead of the stock one.
+test_own_stdlib() {
+    test_prop "$1" own-stdlib ""
+}
+
+# tests_list — print "id<TAB>kind<TAB>description".
 tests_list() {
     local id k
-    # shellcheck disable=SC2086  # намеренный word-split
+    # shellcheck disable=SC2086  # intentional word-splitting
     for id in $TEST_IDS; do
         k="$(test_kind "$id" 2>/dev/null)" || k="$(test_type "$id")"
         printf '%s\t%s\t%s\n' "$id" "$k" "$(test_desc "$id")"
     done
 }
 
-# resolve_selector <arg> — развернуть селектор в список id.
-#   all       → все id
-#   last      → id с самым свежим .il под build/<id>/ (или первый, если ничего нет)
-#   <glob>    → id, подпадающие под glob (например 04*)
-#   <exact>   → сам id (если валиден)
-# Не найдено → exit 1 с ошибкой.
+# resolve_selector <arg> — expand a selector into a list of ids.
+#   all       → all ids
+#   last      → the id with the freshest .il under build/<id>/ (or the first one if none)
+#   <glob>    → ids matching the glob (e.g. 04*)
+#   <exact>   → that id itself (if valid)
+# No match → exit 1 with an error.
 resolve_selector() {
     local arg="$1"
     case "$arg" in
@@ -154,14 +160,14 @@ resolve_selector() {
             return $?
             ;;
         *)
-            # Точный match?
+            # Exact match?
             if test_exists "$arg"; then
                 echo "$arg"
                 return 0
             fi
-            # Glob match по id?
+            # Glob match over ids?
             local matched="" id
-            # shellcheck disable=SC2086  # намеренный word-split
+            # shellcheck disable=SC2086  # intentional word-splitting
             for id in $TEST_IDS; do
                 # shellcheck disable=SC2254
                 case "$id" in
@@ -178,20 +184,20 @@ resolve_selector() {
     esac
 }
 
-# _resolve_last — id с самым свежим ir-dump-* под build/<id>/*.
-# Если ни у кого нет build-директории с ir-dump — вернуть первый id.
+# _resolve_last — the id with the freshest ir-dump-* under build/<id>/*.
+# If no test has a build directory with an ir-dump, return the first id.
 _resolve_last() {
     local best_id first_id best_mtime=0 id dir dump m
-    # shellcheck disable=SC2086  # намеренный word-split
+    # shellcheck disable=SC2086  # intentional word-splitting
     first_id=$(
         for id in $TEST_IDS; do echo "$id"; break; done
     )
     best_id="$first_id"
-    # shellcheck disable=SC2086  # намеренный word-split
+    # shellcheck disable=SC2086  # intentional word-splitting
     for id in $TEST_IDS; do
         dir="build/$id"
         [ -d "$dir" ] || continue
-        # maxdepth 2: ловит build/<id>/ir-dump-*.txt и per-source подпапки
+        # maxdepth 2: covers build/<id>/ir-dump-*.txt and per-source subfolders
         while IFS= read -r dump; do
             if [ -f "$dump" ]; then
                 m=$(stat -c %Y "$dump" 2>/dev/null || stat -f %m "$dump" 2>/dev/null || echo 0)

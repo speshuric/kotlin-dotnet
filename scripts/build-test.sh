@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# scripts/build-test.sh — собрать и верифицировать один тест по id.
+# scripts/build-test.sh — build and verify a single test by id.
 #
-# Использование:
+# Usage:
 #   build-test.sh <testid> [--debug|--release] [--no-test]
 #
-# Примеры:
+# Examples:
 #   build-test.sh 00-int-add              # debug (default) + verify
 #   build-test.sh 04-loops --release      # release + verify
-#   build-test.sh 03-hello --no-test      # только собрать, без запуска
+#   build-test.sh 03-hello --no-test      # build only, no run
 #
-# Тест = папка в test-projects/ с test.properties (формат: docs/test-format.md).
-# Атрибуты (kind/backends/sources/consumer/expect) читаются из свойств.
-# Артефакты: build/<testid>/; для multi-source тестов — build/<testid>/<basename>/.
+# A test = a folder under test-projects/ with test.properties (format:
+# docs/test-format.md). Attributes (kind/backends/sources/consumer/expect)
+# are read from the properties file.
+# Artifacts: build/<testid>/; multi-source tests use build/<testid>/<basename>/.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,7 +23,7 @@ ensure_env
 PROJECT_ROOT="${PROJECT_ROOT:-$KOTLIN_DOTNET_PROJECT_ROOT}"
 cd "$PROJECT_ROOT"
 
-# --- DSH prelude: writable HOME/GRADLE/XDG (read-only корневая ФС) ---
+# --- DSH prelude: writable HOME/GRADLE/XDG (read-only root filesystem) ---
 export GRADLE_USER_HOME="$PROJECT_ROOT/build/tmp/gradle-home"
 export XDG_RUNTIME_DIR="$PROJECT_ROOT/build/tmp/runtime"
 export HOME="$PROJECT_ROOT/build/tmp/home"
@@ -32,7 +33,7 @@ mkdir -p "$GRADLE_USER_HOME" "$XDG_RUNTIME_DIR" "$HOME"
 # shellcheck disable=SC1091
 source "$PROJECT_ROOT/scripts/tests.sh"
 
-# --- Разбор аргументов ---
+# --- Argument parsing ---
 testid=""
 
 no_test=false
@@ -76,7 +77,7 @@ log_info "build-test: $testid (no-test=$no_test)"
 
 RUNTIMECONFIG_JSON='{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.11"},"rollForward":"Major"}}'
 
-# --- type=gradle-image: особый путь — образ строит Gradle-тест dotnetutils ---
+# --- type=gradle-image: special path - the image is built by the dotnetutils Gradle test ---
 if [ "$(test_type "$testid")" = "gradle-image" ]; then
     OUTDIR="build/$testid"
     EXE="$OUTDIR/hello.exe"
@@ -118,13 +119,23 @@ if [ "$(test_type "$testid")" = "gradle-image" ]; then
     exit 0
 fi
 
-# --- Плагин JAR ---
+# --- Plugin JAR ---
 PLUGIN_JAR="kotlin-dotnet-engine/compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar"
 if [ ! -f "$PLUGIN_JAR" ]; then
     log_info "plugin JAR missing, building via gradlew..."
     (cd "$PROJECT_ROOT/kotlin-dotnet-engine" && ./gradlew :compiler-plugin:jar -q)
 fi
 require_file "$PLUGIN_JAR" "plugin JAR not found: $PLUGIN_JAR (run 'just plugin')"
+
+# Own stdlib JAR (own-stdlib tests): built by the same gradlew on demand.
+OWN_STDLIB_JAR="kotlin-dotnet-engine/libraries/stdlib/build/libs/kotlin-dotnet-stdlib-0.1.0-SNAPSHOT.jar"
+_ensure_own_stdlib_jar() {
+    if [ ! -f "$OWN_STDLIB_JAR" ]; then
+        log_info "own stdlib JAR missing, building via gradlew..."
+        (cd "$PROJECT_ROOT/kotlin-dotnet-engine" && ./gradlew :libraries:stdlib:jar -q)
+    fi
+    require_file "$OWN_STDLIB_JAR" "own stdlib JAR not found: $OWN_STDLIB_JAR (run 'gradlew :libraries:stdlib:jar')"
+}
 
 # _pe_build_one <cfg> <tid> <kind> <kt> - compile one .kt via the PE backend
 # into build/<tid>/<cfg>/ (multi-source tests distinguish artifacts by the
@@ -140,7 +151,15 @@ _pe_build_one() {
     mkdir -p "$outdir/kt-out"
 
     log_info "compiling $kt → $outdir/$name.$kind (config=$cfg)"
-    kotlinc -Xplugin="$PLUGIN_JAR" \
+    # own-stdlib=true: compile against our kotlin-dotnet-stdlib instead of
+    # the stock one (-no-stdlib + our jar on the classpath; stage B).
+    local compile_flags=("-Xplugin=$PLUGIN_JAR")
+    if [ "$(test_own_stdlib "$tid")" = "true" ]; then
+        _ensure_own_stdlib_jar
+        compile_flags+=("-no-stdlib" "-cp" "$OWN_STDLIB_JAR")
+        log_info "own stdlib: $OWN_STDLIB_JAR"
+    fi
+    kotlinc "${compile_flags[@]}" \
         -P "plugin:kotlin.dotnet:output.dir=$outdir" \
         -P "plugin:kotlin.dotnet:output.kind=$kind" \
         -P "plugin:kotlin.dotnet:config=$cfg" \
@@ -239,7 +258,7 @@ _verify_config() {
     fi
 }
 
-# --- Тело: сборка теста (см. docs/test-format.md) ---
+# --- Body: build the test (see docs/test-format.md) ---
 case " $(test_backends "$testid") " in
     *" il "*)
         log_error "test '$testid': backends=il is not supported anymore (IL-text/ilasm path removed, see ADR 0012). Fix test.properties."
