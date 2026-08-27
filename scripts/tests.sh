@@ -43,7 +43,7 @@ test_prop() {
     local id="$1" key="$2" def="${3-}"
     local f="$TESTS_ROOT/$id/$PROPS_NAME" v
     if ! test_exists "$id"; then
-        log_error "test_prop: $f not found (см. docs/test-format.md)" >&2
+        log_error "test_prop: $f not found (see docs/test-format.md)" >&2
         return 1
     fi
     v="$(sed -n "s/^${key}=//p" "$f" | head -n 1)"
