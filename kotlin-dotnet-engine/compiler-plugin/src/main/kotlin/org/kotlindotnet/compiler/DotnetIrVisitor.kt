@@ -107,7 +107,8 @@ import org.kotlindotnet.compiler.ir.KotlinOperators
  * типизированных (короткие формы инкапсулированы в реализации эмиттера).
  */
 class DotnetIrVisitor(
-    private val emitter: IlEmitter
+    private val emitter: IlEmitter,
+    private val uncoveredStdlib: UncoveredStdlibCollector = UncoveredStdlibCollector(),
 ) : IrVisitor<Unit, Nothing?>() {
 
     /** Индексы локальных переменных по их символу (в текущем методе). */
@@ -1026,7 +1027,22 @@ class DotnetIrVisitor(
     private fun emitUserTopLevelCall(call: IrCall, data: Nothing?) {
         val owner = call.symbol.owner as IrSimpleFunction
         val file = owner.parent as? IrFile
-            ?: error("User function ${owner.name} is not top-level (parent is not IrFile)")
+            ?: run {
+                // Not a same-file top-level function and not covered anywhere:
+                // for kotlin.* callees this is exactly the uncovered case.
+                // Tally it and fail here with the historical message; strict
+                // mode aggregates these into one summary after the pass
+                // would have completed - but emission aborts at first such
+                // call, so the collector may hold only the prefix. Strict
+                // policy therefore reports what reached the funnel plus this.
+                if (owner.kotlinFqName.asString().startsWith("kotlin.")) {
+                    uncoveredStdlib.record(owner.kotlinFqName.asString())
+                    throw IllegalStateException(
+                        "Stdlib call ${owner.kotlinFqName.asString()} not supported in PoC",
+                    )
+                }
+                error("User function ${owner.name} is not top-level (parent is not IrFile)")
+            }
         val ns = NameMapper.namespace(file)
         val cls = NameMapper.containerClass(file)
         val methodName = NameMapper.methodName(owner)
@@ -1062,7 +1078,13 @@ class DotnetIrVisitor(
             a?.let { TypeMapper.mapType(it.type) }
         }
         val runtimeSig = StdlibResolver.resolveStdlibCall(call, "void", paramCilTypes)
-            ?: TODO("Stdlib call $fqName not supported in PoC")
+        if (runtimeSig == null) {
+            // Registered nowhere: goes to the coverage tally; strict mode
+            // turns this into a compile error after emission (ADR 0014).
+            // Lenient keeps the historical fail-fast TODO at this point.
+            uncoveredStdlib.record(fqName)
+            TODO("Stdlib call \$fqName not supported in PoC")
+        }
         emitter.opcode(IlOpcode.CALL, runtimeSig)
     }
 

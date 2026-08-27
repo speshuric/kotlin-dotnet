@@ -248,9 +248,68 @@ esac
 
 
 
-if [ "$(test_kind "$testid")" != "exe" ] && [ "$(test_kind "$testid")" != "dll" ]; then
-    log_error "test '$testid': unknown kind '$(test_kind "$testid")'"
+KIND="$(test_kind "$testid")"
+if [ "$KIND" != "exe" ] && [ "$KIND" != "dll" ] && [ "$KIND" != "negative" ]; then
+    log_error "test '$testid': unknown kind '$KIND'"
     exit 1
+fi
+
+# --- kind=negative: compilation MUST fail and mention every expect line ---
+# Used for coverage-strictness acceptance (stdlib.mode=strict) and future
+# fail-fast features. Artifacts (exe/pdb) are checked to be absent.
+_neg_check_one() {
+    local cfg="$1" tid="$2" kt="$3"
+    local name outdir log
+    name="$(basename "$kt" .kt)"
+    outdir="build/$tid/$cfg"
+    mkdir -p "$outdir/kt-out"
+    log="$outdir/compile.log"
+
+    log_info "compiling (expect failure) $kt → $outdir"
+    set +e
+    kotlinc -Xplugin="$PLUGIN_JAR" \
+        -P "plugin:kotlin.dotnet:output.dir=$outdir" \
+        -P "plugin:kotlin.dotnet:output.kind=exe" \
+        -P "plugin:kotlin.dotnet:config=$cfg" \
+        -P "plugin:kotlin.dotnet:stdlib.mode=strict" \
+        "$kt" -d "$outdir/kt-out" > "$log" 2>&1
+    local rc=$?
+    set -e
+
+    if [ $rc -eq 0 ]; then
+        echo "FAIL: $tid [$cfg] $name (compilation unexpectedly succeeded)"
+        cat "$log"
+        exit 1
+    fi
+
+    local fragment
+    fragment="$(printf '%b' "$(test_prop "$tid" expect)")"
+    if ! grep -qF -- "$fragment" "$log"; then
+        echo "FAIL: $tid [$cfg] $name (error output missing: $fragment)"
+        echo "--- compile.log tail ---"
+        tail -n 20 "$log"
+        exit 1
+    fi
+
+    if ls "$outdir"/*.exe >/dev/null 2>&1; then
+        echo "FAIL: $tid [$cfg] $name (artifact must not exist after failed compile)"
+        exit 1
+    fi
+}
+
+if [ "$KIND" = "negative" ]; then
+    [ -n "$(test_prop "$testid" expect "")" ] || {
+        log_error "test '$testid': kind=negative requires expect (substring of the error text)"
+        exit 1
+    }
+    for cfg in $CONFIGS; do
+        while IFS= read -r kt; do
+            _neg_check_one "$cfg" "$testid" "$kt"
+        done < <(test_kt "$testid")
+        echo ">>> $testid [$cfg] OK"
+    done
+    log_info ">>> $testid OK"
+    exit 0
 fi
 
 for cfg in $CONFIGS; do

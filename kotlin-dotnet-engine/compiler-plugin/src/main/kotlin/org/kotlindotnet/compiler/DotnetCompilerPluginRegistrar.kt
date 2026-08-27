@@ -34,8 +34,13 @@ class DotnetCompilerPluginRegistrar : CompilerPluginRegistrar() {
             ?: File("build")
         val outputKind = configuration.get(DotnetCommandLineProcessor.outputKindKey) ?: "exe"
         val config = configuration.get(DotnetCommandLineProcessor.configKey) ?: "release"
+        // Stdlib coverage strictness; value is validated at option parse
+        // time, so the fallback here only normalizes absence -> lenient.
+        val stdlibMode = StdlibMode.fromCli(
+            configuration.get(DotnetCommandLineProcessor.stdlibModeKey) ?: "lenient",
+        )
         IrGenerationExtension.registerExtension(
-            DotnetIrGenerationExtension(outputDir, outputKind, config)
+            DotnetIrGenerationExtension(outputDir, outputKind, config, stdlibMode)
         )
     }
 }

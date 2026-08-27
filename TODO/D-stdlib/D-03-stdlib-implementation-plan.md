@@ -56,7 +56,18 @@ StdlibResolver стал тонким фасадом (isStdlibCall + resolveStdli
 
 Приёмка: `just test-all` зелёный без изменений ожиданий.
 
-### Шаг 3. Режимы строгости (`stdlib.mode`)
+### Шаг 3. Режимы строгости (`stdlib.mode`) — DONE (2026-08-28)
+
+Реализация: StdlibMode.kt (enum + UncoveredStdlibCollector), CLI-опция
+stdlib.mode (валидация на parse), фасад extension'а применяет политику
+после эмиссии; точка учёта — предусловие emitUserTopLevelCall
+(kotlin.* callee без тела в файле) + ветка нулевого резолва
+StdlibResolver. Отказной e2e-тест: kind=negative в build-test.sh
+(компиляция обязана упасть, expect — подстрока текста ошибки).
+Дефолт пока lenient (в strict все текущие тесты зелёные — переключение
+дефолта отдельным решением).
+
+Историческое описание шага:
 
 - Новая CLI-опция плагина: `stdlib.mode=lenient|strict`.
 - Сбор фактов о неперехваченных `kotlin.*` вызовах за проход модуля;

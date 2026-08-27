@@ -10,6 +10,7 @@
 | `output.dir` | путь | `build/` | Директория артефактов плагина (ir-dump, PE-файл). См. ADR 0007 |
 | `output.kind` | `exe` \| `dll` | `exe` | Тип сборки на выходе |
 | `config` | `debug` \| `release` | `release` | Режим сборки: `debug` добавляет assembly-level `DebuggableAttribute(0x0107)` — JIT без оптимизаций, как csc `/debug+`; `release` — без атрибута |
+| `stdlib.mode` | `lenient` \| `strict` | `lenient` | Строгость покрытия stdlib: `strict` — ошибка компиляции со сводным списком непокрытых `kotlin.*` символов; `lenient` — предупреждения. См. ADR 0014 |
 
 Примечания:
 

@@ -18,6 +18,9 @@ import org.jetbrains.kotlin.config.CompilerConfigurationKey
  * - `config` — режим сборки: `debug` | `release`. Debug добавляет
  *   assembly-level DebuggableAttribute; release — без атрибута
  *   (как csc без /debug).
+ * - `stdlib.mode` — строгость покрытия stdlib: `lenient` (дефолт,
+ *   предупреждения о непокрытых kotlin.* вызовах) | `strict`
+ *   (ошибка компиляции со сводным списком; см. ADR 0014).
  *
  * Принцип: плагин не хардкодит `build/` — путь получает через
  * [CompilerConfiguration]. Один фокус — одна опция (A-02).
@@ -61,6 +64,9 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
 
         internal val configKey: CompilerConfigurationKey<String> =
             CompilerConfigurationKey.create("config")
+
+        internal val stdlibModeKey: CompilerConfigurationKey<String> =
+            CompilerConfigurationKey.create("stdlib.mode")
     }
 
     override val pluginOptions: Collection<AbstractCliOption> = listOf(
@@ -85,6 +91,13 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
             required = false,
             allowMultipleOccurrences = false,
         ),
+        CliOption(
+            optionName = "stdlib.mode",
+            valueDescription = "<lenient|strict>",
+            description = "Stdlib coverage strictness: strict fails the compile listing uncovered kotlin.* symbols; lenient warns. Default: lenient.",
+            required = false,
+            allowMultipleOccurrences = false,
+        ),
     )
 
     override fun processOption(
@@ -101,6 +114,12 @@ class DotnetCommandLineProcessor : CommandLineProcessor {
             "config" -> {
                 check(value in setOf("debug", "release")) { "Unknown config: $value (expected debug|release)" }
                 configuration.put(configKey, value)
+            }
+            "stdlib.mode" -> {
+                // Value validation lives in StdlibMode.fromCli; validating at
+                // parse time makes a bad value fail before any compilation.
+                StdlibMode.fromCli(value)
+                configuration.put(stdlibModeKey, value.lowercase())
             }
             else -> error("Unknown option: ${option.optionName}")
         }
