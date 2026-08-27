@@ -5,55 +5,44 @@ import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.util.kotlinFqName
 
 /**
- * Маппинг вызовов kotlin stdlib → KotlinDotnetRuntime (см. ADR 0002).
+ * Facade over the stdlib redirect registry (see [StdlibMapping]).
  *
- * PoC: только `kotlin.io.println` и `kotlin.io.print`.
+ * Resolution of a call: fully qualified Kotlin name -> registry entry ->
+ * CALL operand built from actual argument types (overload selection at
+ * the call site). The visitor keeps calling these two functions; nothing
+ * else should talk to the registry directly.
+ *
+ * The known-stdlib check and the redirect lookup share one table, so
+ * they can never disagree about what counts as covered.
  */
 object StdlibResolver {
 
-    private const val RUNTIME_ASSEMBLY = "KotlinDotnetRuntime"
-    private const val RUNTIME_NS = "Kotlin.Runtime"
-
     /**
-     * Является ли [call] вызовом stdlib-функции, которую мы маппим на
-     * KotlinDotnetRuntime (см. ADR 0002, A-05).
-     *
-     * Единая точка проверки: использовалась вместо дублирования
-     * `fqName == "kotlin.io.println" || ...` в [DotnetIrVisitor].
+     * Does this call target a stdlib symbol present in the redirect
+     * registry? Single point of truth for "we know how to emit this".
      */
     fun isStdlibCall(call: IrCall): Boolean {
         val fn = call.symbol.owner as? IrSimpleFunction ?: return false
-        val fqName = fn.kotlinFqName.asString()
-        return fqName == "kotlin.io.println" || fqName == "kotlin.io.print"
+        return StdlibMapping.lookup(fn.kotlinFqName.asString()) != null
     }
 
     /**
-     * Если [call] — вызов stdlib-функции, которую мы маппим на runtime,
-     * возвращает IL-сигнатуру вызова в формате:
+     * If [call] resolves to a registered runtime entry, returns the IL
+     * signature operand:
      *   `void [KotlinDotnetRuntime]Kotlin.Runtime.Print::println(object)`
+     * Returns null when the symbol is not in the registry.
      *
-     * Иначе — null (не stdlib-вызов).
-     *
-     * @param returnTypeCil CIL-тип возврата (для метода-вызова).
-     * @param paramCilTypes CIL-типы аргументов (уже вычисленные).
+     * @param returnTypeCil CIL type of the call result (currently always
+     *   void for redirected entries; kept for future non-void targets)
+     * @param paramCilTypes CIL types of the evaluated arguments
      */
     fun resolveStdlibCall(
         call: IrCall,
         returnTypeCil: String,
-        paramCilTypes: List<String>
+        paramCilTypes: List<String>,
     ): String? {
         val fn = call.symbol.owner as? IrSimpleFunction ?: return null
-        val fqName = fn.kotlinFqName.asString()
-        return when (fqName) {
-            "kotlin.io.println" -> {
-                val paramSig = if (paramCilTypes.isEmpty()) "" else paramCilTypes.joinToString(", ")
-                "void [$RUNTIME_ASSEMBLY]$RUNTIME_NS.Print::println($paramSig)"
-            }
-            "kotlin.io.print" -> {
-                val paramSig = if (paramCilTypes.isEmpty()) "" else paramCilTypes.joinToString(", ")
-                "void [$RUNTIME_ASSEMBLY]$RUNTIME_NS.Print::print($paramSig)"
-            }
-            else -> null
-        }
+        val entry = StdlibMapping.lookup(fn.kotlinFqName.asString()) ?: return null
+        return StdlibMapping.callSignature(entry, paramCilTypes)
     }
 }
