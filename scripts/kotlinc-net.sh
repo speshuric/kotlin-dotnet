@@ -1,26 +1,26 @@
 #!/usr/bin/env bash
-# scripts/kotlinc-net.sh — компилятор Kotlin → .NET (PoC).
+# scripts/kotlinc-net.sh — the Kotlin → .NET compiler (PoC).
 #
-# Использование:
+# Usage:
 #   ./scripts/kotlinc-net.sh <file.kt>              # → build/<name>/<name>.exe
 #   ./scripts/kotlinc-net.sh <file.kt> -dll         # → build/<name>/<name>.dll
-#   ./scripts/kotlinc-net.sh <file.kt> -o out.exe   # явное имя выхода
-#   ./scripts/kotlinc-net.sh <file.kt> --debug      # debug-сборка (DebuggableAttribute)
-#   ./scripts/kotlinc-net.sh <file.kt> --rebuild-plugin  # пересобрать плагин
+#   ./scripts/kotlinc-net.sh <file.kt> -o out.exe   # explicit output name
+#   ./scripts/kotlinc-net.sh <file.kt> --debug      # debug build (DebuggableAttribute)
+#   ./scripts/kotlinc-net.sh <file.kt> --rebuild-plugin  # rebuild the plugin
 #
-# Прямая запись PE (ADR 0010/0012), без ilasm.
+# Direct PE writing (ADR 0010/0012), no ilasm.
 #
-# Артефакты (ir-dump, .exe/.dll) складываются в build/<name>/
-# (per-test layout). Plugin JAR и KotlinDotnetRuntime.dll должны быть
-# собраны заранее (just plugin && just runtime), если не указан
-# --rebuild-plugin.
+# Artifacts (ir-dump, .exe/.dll) go into build/<name>/
+# (per-test layout). The plugin JAR and KotlinDotnetRuntime.dll must be
+# built in advance (just plugin && just runtime) unless --rebuild-plugin
+# is given.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/common.sh"
 
-# --- DSH prelude: writable HOME/GRADLE/XDG (read-only корневая ФС) ---
+# --- DSH prelude: writable HOME/GRADLE/XDG (read-only root filesystem) ---
 ensure_env
 PROJECT_ROOT="${KOTLIN_DOTNET_PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 export GRADLE_USER_HOME="$PROJECT_ROOT/build/tmp/gradle-home"
@@ -30,7 +30,7 @@ export DOTNET_CLI_HOME="$HOME"
 mkdir -p "$GRADLE_USER_HOME" "$XDG_RUNTIME_DIR" "$HOME"
 cd "$PROJECT_ROOT"
 
-# --- Разбор аргументов ---
+# --- Argument parsing ---
 kt_file=""
 output=""
 mode="exe"
@@ -67,7 +67,7 @@ if $rebuild_plugin || [ ! -f "$PLUGIN_JAR" ]; then
 fi
 require_file "$PLUGIN_JAR" "plugin JAR not found: $PLUGIN_JAR (run 'just plugin' or pass --rebuild-plugin)"
 
-# --- Имя выхода + per-test outdir ---
+# --- Output name + per-test outdir ---
 name="$(basename "$kt_file" .kt)"
 outdir="build/${name}"
 if [ -z "$output" ]; then
@@ -76,15 +76,15 @@ fi
 out_dir="$(dirname "$output")"
 mkdir -p "$out_dir" "$outdir/kt-out"
 
-# --- Шаг 1: kotlinc + plugin → .exe/.dll (ADR 0010) ---
+# --- Step 1: kotlinc + plugin → .exe/.dll (ADR 0010) ---
 log_info "compiling $kt_file → $output (config=$build_config)"
 kotlinc -Xplugin="$PLUGIN_JAR" \
   -P "plugin:kotlin.dotnet:output.dir=$outdir" \
   -P "plugin:kotlin.dotnet:output.kind=$mode" \
   -P "plugin:kotlin.dotnet:config=$build_config" \
   "$kt_file" -d "$outdir/kt-out"
-# Плагин пишет в per-test layout ($outdir/$name.$kind); при явном
-# -o переносим на запрошенный путь.
+# The plugin writes to the per-test layout ($outdir/$name.$kind); with an
+# explicit -o we move it to the requested path.
 if [ "$output" != "$outdir/${name}.${mode}" ]; then
   require_file "$outdir/${name}.${mode}" "plugin did not produce $outdir/${name}.${mode}"
   mkdir -p "$out_dir"
@@ -92,13 +92,13 @@ if [ "$output" != "$outdir/${name}.${mode}" ]; then
 fi
 require_file "$output" "plugin did not produce $output"
 
-# --- Шаг 2 (только EXE): runtime DLL + runtimeconfig.json ---
+# --- Step 2 (EXE only): runtime DLL + runtimeconfig.json ---
 if [ "$mode" = "exe" ]; then
   runtime_dll="runtime/bin/Release/net10.0/KotlinDotnetRuntime.dll"
   require_file "$runtime_dll" "KotlinDotnetRuntime.dll not found at $runtime_dll (run 'just runtime' first)"
-  # Копируем runtime DLL рядом с EXE (для разрешения сборок).
+  # Copy the runtime DLL next to the EXE (for assembly resolution).
   cp "$runtime_dll" "$out_dir/"
-  # Генерируем runtimeconfig.json (framework-dependent, rollForward Major).
+  # Generate runtimeconfig.json (framework-dependent, rollForward Major).
   config_name="$(basename "$output" .exe).runtimeconfig.json"
   printf '%s\n' \
     '{"runtimeOptions":{"tfm":"net10.0","framework":{"name":"Microsoft.NETCore.App","version":"10.0.11"},"rollForward":"Major"}}' \

@@ -427,7 +427,7 @@ class BlobBuilderTests {
         assertFailsWith<IllegalArgumentException> { BlobBuilder().writeCompressedSignedInteger(MAX_SIGNED_COMPRESSED_INTEGER_VALUE + 1) }
     }
 
-    // === WritePrimitive (golden, без DateTime/Decimal) ===
+    // === WritePrimitive (golden, without DateTime/Decimal) ===
 
     @Test
     fun writePrimitive_golden() {
@@ -593,8 +593,8 @@ class BlobBuilderTests {
 
     @Test
     fun writeUTF8_regularBmpChar_neverReplaced() {
-        // Регрессия: валидный символ >= 0x800 не является суррогатом и
-        // не должен заменяться на U+FFFD ни при каком значении флага.
+        // Regression: a valid character >= 0x800 is not a surrogate and
+        // must never be replaced with U+FFFD regardless of the flag value.
         val w = BlobBuilder(4)
         w.writeUTF8("\u1234", allowUnpairedSurrogates = false)
         assertBytes(w, 0xE1, 0x88, 0xB4)
@@ -662,7 +662,7 @@ class BlobBuilderTests {
     fun emptyWrites_areNoOps() {
         val w = BlobBuilder(4)
         w.writeBytes(byteArrayOf())
-        w.writeSerializedString(null) // writes 0xff — не empty write, проверяем отдельно ниже
+        w.writeSerializedString(null) // writes 0xff — not an empty write, checked separately below
         w.clear()
 
         w.writeUTF16("")

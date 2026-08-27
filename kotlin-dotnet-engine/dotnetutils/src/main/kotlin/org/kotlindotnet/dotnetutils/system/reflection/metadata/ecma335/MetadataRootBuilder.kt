@@ -55,14 +55,14 @@ class MetadataRootBuilder private constructor(
         )
     }
 
-    /** Апстримный публичный ctor (regular assembly). */
+    /** Upstream public ctor (regular assembly). */
     constructor(
         tablesAndHeaps: MetadataBuilder,
         metadataVersion: String? = null,
         suppressValidation: Boolean = false,
     ) : this(tablesAndHeaps, metadataVersion, suppressValidation, null, 0)
 
-    /** Для [PdbBuilder]: standalone portable PDB. */
+    /** For [PdbBuilder]: standalone portable PDB. */
     internal constructor(
         tablesAndHeaps: MetadataBuilder,
         pdbId: ByteArray,

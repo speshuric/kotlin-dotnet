@@ -104,14 +104,14 @@ class BlobReader(
 
     /**
      * ECMA-335 II.23.2 compressed signed integer.
-     * Инверсия [BlobWriterImpl.writeCompressedSignedInteger]:
-     * значение сдвинуто влево на 1, знак — в младшем бите.
+     * Inverse of [BlobWriterImpl.writeCompressedSignedInteger]:
+     * the value is shifted left by 1, with the sign in the lowest bit.
      */
     fun readCompressedSignedInteger(): Int {
-        // Точное зеркало SRM (MemoryBlock.PeekCompressedInteger +
-        // BlobReader.TryReadCompressedSignedInteger): сырой raw — целое
-        // число с уже снятым префиксом; знак — его LSB; декодирование —
-        // raw >> 1 со знакорасширением по ширине поля.
+        // Exact mirror of SRM (MemoryBlock.PeekCompressedInteger +
+        // BlobReader.TryReadCompressedSignedInteger): the raw value is an
+        // integer whose prefix byte is already stripped; its LSB carries the
+        // sign; decoding is raw >> 1 sign-extended to the field width.
         val first = u8()
 
         val raw: Int

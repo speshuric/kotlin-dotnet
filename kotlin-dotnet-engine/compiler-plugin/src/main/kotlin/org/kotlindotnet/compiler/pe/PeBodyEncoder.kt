@@ -13,15 +13,15 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataT
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MethodBodyStreamEncoder
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addStandaloneSignature
 
-/** Буферизованная инструкция тела метода. */
+/** A buffered method-body instruction. */
 internal sealed interface Op
 
 internal class InstOp(val code: ILOpCode) : Op
 
-/** call/callvirt/newobj: код хранится явно (раньше newobj кодировался как call — баг). */
+/** call/callvirt/newobj: the opcode is stored explicitly (newobj used to be encoded as a call — a bug). */
 internal class CallOp(val code: ILOpCode, val ref: String) : Op
 
-/** ldfld/stfld: операнд — текстовый field-ref. */
+/** ldfld/stfld: the operand is a textual field-ref. */
 internal class FieldOp(val code: ILOpCode, val ref: String) : Op
 internal class LdStrOp(val value: String) : Op
 internal class BranchOp(val code: ILOpCode, val labelId: Int) : Op
@@ -43,19 +43,19 @@ internal enum class LocalKind { LDARG, LDLOC, STLOC }
 internal class LocalOp(val kind: LocalKind, val index: Int) : Op
 
 /**
- * Кодирование тел методов: [Op]-буфер MethodRec → IL-поток
- * ([MethodBodyStreamEncoder]). Резолв операндов (call/field/type) и
- * строки — через инъекцию, чтобы энкодер не знал ни о реестре ссылок,
- * ни о модели целиком.
+ * Encodes method bodies: the [Op] buffer of a MethodRec → the IL stream
+ * ([MethodBodyStreamEncoder]). Operand resolution (call/field/type) and string
+ * handling are injected so that the encoder knows neither the reference registry
+ * nor the full model.
  */
 internal class PeBodyEncoder(
     private val metadata: MetadataBuilder,
     private val bodyStream: MethodBodyStreamEncoder,
-    /** call/callvirt/newobj ref → токен (MethodDef или MemberRef). */
+    /** call/callvirt/newobj ref → token (MethodDef or MemberRef). */
     private val resolveCallTarget: (String) -> EntityHandle,
-    /** field-ref → MemberRef-токен. */
+    /** field-ref → MemberRef token. */
     private val resolveFieldRef: (String) -> EntityHandle,
-    /** CIL-имя типа → TypeDefOrRef (для box/newarr). */
+    /** CIL type name → TypeDefOrRef (for box/newarr). */
     private val resolveTypeEntity: (String) -> EntityHandle,
 ) {
     data class Result(val bodyOffset: Int, val sequencePoints: List<SequencePoint>)
@@ -92,7 +92,7 @@ internal class PeBodyEncoder(
                     encoder.token(resolveFieldRef(op.ref))
                 }
                 is TypeOp -> {
-                    // IL-порядок: сначала байт опкода, затем токен-операнд.
+                    // IL order: the opcode byte first, then the token operand.
                     encoder.opCode(op.code)
                     encoder.token(PeSignatures.boxedTypeToken(op.cilType, resolveTypeEntity))
                 }

@@ -1,7 +1,7 @@
 package org.kotlindotnet.compiler
 
 /**
- * Strictness of stdlib coverage accounting (stdlib strategy Р3, ADR 0014).
+ * Strictness of stdlib coverage accounting (stdlib strategy R3, ADR 0014).
  *
  * LENIENT (transitional default): uncovered kotlin.* calls keep today's
  * behavior; each one also produces a warning via Log.

@@ -1,15 +1,15 @@
 package org.kotlindotnet.compiler.util
 
 /**
- * Тонкий фасад логирования компилятор-плагина.
+ * A thin logging facade for the compiler plugin.
  *
- * - Все сообщения автоматически получают префикс `[kotlin-dotnet]`.
- * - Уровень задаётся системным свойством `kotlin.dotnet.log.level`
+ * - Every message automatically gets the `[kotlin-dotnet]` prefix.
+ * - The level is set by the system property `kotlin.dotnet.log.level`
  *   (INFO/WARN/ERROR; default INFO).
- * - Вывод — напрямую в `System.err` (компилятор перехватывает stderr).
- * - Без slf4j/logback: фасад намеренно тонкий (≤ 50 строк).
+ * - Output goes directly to `System.err` (the compiler captures stderr).
+ * - No slf4j/logback: the facade is deliberately thin (≤ 50 lines).
  *
- * Единственное место в `compiler-plugin/`, где живёт строка `"kotlin-dotnet"`.
+ * The only place in `compiler-plugin/` where the string `"kotlin-dotnet"` lives.
  */
 object Log {
 

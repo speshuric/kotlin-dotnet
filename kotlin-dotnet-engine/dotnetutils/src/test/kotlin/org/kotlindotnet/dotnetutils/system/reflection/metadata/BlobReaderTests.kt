@@ -97,8 +97,8 @@ class BlobReaderTests {
 
     @Test
     fun decompressInvalidUnsignedIntegers() {
-        // Too few bytes / leading 111 — в SRM это sentinel
-        // InvalidCompressedInteger; у нас — исключение (см. шапку файла).
+        // Too few bytes / leading 111 — in SRM this is the sentinel
+        // InvalidCompressedInteger; here it throws (see the file header).
         assertFailsWith<IllegalStateException> { readerOf().readCompressedInteger() }
         assertFailsWith<IllegalStateException> { readerOf(0x80).readCompressedInteger() }
         assertFailsWith<IllegalStateException> { readerOf(0xC0, 0xFF).readCompressedInteger() }

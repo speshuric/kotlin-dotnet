@@ -485,7 +485,7 @@ class MetadataBuilder(
             "#Blob",
         )
         if (sizes.isStandalonePdb) {
-            // Поток #Pdb — последний: после #~, куч и их выравнивания.
+            // The #Pdb stream goes last: after #~, the heaps, and their padding.
             val pdbOffset = sizes.metadataSize - MetadataSizes.PDB_STREAM_SIZE
             serializeStreamHeader(builder, pdbOffset, MetadataSizes.PDB_STREAM_SIZE, "#Pdb")
         }

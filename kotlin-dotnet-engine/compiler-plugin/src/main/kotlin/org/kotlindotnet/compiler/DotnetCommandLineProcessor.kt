@@ -7,44 +7,43 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
 
 /**
- * Обработка CLI-опций плагина `kotlin.dotnet` (передаются через
+ * Handles the CLI options of the `kotlin.dotnet` plugin (passed via
  * `kotlinc -Xplugin=... -P plugin:kotlin.dotnet:<option>=<value>`).
  *
- * Опции (см. ADR 0007, ADR 0010):
- * - `output.dir` — директория, куда плагин пишет артефакты
- *   (IR-dump, PE-файлы). Дефолт — `build/` (задаётся в
- *   [DotnetIrGenerationExtension], а не здесь).
- * - `output.kind` — тип сборки: `exe` | `dll`.
- * - `config` — режим сборки: `debug` | `release`. Debug добавляет
- *   assembly-level DebuggableAttribute; release — без атрибута
- *   (как csc без /debug).
- * - `stdlib.mode` — строгость покрытия stdlib: `lenient` (дефолт,
- *   предупреждения о непокрытых kotlin.* вызовах) | `strict`
- *   (ошибка компиляции со сводным списком; см. ADR 0014).
+ * Options (see ADR 0007, ADR 0010):
+ * - `output.dir` — the directory where the plugin writes artifacts
+ *   (IR dump, PE files). Default: `build/` (set in
+ *   [DotnetIrGenerationExtension], not here).
+ * - `output.kind` — assembly kind: `exe` | `dll`.
+ * - `config` — build mode: `debug` | `release`. Debug adds an
+ *   assembly-level DebuggableAttribute; release goes without it
+ *   (like csc without /debug).
+ * - `stdlib.mode` — stdlib coverage strictness: `lenient` (the default;
+ *   warnings about uncovered kotlin.* calls) | `strict`
+ *   (a compile error with a summary list; see ADR 0014).
  *
- * Принцип: плагин не хардкодит `build/` — путь получает через
- * [CompilerConfiguration]. Один фокус — одна опция (A-02).
+ * Principle: the plugin does not hardcode `build/` — the path arrives via
+ * [CompilerConfiguration]. One option, one concern (A-02).
  */
 class DotnetCommandLineProcessor : CommandLineProcessor {
 
     override val pluginId: String = "kotlin.dotnet"
 
     /**
-     * Ключ конфигурации: директория вывода плагина.
-     * Хранится как `String` (а не `File`) — плагин сам строит `File`
-     * в точке использования. Дефолт (`build/`) — тоже в точке
-     * использования, чтобы registrar/processor не знали про него.
+     * Configuration key: the plugin's output directory.
+     * Stored as a `String` (not a `File`) — the plugin builds the `File` itself
+     * at the point of use. The default (`build/`) also lives at the point
+     * of use, so that the registrar/processor know nothing about it.
      *
-     * **Singleton (companion object):** [CompilerConfigurationKey.create]
-     * внутри создаёт [com.intellij.openapi.util.Key], чей `equals` —
-     * identity-сравнение (подтверждено байткодом `Key.create`/`Key.equals`).
-     * Если ключ — instance-`val`, то `DotnetCompilerPluginRegistrar`,
-     * создавая `DotnetCommandLineProcessor()` для доступа к ключу,
-     * получит *другой* `Key` → `configuration.get(...)` вернёт null
-     * → fallback на `File("build")`. Помещение ключа в companion
-     * гарантирует один и тот же `Key`-объект в `processOption`
-     * и в `registerExtensions`. См. ADR 0007, референс: allopen
-     * `AllOpenConfigurationKeys` (object).
+     * **Singleton (companion object):** [CompilerConfigurationKey.create] creates a
+     * [com.intellij.openapi.util.Key] internally, whose `equals` is an identity
+     * comparison (confirmed against the bytecode of `Key.create`/`Key.equals`).
+     * If the key were an instance `val`, then `DotnetCompilerPluginRegistrar`,
+     * creating a `DotnetCommandLineProcessor()` to access the key, would get
+     * a *different* `Key` → `configuration.get(...)` returns null
+     * → fallback to `File("build")`. Keeping the key in the companion guarantees
+     * the same `Key` object in both `processOption` and `registerExtensions`.
+     * See ADR 0007; reference: allopen's `AllOpenConfigurationKeys` (object).
      */
     internal val outputDirKey: CompilerConfigurationKey<String> =
         Companion.outputDirKey

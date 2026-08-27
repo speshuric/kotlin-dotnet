@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# scripts/show.sh — показать IR-дамп / дизассемблированную сборку.
+# scripts/show.sh — shows an IR dump / disassembled assembly.
 #
-# Использование:
+# Usage:
 #   show.sh <kind> <selector>
 #     kind     ∈ ir | disasm
 #     selector ∈ last | all | <testid> | <glob>
 #
-# Примеры:
-#   show.sh disasm last        # ildasm новейшей сборки (.dll/.exe)
-#   show.sh ir last            # новейший ir-dump
+# Examples:
+#   show.sh disasm last        # ildasm the newest assembly (.dll/.exe)
+#   show.sh ir last            # the newest ir-dump
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,7 +19,7 @@ ensure_env
 PROJECT_ROOT="${PROJECT_ROOT:-$KOTLIN_DOTNET_PROJECT_ROOT}"
 cd "$PROJECT_ROOT"
 
-# --- DSH prelude: writable HOME/GRADLE/XDG (нужно для dotnet-ildasm) ---
+# --- DSH prelude: writable HOME/GRADLE/XDG (needed by dotnet-ildasm) ---
 export GRADLE_USER_HOME="$PROJECT_ROOT/build/tmp/gradle-home"
 export XDG_RUNTIME_DIR="$PROJECT_ROOT/build/tmp/runtime"
 export HOME="$PROJECT_ROOT/build/tmp/home"
@@ -37,7 +37,7 @@ if [ -z "$kind" ]; then
     exit 1
 fi
 
-# _pattern_for_kind — glob-шаблон файлов для данного kind.
+# _pattern_for_kind — file glob pattern for the given kind.
 _pattern_for_kind() {
     case "$1" in
         ir)     echo 'ir-dump-*.txt' ;;
@@ -46,13 +46,13 @@ _pattern_for_kind() {
     esac
 }
 
-# _find_files <dir> <pattern> — напечатать файлы в dir (рекурсивно для 04-loops-spec).
-# Для disasm ловим и .exe (exe-тесты не имеют .dll).
+# _find_files <dir> <pattern> — print files in dir (recursive for 04-loops-spec).
+# For disasm we also pick up .exe files (exe tests have no .dll).
 _find_files() {
     local dir="$1"
     local pat="$2"
     if [ -d "$dir" ]; then
-        # maxdepth 2: ловит build/<id>/* и build/04-loops-spec/<sub>/*
+        # maxdepth 2: covers build/<id>/* and build/04-loops-spec/<sub>/*
         if [ "$pat" = "*.dll" ] && [ "${kind:-}" = "disasm" ]; then
             find "$dir" -maxdepth 2 -type f \( -name '*.dll' -o -name '*.exe' \) 2>/dev/null | sort
         else
@@ -61,7 +61,7 @@ _find_files() {
     fi
 }
 
-# _filter_disasm — для disasm убрать runtime-DLL (это не наш код).
+# _filter_disasm — for disasm, drop the runtime DLL (not our code).
 _filter_disasm() {
     if [ "$kind" = "disasm" ]; then
         grep -v 'KotlinDotnetRuntime\.dll$' || true
@@ -70,14 +70,14 @@ _filter_disasm() {
     fi
 }
 
-# _resolve_files — собрать список файлов по selector + kind.
+# _resolve_files — collect the list of files for selector + kind.
 _resolve_files() {
     local pattern
     pattern="$(_pattern_for_kind "$kind")" || { log_error "unknown kind: '$kind'"; exit 1; }
 
     case "$selector" in
         last)
-            # Найти новейший файл по mtime во всех build/*/<pattern>.
+            # Find the newest file by mtime across all build/*/<pattern>.
             local newest=""
             local newest_mtime=0
             local dir f m
@@ -107,11 +107,11 @@ _resolve_files() {
             done
             ;;
         *)
-            # Точный testid или glob.
+            # Exact testid or glob.
             if test_exists "$selector"; then
                 _find_files "build/$selector" "$pattern" | _filter_disasm
             else
-                # glob по id → собрать dirs.
+                # glob over ids → collect dirs.
                 local matched ids
                 matched="$(resolve_selector "$selector" 2>/dev/null || true)"
                 if [ -n "$matched" ]; then
@@ -131,7 +131,7 @@ if [ -z "$files" ]; then
     exit 1
 fi
 
-# --- Действие ---
+# --- Action ---
 case "$kind" in
     ir)
         shown_count=0
@@ -144,7 +144,7 @@ case "$kind" in
         log_info "shown $shown_count file(s) (kind=$kind, selector=$selector)"
         ;;
     disasm)
-        # dotnet-ildasm — глобальный tool, требует активированное окружение.
+        # dotnet-ildasm is a global tool; it requires the activated environment.
         shown_count=0
         while IFS= read -r f; do
             echo "=== $f ==="

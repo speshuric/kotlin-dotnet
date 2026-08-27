@@ -1,21 +1,21 @@
-# scripts/activate.sh — активация локального окружения проекта
+# scripts/activate.sh — activates the project's local environment
 #
-# Использование:
+# Usage:
 #   source scripts/activate.sh
 #
-# Снимает env: source scripts/deactivate.sh (или открыть новый шелл).
+# To clear the env: source scripts/deactivate.sh (or open a new shell).
 
 _activate_dotnet() {
-  # Portable script_dir: работает и в bash, и в zsh, и в sh
+  # Portable script_dir: works in bash, zsh, and sh
   local script_dir
   if [ -n "${BASH_SOURCE[0]:-}" ]; then
     # bash
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   elif [ -n "${ZSH_VERSION:-}" ]; then
-    # zsh: %x — это путь к source-нутому файлу в functions source
+    # zsh: %x expands to the path of the file currently being sourced
     script_dir="$(cd "$(dirname "${(%):-%x}")" && pwd)"
   else
-    # fallback: sh, где $0 обычно путь к файлу
+    # fallback: sh, where $0 is usually the path to this file
     script_dir="$(cd "$(dirname "$0")" && pwd)"
   fi
   local project_root
@@ -33,7 +33,7 @@ _activate_dotnet() {
   export DOTNET_ROOT="$project_root/.sdk/dotnet"
   export DOTNET_CLI_TELEMETRY_OPTOUT=1
   export DOTNET_NOLOGO=1
-  # dotnet-ildasm собран под старый .NET; у нас только 10 → разрешить roll-forward
+  # dotnet-ildasm is built against an older .NET; only 10 is installed here → allow roll-forward
   export DOTNET_ROLL_FORWARD=Major
   if [ -d "$DOTNET_ROOT" ]; then
     export PATH="$DOTNET_ROOT:$DOTNET_ROOT/tools:$PATH"

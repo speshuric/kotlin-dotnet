@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# scripts/clean.sh — очистка артефактов проекта.
+# scripts/clean.sh — removes project artifacts.
 #
-# Использование:
+# Usage:
 #   clean.sh <category>
 #     category ∈ all | build | sdk | sources  (default: all)
 #
-# Примеры:
-#   clean.sh             # all (требует пере-bootstrap!)
-#   clean.sh build       # только сборочные артефакты
-#   clean.sh sdk         # только .sdk/
-#   clean.sh sources     # только .sources/* (кроме README.md)
+# Examples:
+#   clean.sh             # all (re-bootstrap required!)
+#   clean.sh build       # build artifacts only
+#   clean.sh sdk         # .sdk/ only
+#   clean.sh sources     # .sources/* only (except README.md)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,7 +34,7 @@ clean_sdk() {
 }
 
 clean_sources() {
-    # Сохраняем .sources/README.md, удаляем остальное.
+    # Keep .sources/README.md, remove everything else.
     if [ -d .sources ]; then
         find .sources -mindepth 1 ! -name README.md -exec rm -rf {} + 2>/dev/null || true
     fi

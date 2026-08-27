@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/install-sources.sh — shallow-clone исходников для референса в .sources/
+# scripts/install-sources.sh — shallow-clone reference sources into .sources/
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

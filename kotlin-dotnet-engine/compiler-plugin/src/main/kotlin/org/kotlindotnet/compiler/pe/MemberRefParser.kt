@@ -1,20 +1,20 @@
 package org.kotlindotnet.compiler.pe
 
 /**
- * Чистый парсер текстовых member-ref'ов (без состояния, без знаний о
- * модели строк метаданных — только строки на входе и данные на выходе).
+ * A pure parser of textual member-refs (stateless, knows nothing about the
+ * metadata row model — strings in, data out).
  *
- * Формат call-ref (Phase 10):
+ * Call-ref format (Phase 10):
  *   `retCil [instance ][[Asm]]Ns.Type::name(paramCil, ...)`
- * Маркер `instance ` задаёт HASTHIS в сигнатуре MemberRef (instance-методы,
- * конструкторы). Статические вызовы маркера не имеют. NEWOBJ/CALLVIRT
- * различаются опкодом, ref одинаков.
+ * The `instance ` marker sets HASTHIS in the MemberRef signature (instance methods,
+ * constructors). Static calls carry no marker. NEWOBJ/CALLVIRT differ by opcode;
+ * the ref is identical.
  *
- * Формат field-ref ([IlOpcode.LDFLD]/[IlOpcode.STFLD]):
+ * Field-ref format ([IlOpcode.LDFLD]/[IlOpcode.STFLD]):
  *   `cilType [[Asm]]Ns.Type::fieldName`
  *
- * Формат имени типа: `[Asm]Ns.Name`, `Ns.Name` или `Name`
- * (nil-scope ⇒ тип из текущего модуля).
+ * Type name format: `[Asm]Ns.Name`, `Ns.Name`, or `Name`
+ * (a nil-scope means a type from the current module).
  */
 internal object MemberRefParser {
 
@@ -35,7 +35,7 @@ internal object MemberRefParser {
     )
 
     data class FieldRefInfo(
-        /** Тип поля как в исходном ref (сборка/namespace на месте). */
+        /** The field's type as written in the original ref (assembly/namespace intact). */
         val ownerType: String,
         val cilType: String,
         val assembly: String?,
@@ -47,7 +47,7 @@ internal object MemberRefParser {
     private val ASM_PREFIX = Regex("""^\[([^\]]+)\]\s*(.*)$""")
     private val CALL_MEMBER = Regex("""^(.+?)::(.+?)\s*\((.*)\)\s*$""")
 
-    /** Разбирает имя типа: `[Asm]Ns.Name`, `Ns.Name` или `Name`. */
+    /** Parses a type name: `[Asm]Ns.Name`, `Ns.Name`, or `Name`. */
     fun parseTypeName(s: String): TypeNameInfo {
         var work = s.trim()
         val asmMatch = ASM_PREFIX.find(work)
@@ -66,9 +66,9 @@ internal object MemberRefParser {
     }
 
     /**
-     * Разбирает текстовый member-ref формата
-     * `retType [instance ][[Asm]]Ns.Type::name(p1, p2)` (формат задаётся
-     * StdlibResolver/DotnetIrVisitor — см. документацию [PeIlEmitter]).
+     * Parses a textual member-ref of the form
+     * `retType [instance ][[Asm]]Ns.Type::name(p1, p2)` (the format is defined by
+     * StdlibResolver/DotnetIrVisitor — see the documentation of [PeIlEmitter]).
      */
     fun parseCallRef(ref: String): CallInfo {
         val work = ref.trim()
@@ -78,7 +78,7 @@ internal object MemberRefParser {
         val retCil = retAndRest.groupValues[1]
         var rest = retAndRest.groupValues[2]
 
-        // Маркер HASTHIS стоит после типа возврата: "void instance Ns.C::m(...)".
+        // The HASTHIS marker follows the return type: "void instance Ns.C::m(...)".
         val isInstance = rest.startsWith("instance ")
         if (isInstance) rest = rest.removePrefix("instance ").trim()
 
@@ -93,8 +93,8 @@ internal object MemberRefParser {
 
         val sigMatch = CALL_MEMBER.find(rest)
             ?: throw IllegalStateException("Cannot parse call ref member: '$ref'")
-        // Имена могут приходить в CIL-экранировании ('box') — оно нужно
-        // только IL-тексту; в метаданных пишем сырое имя.
+        // Names may arrive CIL-escaped ('box') — the escaping matters only for
+        // IL text; metadata gets the raw name.
         val methodName = sigMatch.groupValues[2].trim()
         val paramsRaw = sigMatch.groupValues[3].trim()
 
@@ -109,7 +109,7 @@ internal object MemberRefParser {
         return CallInfo(retCil, isInstance, assembly, ns, typeName, methodName, paramsCil)
     }
 
-    /** Разбирает field-ref `cilType [[Asm]]Ns.Type::fieldName`. */
+    /** Parses a field-ref `cilType [[Asm]]Ns.Type::fieldName`. */
     fun parseFieldRef(ref: String): FieldRefInfo {
         val sp = ref.indexOf(' ')
         require(sp > 0) { "Cannot parse field ref: '$ref'" }
@@ -125,8 +125,8 @@ internal object MemberRefParser {
     }
 
     /**
-     * Мэппинг CIL-алиасов примитивов на BCL-типы для синтезированного
-     * дефолтного ctor'а (базовый тип задан алиасом или квалифицированным именем).
+     * Maps CIL primitive aliases onto BCL types for the synthesized
+     * default ctor (the base type is given as an alias or a qualified name).
      */
     fun toBclTypeName(cilType: String): String =
         when (cilType) {

@@ -30,7 +30,7 @@ internal class MetadataSizes(
         // Call the length of the string (including the terminator) m (we require m <= 255).
         const val MAX_METADATA_VERSION_BYTE_COUNT = 0xff - 1
 
-        /** #Pdb stream payload (эталон csc net10): Id (16) + EntryPtTok (4) + токены (24). */
+        /** #Pdb stream payload (mirrors csc net10): Id (16) + EntryPtTok (4) + tokens (24). */
         internal const val PDB_STREAM_SIZE: Int = 44
 
         // Call it via [MetadataSizes] so that the masks stay next to their C# original.

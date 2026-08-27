@@ -1,10 +1,10 @@
-// libraries/stdlib/build.gradle.kts — каркас kotlin-dotnet-stdlib.
+// libraries/stdlib/build.gradle.kts — skeleton of kotlin-dotnet-stdlib.
 //
-// Компилируется обычным kotlinc (Kotlin JVM); к пользовательской
-// компиляции через наш PE-бэкенд НЕ подключён (этап B плана D-03:
-// подстановка вместо родного stdlib через -Xno-stdlib -cp <наш>.jar).
-// Пакеты зеркалируют upstream kotlin-stdlib, чтобы неявные импорты
-// и диффы с апстримом оставались простыми.
+// Built with plain kotlinc (Kotlin JVM); it is NOT wired
+// into user compilation through our PE backend (stage B of plan D-03:
+// substitution for the native stdlib via -Xno-stdlib -cp <our>.jar).
+// Packages mirror upstream kotlin-stdlib so that implicit imports
+// and diffs against upstream stay simple.
 plugins {
     kotlin("jvm") version "2.4.20-RC"
 }

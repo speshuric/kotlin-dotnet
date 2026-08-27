@@ -15,33 +15,33 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addMember
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addTypeReference
 
 /**
- * Резолв операндов инструкций и кэш внешних ссылок (J-01).
+ * Resolution of instruction operands and the external-reference cache (J-01).
  *
- * Знает парсер ([MemberRefParser]) и сигнатуры ([PeSignatures]), но не
- * модель строк целиком: доступ к своим методам/типам инъецируется
- * колбэками из [PeIlEmitter] (см. конструктор).
+ * Knows the parser ([MemberRefParser]) and the signatures ([PeSignatures]) but not
+ * the full row model: access to own methods/types is injected via callbacks from
+ * [PeIlEmitter] (see the constructor).
  *
- * Свои методы (assembly == null в ref) разрешаются напрямую в MethodDef
- * (хэндлы предвыделены); внешние — в MemberRef поверх TypeRef указанной
- * сборки. Свои классы — ПРЯМО TypeDef (row id предвычислен: порядок строк
- * фиксирован — &lt;Module&gt;, контейнер, классы); NIL-scope TypeRef
- * спецификацией допустим и работает на net10 CLR (TODO/PHASE-10.md
- * §«Итоги»), но компиляторами не используется.
+ * Own methods (assembly == null in the ref) resolve directly into a MethodDef
+ * (handles are preallocated); external ones go into a MemberRef over the TypeRef of
+ * the given assembly. Own classes resolve DIRECTLY to a TypeDef (the row id is
+ * precomputed: the row order is fixed — &lt;Module&gt;, container, classes); a
+ * NIL-scope TypeRef is permitted by the spec and works on the net10 CLR
+ * (TODO/PHASE-10.md §"Summary"), but no compiler uses it.
  */
 internal class PeReferenceResolver(
     private val metadata: MetadataBuilder,
-    /** Поиск своего метода по разобранному ref (null → unknown-method). */
+    /** Looks up an own method by the parsed ref (null → unknown-method). */
     private val findOwnMethod: (info: MemberRefParser.CallInfo) -> MethodRec?,
-    /** Диагностика списка известных методов для ошибки unresolved. */
+    /** Produces the list of known methods for diagnostics on unresolved refs. */
     private val describeOwnMethods: () -> String,
-    /** Row id (1-based) своего TypeDef по имени или null. */
+    /** The row id (1-based) of an own TypeDef by name, or null. */
     private val findOwnTypeDefRow: (t: MemberRefParser.TypeNameInfo) -> Int?,
 ) {
     private val assemblyRefs = HashMap<String, AssemblyReferenceHandle>()
     private val typeRefs = HashMap<String, TypeReferenceHandle>()
 
     /**
-     * Разрешает call/callvirt/newobj-ref в токен (MethodDef или MemberRef).
+     * Resolves a call/callvirt/newobj ref into a token (MethodDef or MemberRef).
      */
     fun resolveCallTarget(ref: String): EntityHandle {
         val info = MemberRefParser.parseCallRef(ref)
@@ -63,7 +63,7 @@ internal class PeReferenceResolver(
         ).toEntityHandle()
     }
 
-    /** Разрешает field-ref (`cilType [[Asm]]Ns.T::name`) в MemberRef-токен. */
+    /** Resolves a field-ref (`cilType [[Asm]]Ns.T::name`) into a MemberRef token. */
     fun fieldRefToken(ref: String): EntityHandle {
         val f = MemberRefParser.parseFieldRef(ref)
         val b = BlobBuilder()
@@ -78,9 +78,9 @@ internal class PeReferenceResolver(
     /**
      * Assembly-level [DebuggableAttribute] (System.Diagnostics).
      *
-     * @param modes битовая маска DebuggingModes; csc /debug+ использует
+     * @param modes the DebuggingModes bit mask; csc /debug+ uses
      *        Default|IgnoreSymbolStoreSequencePoints|EnableEditAndContinue|
-     *        DisableOptimizations = 0x0107, release-сборки атрибут не ставят.
+     *        DisableOptimizations = 0x0107; release builds do not emit the attribute.
      */
     fun addAssemblyDebuggableAttribute(modes: Int) {
         val attrType = typeRef(SYSTEM_RUNTIME_ASSEMBLY, "System.Diagnostics", "DebuggableAttribute")
@@ -115,7 +115,7 @@ internal class PeReferenceResolver(
         )
     }
 
-    /** Разрешает имя типа в EntityHandle (TypeDefOrRef), см. классовую документацию. */
+    /** Resolves a type name into an EntityHandle (TypeDefOrRef); see the class documentation. */
     fun resolveTypeEntity(cilType: String): EntityHandle {
         findOwnTypeDefRow(MemberRefParser.parseTypeName(cilType))?.let {
             return MetadataTokens.typeDefinitionHandle(it).toEntityHandle()
@@ -136,8 +136,8 @@ internal class PeReferenceResolver(
         assemblyRefs[name]?.let { return it }
         val ref =
             if (name == SYSTEM_RUNTIME_ASSEMBLY) {
-                // Проверенная связка из HelloWorldImage (тест 05-pe-hello):
-                // версия + PublicKeyToken обеспечивают привязку на net10.
+                // A combination verified in HelloWorldImage (test 05-pe-hello):
+                // version + PublicKeyToken provide binding on net10.
                 metadata.addAssemblyReference(
                     name = metadata.getOrAddString(name),
                     version = AssemblyVersion(8, 0, 0, 0),
@@ -164,9 +164,9 @@ internal class PeReferenceResolver(
         val key = "$assemblyName|$namespace|$typeName"
         typeRefs[key]?.let { return it }
 
-        // System.* базовые типы всегда резолвим через System.Runtime
-        // (проверено в HelloWorldImage); прочие — через указанную сборку
-        // либо без scope (same-module типы).
+        // System.* base types always resolve through System.Runtime
+        // (verified in HelloWorldImage); others go through the given assembly
+        // or without a scope (same-module types).
         val scope =
             if (assemblyName.isEmpty()) {
                 EntityHandle.NIL
@@ -187,7 +187,7 @@ internal class PeReferenceResolver(
     private fun systemObjectRef(): TypeReferenceHandle = typeRef(SYSTEM_RUNTIME_ASSEMBLY, "System", "Object")
 
     private companion object {
-        /** PublicKeyToken BCL-сборок (b03f5f7f11d50a3a). */
+        /** PublicKeyToken of the BCL assemblies (b03f5f7f11d50a3a). */
         val BCL_PUBLIC_KEY_TOKEN =
             byteArrayOf(
                 0xB0.toByte(), 0x3F, 0x5F, 0x7F, 0x11, 0xD5.toByte(), 0x0A, 0x3A,

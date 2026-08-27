@@ -4,13 +4,13 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.BlobBuilder
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataBuilder
 
 /**
- * Кодирование элементов portable PDB, которых нет в write-path SRM
- * (апстримные аналоги живут в Roslyn: SequencePointListEncoder и
- * кодирование имени Document). Compressed integers — ECMA-335 II.23.2.
+ * Encodes the portable PDB pieces missing from write-path SRM
+ * (the upstream counterparts live in Roslyn: SequencePointListEncoder and
+ * Document name encoding). Compressed integers follow ECMA-335 II.23.2.
  */
 internal object PePdbEncoder {
 
-    /** Одна запись sequence point; строки/колонки 1-based. */
+    /** A single sequence point record; lines/columns are 1-based. */
     data class SequencePointRecord(
         val offset: Int,
         val startLine: Int,

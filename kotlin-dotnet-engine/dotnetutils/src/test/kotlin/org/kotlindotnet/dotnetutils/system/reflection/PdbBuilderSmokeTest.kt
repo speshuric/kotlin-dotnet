@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Самосогласованность standalone-образа через публичный [PdbBuilder]. */
+/** Self-consistency of the standalone image via the public [PdbBuilder]. */
 class PdbBuilderSmokeTest {
     @Test
     fun `standalone pdb built by PdbBuilder is self-consistent`() {

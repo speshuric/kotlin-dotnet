@@ -172,7 +172,7 @@ class MetadataBuilderAddTests {
     fun addMethodDebugInformation_nilDocument() {
         val mb = newBuilder()
         mb.addMethodDebugInformation(org.kotlindotnet.dotnetutils.system.reflection.metadata.DocumentHandle.fromRowId(0), mb.getOrAddBlob(BlobBuilder()))
-        // nil-document форма: Document column == 0
+        // nil-document form: Document column == 0
         assertEquals(1, mb.getRowCount(TableIndex.METHOD_DEBUG_INFORMATION))
     }
 
@@ -196,8 +196,8 @@ class MetadataBuilderAddTests {
 
     @Test
     fun encodeSequencePoints_compressedLayout() {
-        // Компрессия ECMA II.23.2 проверяется на стороне компилятора
-        // (PePdbEncoder); здесь — только размеры строк таблиц.
+        // ECMA II.23.2 compression is verified on the compiler side
+        // (PePdbEncoder); here we only check table row sizes.
         assertEquals(10, 8 + 2) // Document row: string + 2*guid + blob (small)
     }
 }

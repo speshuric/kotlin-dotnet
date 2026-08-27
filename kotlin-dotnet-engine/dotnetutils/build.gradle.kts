@@ -1,8 +1,8 @@
-// dotnetutils/build.gradle.kts — сборка org.kotlindotnet.dotnetutils
+// dotnetutils/build.gradle.kts — build for org.kotlindotnet.dotnetutils
 //
-// Чисто-Kotlin библиотека (только kotlin-stdlib, без java.* в исходниках):
-// полный цикл создания .NET-сборок (PE DLL/EXE) — порт write-path
-// System.Reflection.Metadata (см. adr/0009-srm-port-to-kotlin.md).
+// Pure-Kotlin library (kotlin-stdlib only, no java.* in the sources):
+// the full cycle of producing .NET assemblies (PE DLL/EXE) — a port of the write-path
+// System.Reflection.Metadata (see adr/0009-srm-port-to-kotlin.md).
 plugins {
     kotlin("jvm") version "2.4.20-RC"
 }

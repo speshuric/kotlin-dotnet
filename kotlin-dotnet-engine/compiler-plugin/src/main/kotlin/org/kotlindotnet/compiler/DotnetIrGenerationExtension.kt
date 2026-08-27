@@ -11,19 +11,19 @@ import java.io.File
 import org.kotlindotnet.compiler.util.Log
 
 /**
- * Точечный вход плагина: перехватывает IR модуля после фронтенда (K2).
+ * The plugin's entry point: intercepts the module IR after the frontend (K2).
  *
- * - IR-dump: `ir-dump-<moduleFragment.name>.txt` в [outputDir]
- *   (best-effort, через [Log.warn] при неудаче); в конец дампа дописывается
- *   сводка распознанных плагином аннотаций на декларациях и файловых
- *   (@file:) аннотаций — см. [annotationDump].
- * - PE-генерация: `outputDir/<asmName>.<kind>`. Ошибка эмиссии — не silent:
- *   бросает `IllegalStateException` с контекстом (имя файла), что
- *   фейлит компиляцию (см. A-02, ADR 0007).
+ * - IR dump: `ir-dump-<moduleFragment.name>.txt` in [outputDir]
+ *   (best-effort, via [Log.warn] on failure); the end of the dump gets a
+ *   summary of the annotations the plugin recognizes on declarations and on
+ *   file-level (@file:) annotations — see [annotationDump].
+ * - PE generation: `outputDir/<asmName>.<kind>`. An emission error is not
+ *   silent: it throws an `IllegalStateException` with context (the file name),
+ *   which fails the compilation (see A-02, ADR 0007).
  *
- * Директория вывода задаётся через CLI-опцию `output.dir` (см.
- * [DotnetCommandLineProcessor], ADR 0007). Плагин не хардкодит `build/`
- * в путях — `outputDir` приходит через конструктор.
+ * The output directory is set through the CLI option `output.dir` (see
+ * [DotnetCommandLineProcessor], ADR 0007). The plugin does not hardcode
+ * `build/` in paths — `outputDir` arrives via the constructor.
  */
 class DotnetIrGenerationExtension(
     private val outputDir: File,
@@ -35,9 +35,9 @@ class DotnetIrGenerationExtension(
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
         outputDir.mkdirs()
 
-        // Дамп IR — отладочный best-effort вывод (один файл на модуль).
-        // Имя содержит имя модуля, чтобы не перетираться между модулями.
-        // runCatching тут уместен: dump — не часть контракта эмиссии.
+        // The IR dump is a debug-only best-effort output (one file per module).
+        // The name embeds the module name so modules do not overwrite each other.
+        // runCatching is appropriate here: the dump is not part of the emission contract.
         val dumpName = "ir-dump-${moduleFragment.name}.txt"
         runCatching {
             val dumpFile = File(outputDir, dumpName)
@@ -47,13 +47,13 @@ class DotnetIrGenerationExtension(
             Log.warn("IR dump failed ($dumpName): ${e.message}")
         }
 
-        // Генерация — НЕ best-effort: ошибка эмиссии летит наружу и
-        // фейлит компиляцию. visitor бросает TODO на неподдержанных узлах
-        // — это нужное поведение (fail-fast, не silent empty output).
+        // Generation is NOT best-effort: an emission error propagates outward
+        // and fails the compilation. The visitor throws TODO on unsupported nodes —
+        // that is the intended behavior (fail-fast, not a silent empty output).
         for (irFile in moduleFragment.files) {
             val asmName = NameMapper.assemblyName(irFile)
 
-            // ADR 0010: прямая генерация PE через dotnetutils.
+            // ADR 0010: generate the PE directly via dotnetutils.
             val outFile = File(outputDir, "$asmName.$outputKind")
             // Collector lives outside the try: the strict failure path in
             // catch reads what the visitor managed to tally before aborting.
@@ -72,7 +72,7 @@ class DotnetIrGenerationExtension(
                 Log.info("PDB: ${pdbFile.absolutePath}")
                 Log.info("PE ($outputKind): ${outFile.absolutePath}")
 
-                // Stdlib coverage policy (stdlib strategy Р3): applied AFTER
+                // Stdlib coverage policy (stdlib strategy R3): applied AFTER
                 // successful emission so strict failures list everything at
                 // once; the artifact is already written but compilation will
                 // fail below - delete it to avoid a stale binary.
@@ -103,15 +103,15 @@ class DotnetIrGenerationExtension(
     }
 
     /**
-     * Дополняет текстовый dump сводкой аннотаций, которые плагин умеет
-     * читать (см. [StdlibAnnotations]): обычные аннотации на декларациях
-     * и файловые (@file:) — на [org.jetbrains.kotlin.ir.declarations.IrFile]
-     * (он тоже IrAnnotationContainer). Секция предназначена для отладки
-     * чтения аннотаций без отладчика; формат строк стабилен:
-     *   annotations: <куда> <fqname>[(<значение>)]
+     * Appends to the textual dump a summary of the annotations the plugin can
+     * read (see [StdlibAnnotations]): regular annotations on declarations and
+     * file-level (@file:) ones on [org.jetbrains.kotlin.ir.declarations.IrFile]
+     * (it is an IrAnnotationContainer too). This section exists to debug
+     * annotation reading without a debugger; the line format is stable:
+     *   annotations: <where> <fqname>[(<value>)]
      *
-     * Файловая секция печатается первой: файловые таргеты применяются ко
-     * всему модулю, их место — до деклараций.
+     * The file-level section is printed first: file targets apply to the whole
+     * module and belong before the declarations.
      */
     private fun annotationDump(moduleFragment: org.jetbrains.kotlin.ir.declarations.IrModuleFragment): String =
         buildString {
@@ -145,10 +145,10 @@ class DotnetIrGenerationExtension(
 }
 
 /**
- * Стабильное имя узла для строк дампа: IR-реализации носят суффикс Impl
- * (IrClassImpl/IrFunctionImpl), который не является контрактом; в дампе
- * оставляем семантическое имя, чтобы dump-grep-шаблоны тестов были
- * устойчивы к внутреннему неймингу.
+ * A stable node name for dump lines: IR implementations carry an Impl suffix
+ * (IrClassImpl/IrFunctionImpl) that is not part of any contract; the dump keeps
+ * the semantic name so test dump-grep patterns stay robust against internal
+ * naming changes.
  */
 private fun IrDeclaration.dumpKindHint(): String =
     (this::class.simpleName ?: "decl").removeSuffix("Impl")

@@ -27,14 +27,14 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataT
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.TableIndex
 import kotlin.uuid.Uuid
 
-/** Строка таблицы TypeRef (II.22.31). */
+/** A TypeRef table row (II.22.31). */
 data class TypeRefRow(
     val resolutionScope: EntityHandle,
     val namespace: String,
     val name: String,
 )
 
-/** Строка таблицы TypeDef (II.22.37). */
+/** A TypeDef table row (II.22.37). */
 data class TypeDefRow(
     val flags: UInt,
     val namespace: String,
@@ -44,7 +44,7 @@ data class TypeDefRow(
     val methodList: MethodDefinitionHandle,
 )
 
-/** Строка таблицы MethodDef (II.22.26). */
+/** A MethodDef table row (II.22.26). */
 data class MethodRow(
     val rva: Int,
     val implFlags: Int,
@@ -54,7 +54,7 @@ data class MethodRow(
     val parameterList: ParameterHandle,
 )
 
-/** Строка таблицы MemberRef (II.22.25). */
+/** A MemberRef table row (II.22.25). */
 data class MemberRefRow(
     val parent: EntityHandle,
     val name: String,
@@ -92,9 +92,9 @@ data class AssemblyRefInfo(
 )
 
 /**
- * Минимальный читатель CLI-метаданных поверх образа в памяти
- * (ADR 0011). [imageOffset] — смещение корня метаданных (сигнатура
- * "BSJB"); для standalone-блоба метаданных используйте 0.
+ * Minimal CLI metadata reader over an in-memory image
+ * (ADR 0011). [imageOffset] is the offset of the metadata root (the
+ * "BSJB" signature); pass 0 for a standalone metadata blob.
  */
 class MetadataReader(
     private val image: ByteArray,
@@ -132,7 +132,7 @@ class MetadataReader(
 
         repeat(streamCount) {
             val offset = readUInt32(p)
-            p += 8 // offset + size (size не нужен минимальному ридеру)
+            p += 8 // offset + size (the size is not needed by the minimal reader)
             val nameStart = p
             while (image[p] != 0.toByte()) p++
             val name = image.decodeToString(nameStart, p)
@@ -160,7 +160,7 @@ class MetadataReader(
 
         heapSizesFlags = u8(tables + 6)
         validMask = readInt64(tables + 8)
-        // sortedMask at +16 — не используется минимальным ридером
+        // sortedMask at +16 — not used by the minimal reader
         var q = tables + 24
         for (t in 0 until 64) {
             if (validMask shr t and 1L != 0L) {
@@ -212,8 +212,8 @@ class MetadataReader(
     private fun fIdx() = simpleIdxWidth(TableIndex.FIELD)
     private fun mIdx() = simpleIdxWidth(TableIndex.METHOD_DEF)
     private fun pIdx() = simpleIdxWidth(TableIndex.PARAM)
-    // Число бит = ceil(log2(число тегов)): ResolutionScope — 4 тега -> 2,
-    // TypeDefOrRef — 3 тега -> 2, MemberRefParent — 5 тегов -> 3 (II.24.2.6).
+    // Bit count = ceil(log2(tag count)): ResolutionScope — 4 tags -> 2,
+    // TypeDefOrRef — 3 tags -> 2, MemberRefParent — 5 tags -> 3 (II.24.2.6).
     private fun rsIdx() = codedIdxWidth(2, TableIndex.MODULE, TableIndex.MODULE_REF, TableIndex.ASSEMBLY_REF, TableIndex.TYPE_REF)
     private fun tdorIdx() = codedIdxWidth(2, TableIndex.TYPE_DEF, TableIndex.TYPE_REF, TableIndex.TYPE_SPEC)
     private fun mrpIdx() = codedIdxWidth(3, TableIndex.TYPE_DEF, TableIndex.TYPE_REF, TableIndex.MODULE_REF, TableIndex.METHOD_DEF, TableIndex.TYPE_SPEC)
@@ -266,7 +266,7 @@ class MetadataReader(
     fun getGuid(handle: GuidHandle): Uuid {
         require(!handle.isNil) { "nil guid handle" }
         val at = guidOffset + (handle.index - 1) * 16
-        // .NET mixed-endian layout — точное зеркало BlobContentId.fromBytes:
+        // .NET mixed-endian layout — exact mirror of BlobContentId.fromBytes:
         // int32 a (LE) | int16 b (LE) | int16 c (LE) | 8 raw bytes (BE)
         val msb = (readUInt32(at).toLong() shl 32) or
             (readUInt16(at + 4).toLong() shl 16) or

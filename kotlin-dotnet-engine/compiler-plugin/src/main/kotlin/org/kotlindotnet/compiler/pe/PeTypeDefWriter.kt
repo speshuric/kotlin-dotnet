@@ -8,12 +8,12 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.addTypeDe
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ILOpCode
 
 /**
- * Финализация таблицы TypeDef (шаги endContainerClass после кодирования
- * тел): синтез дефолтных ctor'ов, вычисление диапазонов fieldList/
- * methodList каскадом с конца и запись TypeDef-строк с interface impl.
+ * Finalizes the TypeDef table (the endContainerClass steps after body encoding):
+ * synthesizing default ctors, computing the fieldList/methodList ranges as a
+ * cascade from the end, and writing TypeDef rows with interface impls.
  *
- * Порядок групп фиксирован: &lt;Module&gt;, контейнер top-level функций,
- * классы в порядке объявления — на нём держится предвычисление хэндлов
+ * The group order is fixed: &lt;Module&gt;, the container of top-level functions,
+ * classes in declaration order — handle precomputation rests on it
  * ([PeIlEmitter]).
  */
 internal object PeTypeDefWriter {
@@ -28,10 +28,10 @@ internal object PeTypeDefWriter {
     )
 
     /**
-     * Шаг 1: синтез дефолтного .ctor (D3) для классов без конструкторов.
-     * K2 всегда кладёт primary ctor в IR (наблюдение P5), поэтому ветка —
-     * страховка от дегенеративного IR. Интерфейсам конструкторы не нужны
-     * (CLR: только abstract/cctor).
+     * Step 1: synthesize a default .ctor (D3) for classes without constructors.
+     * K2 always puts a primary ctor into the IR (observation P5), so this branch is
+     * insurance against degenerate IR. Interfaces need no constructors
+     * (in the CLR: only abstract/cctor).
      */
     fun synthesizeDefaultCtors(classes: List<ClassRec>) {
         for (cls in classes) {
@@ -44,7 +44,7 @@ internal object PeTypeDefWriter {
         }
     }
 
-    /** D3: дефолтный публичный `.ctor()` — `ldarg.0; call base::.ctor(); ret`. */
+    /** D3: a default public `.ctor()` — `ldarg.0; call base::.ctor(); ret`. */
     private fun synthesizeDefaultCtor(cls: ClassRec): MethodRec {
         val rec = MethodRec(".ctor", "void", emptyList(), isEntrypoint = false, isInstance = true, isCtor = true)
         val base = cls.baseTypeCil ?: "object"
@@ -57,9 +57,9 @@ internal object PeTypeDefWriter {
     }
 
     /**
-     * Шаги 6–7: диапазоны групп (пустая группа начинает свой диапазон там
-     * же, где следующая — каскад с конца) и TypeDef-строки: обязательный
-     * &lt;Module&gt;, затем контейнер и классы (+ interface impl).
+     * Steps 6–7: group ranges (an empty group starts its range where the next one
+     * does — a cascade from the end) and TypeDef rows: the mandatory
+     * &lt;Module&gt;, then the container and classes (+ interface impls).
      */
     fun writeTypeDefinitions(
         metadata: MetadataBuilder,
@@ -94,7 +94,7 @@ internal object PeTypeDefWriter {
         val starts = arrayOfNulls<Pair<Int, Int>>(groups.size) // (fieldList, methodList)
         for (i in groups.indices.reversed()) {
             val g = groups[i]
-            // В C# хэндлы неявно конвертируются в EntityHandle; в Kotlin — явно.
+            // In C# handles convert to EntityHandle implicitly; in Kotlin it is explicit.
             val fStart =
                 g.fields.firstOrNull()?.let { MetadataTokens.getRowNumber(it.handle.toEntityHandle()) }
                     ?: nextFieldStart
@@ -129,8 +129,8 @@ internal object PeTypeDefWriter {
                 fieldList = MetadataTokens.fieldDefinitionHandle(fieldList),
                 methodList = MetadataTokens.methodDefinitionHandle(methodList),
             )
-            // Хэндлы предвычислены в ownTypeHandle — расхождение сломало бы
-            // все ссылки на свои типы.
+            // Handles were precomputed in ownTypeHandle — any mismatch would break
+            // every reference to own types.
             check(MetadataTokens.getRowNumber(handle.toEntityHandle()) == i + 1) {
                 "TypeDef row mismatch: predicted ${i + 1}, got ${MetadataTokens.getRowNumber(handle.toEntityHandle())}"
             }

@@ -8,19 +8,18 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.BlobEncod
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.SignatureCallingConvention
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.SignatureTypeEncoder
 
-/** Резолв CIL-имени типа в EntityHandle (TypeDefOrRef). */
+/** Resolves a CIL type name into an EntityHandle (TypeDefOrRef). */
 internal typealias TypeEntityResolver = (cilType: String) -> EntityHandle
 
 /**
- * Построение сигнатур из CIL-типового DSL (строки `int32`, `Ns.T`,
- * `[asm]Ns.T`). Знает о [MetadataBuilder]/BlobEncoder, но не о парсере
- * ссылок и модели строк: пользовательские типы приходят через
- * [typeEntityResolver] (инъекция, чтобы сигнатуры не зависели от
- * реестра типов).
+ * Builds signatures from the CIL type DSL (the strings `int32`, `Ns.T`,
+ * `[asm]Ns.T`). Knows about [MetadataBuilder]/BlobEncoder but not about the ref
+ * parser or the row model: user-defined types arrive via [typeEntityResolver]
+ * (injected so that signatures do not depend on the type registry).
  */
 internal object PeSignatures {
 
-    /** MethodDef/MemberRef-сигнатура метода. */
+    /** A MethodDef/MemberRef method signature. */
     fun buildSignature(
         metadata: MetadataBuilder,
         resolveTypeEntity: TypeEntityResolver,
@@ -47,7 +46,7 @@ internal object PeSignatures {
         return metadata.getOrAddBlob(b)
     }
 
-    /** Field-сигнатура. */
+    /** A field signature. */
     fun fieldSignature(
         metadata: MetadataBuilder,
         resolveTypeEntity: TypeEntityResolver,
@@ -58,7 +57,7 @@ internal object PeSignatures {
         return metadata.getOrAddBlob(b)
     }
 
-    /** Применяет CIL-тип к кодировщику: примитивы напрямую, остальное — через resolver. */
+    /** Applies a CIL type to the encoder: primitives directly, everything else through the resolver. */
     fun applyCilType(
         enc: SignatureTypeEncoder,
         cilType: String,
@@ -80,15 +79,15 @@ internal object PeSignatures {
             "string" -> enc.string()
             "object" -> enc.objectType()
             else -> {
-                // Пользовательский тип ("Ns.Name", "[asm]Ns.Name") — reference type.
+                // A user-defined type ("Ns.Name", "[asm]Ns.Name") — a reference type.
                 enc.type(resolveTypeEntity(cilType), isValueType = false)
             }
         }
     }
 
     /**
-     * BCL-тип для box/newarr по CIL-алиасу примитива; для не-примитивов —
-     * ошибка (как раньше: box пользовательского типа не поддержан).
+     * The BCL type for box/newarr from a CIL primitive alias; non-primitives
+     * are an error (as before: boxing a user-defined type is unsupported).
      */
     fun boxedTypeToken(cilType: String, resolveTypeEntity: TypeEntityResolver): EntityHandle {
         val (ns, name) = bclPrimitiveName(cilType)
@@ -96,7 +95,7 @@ internal object PeSignatures {
         return resolveTypeEntity("$ns.$name")
     }
 
-    /** (namespace, name) BCL-типа примитива или null, если [cilType] — не алиас. */
+    /** The (namespace, name) of a primitive's BCL type, or null if [cilType] is not an alias. */
     private fun bclPrimitiveName(cilType: String): Pair<String, String>? =
         when (cilType) {
             "bool" -> "System" to "Boolean"

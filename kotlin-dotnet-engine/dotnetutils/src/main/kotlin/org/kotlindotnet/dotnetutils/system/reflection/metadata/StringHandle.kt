@@ -74,8 +74,8 @@ value class StringHandle private constructor(
     override fun toString(): String = "$className(0x%08X)".format(rawValue.toInt())
 
     companion object {
-        // composite vType (virtual-bit layout) — tokenTypeSmall как константа
-        // не выражается; унифицируем только имя типа.
+        // composite vType (virtual-bit layout): it cannot be expressed as a
+        // tokenTypeSmall constant, so only the type name is unified.
         private val className: String get() = "StringHandle"
 
         internal fun fromRaw(rawValue: UInt) = StringHandle(rawValue)

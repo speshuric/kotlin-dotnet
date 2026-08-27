@@ -52,8 +52,8 @@ value class NamespaceDefinitionHandle private constructor(
 
     override fun toString(): String = "$className(0x%08X)".format(rawValue.toInt())
 
-    // composite vType (virtual-bit layout) — tokenTypeSmall константой не
-    // выражается; унифицируем только имя типа.
+    // composite vType (virtual-bit layout): it cannot be expressed through a
+    // tokenTypeSmall constant, so only the type name is unified.
     companion object {
         private val className: String get() = "NamespaceDefinitionHandle"
 

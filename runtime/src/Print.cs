@@ -1,8 +1,8 @@
 namespace Kotlin.Runtime;
 
 /// <summary>
-/// Аналог kotlin.io.println / kotlin.io.print.
-/// Компилятор генерирует вызовы к этому классу, а не к System.Console напрямую.
+/// Equivalent of kotlin.io.println / kotlin.io.print.
+/// The compiler generates calls to this class, not directly to System.Console.
 /// </summary>
 public static class Print
 {

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# scripts/build.sh — собрать компоненты проекта.
+# scripts/build.sh — builds project components.
 #
-# Использование:
+# Usage:
 #   build.sh <target> <config> [--no-test]
 #     target  ∈ plugin | runtime | all
 #     config  ∈ debug | release
 #
-# Примеры:
-#   build.sh plugin debug           # только plugin JAR
-#   build.sh runtime release        # только KotlinDotnetRuntime.dll
-#   build.sh all debug               # plugin + runtime + все тесты
-#   build.sh all debug --no-test     # без верификации тестов
+# Examples:
+#   build.sh plugin debug           # plugin JAR only
+#   build.sh runtime release        # KotlinDotnetRuntime.dll only
+#   build.sh all debug               # plugin + runtime + all tests
+#   build.sh all debug --no-test     # skip test verification
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,14 +21,14 @@ ensure_env
 PROJECT_ROOT="${PROJECT_ROOT:-$KOTLIN_DOTNET_PROJECT_ROOT}"
 cd "$PROJECT_ROOT"
 
-# --- DSH prelude: writable HOME/GRADLE/XDG (read-only корневая ФС) ---
+# --- DSH prelude: writable HOME/GRADLE/XDG (read-only root filesystem) ---
 export GRADLE_USER_HOME="$PROJECT_ROOT/build/tmp/gradle-home"
 export XDG_RUNTIME_DIR="$PROJECT_ROOT/build/tmp/runtime"
 export HOME="$PROJECT_ROOT/build/tmp/home"
 export DOTNET_CLI_HOME="$HOME"
 mkdir -p "$GRADLE_USER_HOME" "$XDG_RUNTIME_DIR" "$HOME"
 
-# --- Разбор аргументов ---
+# --- Argument parsing ---
 target="${1:-}"
 config="${2:-debug}"
 no_test_arg=""

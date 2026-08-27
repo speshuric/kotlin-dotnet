@@ -1,4 +1,4 @@
-// Адаптировано из kotlin spec-теста:
+// Adapted from a Kotlin spec test:
 // .sources/kotlin/.../loop-statements/while-loop-statement/p-1/pos/2.1.kt
 //
 // KOTLIN CODEGEN BOX SPEC TEST (POSITIVE)

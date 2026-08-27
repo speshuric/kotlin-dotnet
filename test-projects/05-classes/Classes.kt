@@ -1,8 +1,8 @@
-// Phase 10: классы — поля, конструкторы (в т.ч. синтез дефолтного),
-// instance-методы (callvirt), наследование extends, интерфейс implements,
-// open/override — виртуальная диспетчеризация через базовую переменную.
+// Classes: fields, constructors (including the synthesized default one),
+// instance methods (callvirt), base-class inheritance, interface implementation,
+// open/override - virtual dispatch through a base-typed variable.
 //
-// Ожидаемый вывод (проверяется в scripts/build-test.sh):
+// Expected output (checked by scripts/build-test.sh):
 //   3
 //   3
 //   2
@@ -54,16 +54,16 @@ fun main() {
     println(c.count) // 2
 
     val lp = LabeledPoint(4, 5, "LP")
-    println(lp.sum()) // 9 — унаследованный метод
-    println(lp.label) // LP — собственное свойство производного класса
+    println(lp.sum()) // 9 - inherited method
+    println(lp.label) // LP - property declared in the derived class
 
     val s: Shape = Circle(3)
-    println("shape") // маркер implements
+    println("shape") // marker of interface implementation
 
     val a: Animal = Dog("Rex")
     println(a.sound()) // 2 — virtual dispatch
     println(a.name) // Rex
 
     val e = Empty()
-    println("ok") // дефолтный ctor
+    println("ok") // default ctor
 }

@@ -11,8 +11,8 @@ import org.kotlindotnet.dotnetutils.system.reflection.portableexecutable.PEHeade
 import java.io.File
 
 /**
- * Финальная сериализация образа: корень метаданных + IL-поток → PE-файл
- * (.exe/.dll). Единственное место, знающее о PE-заголовках.
+ * Final image serialization: metadata root + IL stream → a PE file
+ * (.exe/.dll). The only place that knows about PE headers.
  */
 internal object PeImageWriter {
 

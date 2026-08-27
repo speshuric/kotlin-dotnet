@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# scripts/test.sh — запустить тесты по селектору.
+# scripts/test.sh — runs tests by selector.
 #
-# Использование:
+# Usage:
 #   test.sh <selector>
-#     selector ∈ all | <testid> | <glob> (например 04*)
+#     selector ∈ all | <testid> | <glob> (e.g. 04*)
 #
-# Примеры:
+# Examples:
 #   test.sh              # all
 #   test.sh all
 #   test.sh 00-int-add
@@ -20,7 +20,7 @@ ensure_env
 PROJECT_ROOT="${PROJECT_ROOT:-$KOTLIN_DOTNET_PROJECT_ROOT}"
 cd "$PROJECT_ROOT"
 
-# --- DSH prelude: writable HOME/GRADLE/XDG (read-only корневая ФС) ---
+# --- DSH prelude: writable HOME/GRADLE/XDG (read-only root filesystem) ---
 export GRADLE_USER_HOME="$PROJECT_ROOT/build/tmp/gradle-home"
 export XDG_RUNTIME_DIR="$PROJECT_ROOT/build/tmp/runtime"
 export HOME="$PROJECT_ROOT/build/tmp/home"
@@ -38,7 +38,7 @@ if [ -z "$ids" ]; then
     exit 1
 fi
 
-# --- Гарантируем, что plugin + runtime собраны (пропускаем если уже есть) ---
+# --- Make sure plugin + runtime are built (skipped when already present) ---
 PLUGIN_JAR="kotlin-dotnet-engine/compiler-plugin/build/libs/dotnet-compiler-plugin-0.1.0-SNAPSHOT.jar"
 if [ ! -f "$PLUGIN_JAR" ]; then
     log_info "plugin JAR missing, building..."
@@ -59,7 +59,7 @@ if [ -z "$RUNTIME_DLL" ]; then
 fi
 require_file "$RUNTIME_DLL" "runtime DLL not found: $RUNTIME_DLL"
 
-# --- Запуск каждого теста ---
+# --- Run each test ---
 failed=0
 passed=0
 for id in $ids; do

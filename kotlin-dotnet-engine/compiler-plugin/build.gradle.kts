@@ -1,4 +1,4 @@
-// compiler-plugin/build.gradle.kts — сборка Kotlin compiler plugin
+// compiler-plugin/build.gradle.kts — build for the Kotlin compiler plugin
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -11,9 +11,9 @@ repositories {
 }
 
 dependencies {
-    // compileOnly: артефакт предоставляется kotlinc в рантайме.
+    // compileOnly: the artifact is provided by kotlinc at runtime.
     compileOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.4.20-RC")
-    // PE-бэкенд (ADR 0010): классы бандлятся в plugin JAR (см. tasks.jar).
+    // PE backend (ADR 0010): classes are bundled into the plugin JAR (see tasks.jar).
     implementation(project(":dotnetutils"))
 }
 
@@ -23,9 +23,9 @@ kotlin {
 
 tasks.withType<KotlinCompile>().configureEach {
     compilerOptions {
-        // API плагина помечен @ExperimentalCompilerApi
+        // The plugin API is marked @ExperimentalCompilerApi
         freeCompilerArgs.add("-opt-in=org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi")
-        // Uuid.random() для MVID в PE-бэкенде
+        // Uuid.random() for MVIDs in the PE backend
         freeCompilerArgs.add("-opt-in=kotlin.uuid.ExperimentalUuidApi")
     }
 }
@@ -34,16 +34,16 @@ tasks.jar {
     archiveBaseName.set("dotnet-compiler-plugin")
     archiveVersion.set("0.1.0-SNAPSHOT")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    // Бандлим классы dotnetutils внутрь plugin JAR — kotlinc грузит
-    // один JAR через -Xplugin, отдельных зависимостей не ждёт.
+    // Bundle the dotnetutils classes into the plugin JAR — kotlinc loads a
+    // single JAR via -Xplugin and expects no separate dependencies.
     val duJar = project(":dotnetutils").tasks.named("jar")
     dependsOn(duJar)
     from(zipTree(duJar.map { it.outputs.files.singleFile }))
 }
 
-// Тесты контракта IlEmitter (A-03). Компилируются через `:compiler-plugin:compileTestKotlin`,
-// но не входят в plugin JAR. Запускать через `./gradlew :compiler-plugin:test` (когда
-// появится JUnit); пока — отдельный файл с `fun main()` для ручной проверки контракта.
+// IlEmitter contract tests (A-03). Compiled via `:compiler-plugin:compileTestKotlin`,
+// but not included in the plugin JAR. Run via `./gradlew :compiler-plugin:test` (once
+// JUnit lands); for now — a standalone file with `fun main()` for manual contract checks.
 sourceSets {
     test {
         kotlin.srcDir("src/test/kotlin")

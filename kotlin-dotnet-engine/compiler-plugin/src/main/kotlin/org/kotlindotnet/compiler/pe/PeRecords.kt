@@ -5,10 +5,10 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataT
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.MethodDefinitionHandle
 
 /**
- * Модель данных pe-бэкенда: строки таблиц метаданных в порядке вставки
- * (ADR 0010). Порядок групп фиксирован: &lt;Module&gt;, контейнер
- * top-level функций, пользовательские классы — на нём держится
- * предвычисление хэндлов ([PeIlEmitter]).
+ * The pe backend's data model: metadata table rows in insertion order
+ * (ADR 0010). The group order is fixed — &lt;Module&gt;, the container of
+ * top-level functions, user-defined classes — and handle precomputation rests
+ * on it ([PeIlEmitter]).
  */
 internal class FieldRec(val cilType: String, val name: String) {
     var handle: FieldDefinitionHandle = MetadataTokens.fieldDefinitionHandle(0)
@@ -22,13 +22,13 @@ internal class MethodRec(
     val retCil: String,
     val paramsCil: List<String>,
     val isEntrypoint: Boolean,
-    /** Instance-метод или ctor (HASTHIS в сигнатуре, arg0 = this). */
+    /** An instance method or ctor (HASTHIS in the signature, arg0 = this). */
     val isInstance: Boolean,
     val isCtor: Boolean,
-    /** Явные MethodAttributes (open/override); null → по [attributes]. */
+    /** Explicit MethodAttributes (open/override); null → per [attributes]. */
     val attributesOverride: UInt? = null,
 ) {
-    /** MethodAttributes по умолчанию: ctor `0x1886`, instance `0x0086`, static `0x0096`. */
+    /** Default MethodAttributes: ctor `0x1886`, instance `0x0086`, static `0x0096`. */
     val attributes: Int =
         when {
             isCtor -> 0x1886 // Public | HideBySig | SpecialName | RTSpecialName
@@ -60,7 +60,7 @@ internal class ClassRec(
     val methods = mutableListOf<MethodRec>()
 }
 
-/** TypeAttributes.Interface (используется для extends=nil у интерфейсов). */
+/** TypeAttributes.Interface (used for extends=nil on interfaces). */
 internal const val INTERFACE_FLAG: UInt = 0x0020u
 
 internal const val SYSTEM_RUNTIME_ASSEMBLY = "System.Runtime"

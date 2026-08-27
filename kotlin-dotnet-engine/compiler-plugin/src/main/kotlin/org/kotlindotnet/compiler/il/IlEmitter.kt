@@ -1,48 +1,47 @@
 package org.kotlindotnet.compiler.il
 
 /**
- * Абстракция IL-эмиттера.
+ * Abstraction of the IL emitter.
  *
- * Контракт «IL корректен»: реализации гарантируют, что
- * `beginX`/`endX` парны, тело сбалансировано, заголовок есть.
- * `opcode`/`ldcI4`/`ldarg`/.../`label`/`declareLocal` разрешены
- * только внутри метода (`beginMethod` ... `endMethod`).
+ * Contract "the IL is correct": implementations guarantee that
+ * `beginX`/`endX` calls are paired, the body is balanced, and a header exists.
+ * `opcode`/`ldcI4`/`ldarg`/.../`label`/`declareLocal` are allowed
+ * only inside a method (`beginMethod` ... `endMethod`).
  *
- * Явные `begin/end` пары вместо лямбд `IlEmitter.() -> Unit`
- * (ADR 0005 — `this` в лямбде перекрывал бы `this@DotnetIrVisitor`).
+ * Explicit `begin/end` pairs instead of `IlEmitter.() -> Unit` lambdas
+ * (ADR 0005 — `this` inside the lambda would shadow `this@DotnetIrVisitor`).
  *
- * **A-04:** опкоды типизированы через [IlOpcode]. Общий метод
- * [opcode] покрывает опкод + строковые операнды; типизированные
- * хелперы ([ldcI4], [ldarg], [ldloc], [stloc], [ldstr], [br], ...)
- * инкапсулируют выбор коротких форм — visitor
- * не знает про `ldc.i4.0` vs `ldc.i4 0`.
+ * **A-04:** opcodes are typed via [IlOpcode]. The general-purpose
+ * [opcode] method covers opcode + string operands; typed helpers
+ * ([ldcI4], [ldarg], [ldloc], [stloc], [ldstr], [br], ...) encapsulate the choice
+ * of short forms — the visitor never sees `ldc.i4.0` vs `ldc.i4 0`.
  */
 interface IlEmitter {
 
     // === Assembly / module ===
 
-    /** Эмитит заголовок сборки (.assembly extern, .assembly, .module). */
+    /** Emits the assembly header (.assembly extern, .assembly, .module). */
     fun assemblyHeader(assemblyName: String, withRuntime: Boolean = false)
 
     //=== Container class (top-level functions) ===
 
-    /** Открывает класс-контейнер для top-level функций. */
+    /** Opens the container class for top-level functions. */
     fun beginContainerClass(namespace: String, className: String)
 
-    /** Закрывает класс-контейнер (+ эмитит default .ctor). */
+    /** Closes the container class (+ emits the default .ctor). */
     fun endContainerClass()
 
     //=== User classes (Phase 10, D2) ===
 
     /**
-     * Открывает пользовательский класс.
+     * Opens a user-defined class.
      *
-     * @param namespace namespace класса (verbatim из пакета).
-     * @param name имя класса verbatim ([NameMapper.className]).
+     * @param namespace the class namespace (verbatim from the package).
+     * @param name the class name verbatim ([NameMapper.className]).
      * @param flags TypeAttributes (Public|Sealed/Abstract|Interface|BeforeFieldInit...).
-     * @param baseTypeCil CIL-тип базового класса (`probe.p1.Point`, `object`);
-     *        null → object. Для интерфейсов игнорируется (extends = nil).
-     * @param interfaces CIL-имена реализуемых интерфейсов.
+     * @param baseTypeCil CIL type of the base class (`probe.p1.Point`, `object`);
+     *        null → object. Ignored for interfaces (extends = nil).
+     * @param interfaces CIL names of the implemented interfaces.
      */
     fun beginClass(
         namespace: String,
@@ -52,7 +51,7 @@ interface IlEmitter {
         interfaces: List<String> = emptyList(),
     )
 
-    /** Закрывает пользовательский класс (фиксирует диапазоны fieldList/methodList). */
+    /** Closes the user-defined class (fixes the fieldList/methodList ranges). */
     fun endClass()
 
     /**
@@ -62,12 +61,12 @@ interface IlEmitter {
     //=== Method ===
 
     /**
-     * Открывает метод. Унификация static/instance (Phase 10):
-     * `isStatic = true` — статический метод; `isStatic = false`
-     * объявляет instance-метод (arg0 = this, параметры с индекса 1).
+     * Opens a method. Static/instance unification (Phase 10):
+     * `isStatic = true` — a static method; `isStatic = false`
+     * declares an instance method (arg0 = this, parameters start at index 1).
      *
-     * @param params пары `cilType to paramName` — только Regular-параметры
-     *        (receiver не входит).
+     * @param params pairs of `cilType to paramName` — Regular parameters only
+     *        (the receiver is not included).
      * @param attributesOverride explicit MethodAttributes
      *        (Virtual/NewSlot for open/override); null → defaults
      *        (Public|HideBySig[|Static], ctor +SpecialName|RTSpecialName).
@@ -81,16 +80,16 @@ interface IlEmitter {
         attributesOverride: UInt? = null,
     )
 
-    /** Открывает конструктор (specialname rtspecialname `.ctor`). */
+    /** Opens a constructor (specialname rtspecialname `.ctor`). */
     fun beginConstructor(params: List<Pair<String, String>>)
 
-    /** Эмитит `.locals init (...)` если есть зарегистрированные локалки. */
+    /** Emits `.locals init (...)` if any locals were registered. */
     fun emitLocalsIfAny()
 
-    /** Закрывает метод. */
+    /** Closes the method. */
     fun endMethod()
 
-    /** Сбрасывает состояние локалок/меток между методами. */
+    /** Resets local/label state between methods. */
     fun resetMethodState()
 
     //=== Locals / labels ===
@@ -107,32 +106,32 @@ interface IlEmitter {
      */
     fun markSequencePoint(startLine: Int, startColumn: Int, endLine: Int, endColumn: Int) {}
 
-    /** Генерирует уникальную метку IL_<n>. */
+    /** Generates a unique label IL_<n>. */
     fun newLabel(): String
 
-    /** Эмитит метку `name:` на текущем отступе. */
+    /** Emits the label `name:` at the current indentation level. */
     fun label(name: String)
 
     //=== Instructions (A-04) ===
 
     /**
-     * Эмитит опкод [op] с операндами [operands] (через пробел).
+     * Emits opcode [op] with [operands] (space-separated).
      *
-     * Пример: `opcode(IlOpcode.BR, "IL_0")` → `br IL_0`.
-     * Для опкодов без операндов: `opcode(IlOpcode.ADD)` → `add`.
+     * Example: `opcode(IlOpcode.BR, "IL_0")` → `br IL_0`.
+     * For operand-free opcodes: `opcode(IlOpcode.ADD)` → `add`.
      *
-     * Контракт: только внутри [beginMethod] ... [endMethod].
-     * Короткие формы НЕ выбираются здесь — для типизированных
-     * операций (ldc/ldarg/ldloc/stloc) используйте хелперы ниже.
+     * Contract: only inside [beginMethod] ... [endMethod].
+     * Short forms are NOT chosen here — for typed operations
+     * (ldc/ldarg/ldloc/stloc) use the helpers below.
      */
     fun opcode(op: IlOpcode, vararg operands: String)
 
-    // --- Загрузка констант ---
+    // --- Loading constants ---
 
-    /** `ldc.i4 <value>` с короткими формами 0..8 и M1 для -1. */
+    /** `ldc.i4 <value>` with short forms for 0..8 and M1 for -1. */
     fun ldcI4(value: Int)
 
-    /** `ldc.i8 <value>` (малые 0..8 и -1 переиспользуют ldc.i4-формы). */
+    /** `ldc.i8 <value>` (small values 0..8 and -1 reuse the ldc.i4 forms). */
     fun ldcI8(value: Long)
 
     /** `ldc.r4 <value>`. */
@@ -141,21 +140,21 @@ interface IlEmitter {
     /** `ldc.r8 <value>`. */
     fun ldcR8(value: Double)
 
-    // --- Загрузка/сохранение ---
+    // --- Load/store ---
 
-    /** `ldarg <index>` с короткими формами 0..3. */
+    /** `ldarg <index>` with short forms for 0..3. */
     fun ldarg(index: Int)
 
-    /** `ldloc <index>` с короткими формами 0..3. */
+    /** `ldloc <index>` with short forms for 0..3. */
     fun ldloc(index: Int)
 
-    /** `stloc <index>` с короткими формами 0..3. */
+    /** `stloc <index>` with short forms for 0..3. */
     fun stloc(index: Int)
 
-    /** `ldstr "<escaped>"` с экранированием CIL. */
+    /** `ldstr "<escaped>"` with CIL escaping. */
     fun ldstr(s: String)
 
-    // --- Управление потоком (типизированные по метке) ---
+    // --- Control flow (typed by label) ---
 
     /** `br <label>`. */
     fun br(label: String)
@@ -166,21 +165,21 @@ interface IlEmitter {
     /** `brfalse <label>`. */
     fun brfalse(label: String)
 
-    // === Box / discard / массивы ===
+    // === Box / discard / arrays ===
 
-    /** `box <cilType>` (для value type → object). */
+    /** `box <cilType>` (a value type → object). */
     fun box(cilType: String)
 
-    /** `pop` — discard значения на вершине стека. */
+    /** `pop` — discards the value on top of the stack. */
     fun pop()
 
-    /** `dup` — копия значения на вершине стека. */
+    /** `dup` — duplicates the value on top of the stack. */
     fun dup()
 
-    /** `newarr <cilType>` — создать массив. */
+    /** `newarr <cilType>` — creates an array. */
     fun newarr(cilType: String)
 
-    /** `stelem.ref` — сохранить object в массив по индексу. */
+    /** `stelem.ref` — stores an object into an array by index. */
     fun stelemRef()
 
     //=== Result ===

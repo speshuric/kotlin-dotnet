@@ -1,29 +1,29 @@
 package org.kotlindotnet.compiler.il
 
 /**
- * Перечисление всех IL-опкодов, используемых компилятором (PoC).
+ * Enumeration of all IL opcodes used by the compiler (PoC).
  *
- * **Источник правды (A-04):** единственное место, где опкод
- * связывается со своим IL-текстовым представлением. Весь кодогенератор
- * работает с [IlOpcode], а реализацией эмиттера преобразует его в текст.
+ * **Single source of truth (A-04):** the only place where an opcode is bound to
+ * its textual IL representation. The whole code generator works with [IlOpcode];
+ * the emitter implementation converts it to text.
  *
- * **Не описывает все CIL-опкоды** — только то, что реально
- * эмитит `DotnetIrVisitor`. Расширяется по мере появления новых
- * (Phase 9+). Так `when (IlOpcode.X)` остаётся исчерпывающим.
+ * **Does not describe every CIL opcode** — only what `DotnetIrVisitor`
+ * actually emits. Grows as new ones appear (Phase 9+), so that
+ * `when (IlOpcode.X)` stays exhaustive.
  *
- * **Короткие формы** (`ldc.i4.0`...`ldc.i4.8`, `ldarg.0`...`ldarg.3`,
- * `ldloc.0`...`ldloc.3`, `stloc.0`...`stloc.3`) **не** выносятся сюда
- * как отдельные константы — они инкапсулированы в реализацией эмиттера
- * (`ldcI4(0)` → `ldc.i4.0`, `ldarg(0)` → `ldarg.0` и т.д.). Visitor
- * не должен знать про них. Перечисление хранит только «длинные»
- * формы (с операндом), а выбор короткой формы — реализация эмиттера.
+ * **Short forms** (`ldc.i4.0`...`ldc.i4.8`, `ldarg.0`...`ldarg.3`,
+ * `ldloc.0`...`ldloc.3`, `stloc.0`...`stloc.3`) are **not** lifted here as
+ * separate constants — they are encapsulated in the emitter implementation
+ * (`ldcI4(0)` → `ldc.i4.0`, `ldarg(0)` → `ldarg.0`, etc.). The visitor should
+ * not know about them. The enum stores only the "long" forms (with an operand);
+ * picking the short form is the emitter's job.
  *
- * TODO(BinaryIlEmitter): `IlOpcode → байт` + сериализация операндов.
+ * TODO(BinaryIlEmitter): `IlOpcode → byte` + operand serialization.
  *
- * @property il Текстовое представление опкода в CIL assembly language.
+ * @property il The textual representation of the opcode in CIL assembly language.
  */
 enum class IlOpcode(val il: String) {
-    // === Арифметика ===
+    // === Arithmetic ===
     ADD("add"),
     SUB("sub"),
     MUL("mul"),
@@ -31,38 +31,38 @@ enum class IlOpcode(val il: String) {
     REM("rem"),
     NEG("neg"),
 
-    // === Логические/битовые ===
+    // === Logical/bitwise ===
     AND("and"),
     OR("or"),
     XOR("xor"),
 
-    // === Сдвиги ===
+    // === Shifts ===
     SHL("shl"),
     SHR("shr"),
     SHR_UN("shr.un"),
 
-    // === Сравнения ===
+    // === Comparisons ===
     CEQ("ceq"),
     CGT("cgt"),
     CLT("clt"),
 
-    // === Управление потоком ===
+    // === Control flow ===
     RET("ret"),
     BR("br"),
     BRTRUE("brtrue"),
     BRFALSE("brfalse"),
 
-    // === Вызовы ===
+    // === Calls ===
     CALL("call"),
     CALLVIRT("callvirt"),
     NEWOBJ("newobj"),
 
-    // === Загрузка констант (без операнда) ===
+    // === Constant loads (no operand) ===
     LDNULL("ldnull"),
     LDSTR("ldstr"),
 
-    // === Загрузка констант (с операндом) ===
-    /** `ldc.i4 <int>` — короткие формы 0..8 и M1 выбирает эмиттером (ldcI4). */
+    // === Constant loads (with operand) ===
+    /** `ldc.i4 <int>` — short forms 0..8 and M1 are chosen by the emitter (ldcI4). */
     LDC_I4("ldc.i4"),
     /** `ldc.i8 <long>`. */
     LDC_I8("ldc.i8"),
@@ -71,34 +71,34 @@ enum class IlOpcode(val il: String) {
     /** `ldc.r8 <double>`. */
     LDC_R8("ldc.r8"),
 
-    // === Загрузка/сохранение (с операндом-индексом) ===
-    /** `ldarg <n>` — короткие формы 0..3 выбирает эмиттером (ldarg). */
+    // === Load/store (with an index operand) ===
+    /** `ldarg <n>` — short forms 0..3 are chosen by the emitter (ldarg). */
     LDARG("ldarg"),
-    /** `ldloc <n>` — короткие формы 0..3 выбирает эмиттером (ldloc). */
+    /** `ldloc <n>` — short forms 0..3 are chosen by the emitter (ldloc). */
     LDLOC("ldloc"),
-    /** `stloc <n>` — короткие формы 0..3 выбирает эмиттером (stloc). */
+    /** `stloc <n>` — short forms 0..3 are chosen by the emitter (stloc). */
     STLOC("stloc"),
 
     // === Box / unbox / discard ===
-    /** `box <type>` — boxing value type в object (используется в string.Concat). */
+    /** `box <type>` — boxes a value type into object (used in string.Concat). */
     BOX("box"),
-    /** `pop` — discard значения на вершине стека (statement-context для value-expr). */
+    /** `pop` — discards the value on top of the stack (statement context for value expressions). */
     POP("pop"),
-    /** `dup` — копия значения на вершине стека (для заполнения массива в string.Concat). */
+    /** `dup` — duplicates the value on top of the stack (to fill the array in string.Concat). */
     DUP("dup"),
 
-    // === Массивы (Phase 9: string.Concat(object[])) ===
-    /** `newarr <type>` — создание массива элементов типа. */
+    // === Arrays (Phase 9: string.Concat(object[])) ===
+    /** `newarr <type>` — creates an array of elements of the given type. */
     NEWARR("newarr"),
-    /** `stelem.ref` — сохранение object-ссылки в массив по индексу на стеке. */
+    /** `stelem.ref` — stores an object reference into the array at the index on the stack. */
     STELEM_REF("stelem.ref"),
-    /** `ldelem.ref` — загрузка object-ссылки из массива по индексу. */
+    /** `ldelem.ref` — loads an object reference from the array at the index. */
     LDELEM_REF("ldelem.ref"),
 
-    // === Поля экземпляра (Phase 10; ldsfld/stsfld — Phase 13, статические члены) ===
-    /** `ldfld <field-ref>` — загрузка поля экземпляра (receiver на стеке). */
+    // === Instance fields (Phase 10; ldsfld/stsfld — Phase 13, static members) ===
+    /** `ldfld <field-ref>` — loads an instance field (receiver on the stack). */
     LDFLD("ldfld"),
-    /** `stfld <field-ref>` — сохранение в поле экземпляра (receiver+value на стеке). */
+    /** `stfld <field-ref>` — stores into an instance field (receiver+value on the stack). */
     STFLD("stfld"),
     ;
 }

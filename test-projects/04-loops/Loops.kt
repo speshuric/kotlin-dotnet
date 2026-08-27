@@ -19,7 +19,7 @@ fun test_break(): Int {
 }
 
 fun test_continue(): Int {
-    // for (i in 0..10) — не реализован (Phase 11/G-02), переписано через while.
+    // for (i in 0..10) is not supported yet, rewritten as a while loop.
     var s = 0
     var i = 0
     while (i < 10) {
@@ -27,7 +27,7 @@ fun test_continue(): Int {
         if (i % 2 == 0) continue
         s += i
     }
-    return s  // сумма нечётных 1+3+5+7+9 = 25
+    return s  // sum of odd values 1+3+5+7+9 = 25
 }
 
 fun double(n: Int): Int = n * 2

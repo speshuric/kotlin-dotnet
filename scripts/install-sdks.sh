@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/install-sdks.sh — установка JDK 21, kotlinc 2.4.20-RC, .NET 10 SDK локально в .sdk/
+# scripts/install-sdks.sh — installs JDK 21, kotlinc 2.4.20-RC, .NET 10 SDK locally into .sdk/
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,7 +9,7 @@ SDK_DIR="$PROJECT_ROOT/.sdk"
 
 mkdir -p "$SDK_DIR"
 
-# --- Версии ---
+# --- Versions ---
 JDK_VERSION="21"
 JDK_VENDOR="temurin"
 KOTLIN_VERSION="2.4.20-RC"
@@ -24,7 +24,7 @@ if [ -x "$JDK_DIR/bin/java" ]; then
   log_info "JDK already installed: $("$JDK_DIR/bin/java" -version 2>&1 | head -1)"
 else
   log_info "Installing Temurin JDK $JDK_VERSION ..."
-  # Adoptium API: последняя GA сборка для linux x64
+  # Adoptium API: latest GA build for linux x64
   JDK_URL="https://api.adoptium.net/v3/binary/latest/${JDK_VERSION}/ga/linux/x64/jdk/hotspot/normal/eclipse"
   echo "    Download: $JDK_URL"
   tmp="$(mktemp -d)"
@@ -47,7 +47,7 @@ else
   curl -sSL -o "$tmp/kotlinc.zip" "$KOTLIN_URL"
   mkdir -p "$KOTLIN_DIR"
   unzip -q "$tmp/kotlinc.zip" -d "$tmp/unpacked"
-  # Структура: kotlinc/bin, kotlinc/lib — копируем содержимое
+  # Layout: kotlinc/bin, kotlinc/lib — copy the contents
   cp -r "$tmp/unpacked/kotlinc/." "$KOTLIN_DIR/"
   rm -rf "$tmp"
   echo "    kotlinc installed: $("$KOTLIN_DIR/bin/kotlinc" -version 2>&1 | head -1)"
@@ -64,8 +64,8 @@ else
   "$SDK_DIR/dotnet-install.sh" --channel "$DOTNET_CHANNEL" --install-dir "$DOTNET_DIR" --no-path
   echo "    .NET installed: $("$DOTNET_DIR/dotnet" --version 2>&1 | head -1)"
 
-  # ildasm не входит в .NET 10 SDK на Linux — ставим как global tool
-  # в $DOTNET_DIR/tools/ (внутри локального .sdk/)
+  # ildasm is not part of the .NET 10 SDK on Linux — install it as a global tool
+  # into $DOTNET_DIR/tools/ (inside the local .sdk/)
   TOOLS_DIR="$DOTNET_DIR/tools"
   mkdir -p "$TOOLS_DIR"
   export DOTNET_ROOT="$DOTNET_DIR"

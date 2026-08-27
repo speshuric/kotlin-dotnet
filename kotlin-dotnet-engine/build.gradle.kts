@@ -1,5 +1,5 @@
-// Root build.gradle.kts — общая конфигурация для подпроектов
+// Root build.gradle.kts — shared configuration for subprojects
 plugins {
-    // Gradle-обёртка предоставит нужную версию Gradle.
-    // Сам kotlin-плагин подключается в :compiler-plugin.
+    // The Gradle wrapper will provide the required Gradle version.
+    // The Kotlin plugin itself is applied in :compiler-plugin.
 }

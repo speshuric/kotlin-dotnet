@@ -1,5 +1,5 @@
-# scripts/common.sh — общие функции для scripts/.
-# Source-ится, не исполняется.
+# scripts/common.sh — shared helpers for scripts/.
+# Sourced, not executed.
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 log_info()  { echo "[kotlin-dotnet] $*"; }
 log_warn()  { echo "[kotlin-dotnet] WARN: $*" >&2; }

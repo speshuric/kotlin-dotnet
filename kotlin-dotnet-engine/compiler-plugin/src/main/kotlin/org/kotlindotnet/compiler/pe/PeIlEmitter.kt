@@ -25,22 +25,22 @@ import java.io.File
 import kotlin.uuid.Uuid
 
 /**
- * PE-бэкенд (ADR 0010): реализация [IlEmitter] — строит бинарную сборку
- * через dotnetutils (`MetadataBuilder` + `InstructionEncoder` +
- * `ManagedPEBuilder`). Здесь — контракт [IlEmitter], порядок вставки
- * строк и PE-сериализация; остальные ответственности выделены (J-01):
- * [PeRecords] — модель строк, [MemberRefParser] — парсинг текстовых
- * ссылок (формат — в его документации), [PeSignatures] — сигнатуры,
- * [PeBodyEncoder] — Op-буфер → IL-поток, [PeTypeDefWriter] — финализация
- * TypeDef, [PeReferenceResolver] — резолв операндов + кэши TypeRef/
- * AssemblyRef.
+ * PE backend (ADR 0010): an [IlEmitter] implementation that builds a binary
+ * assembly via dotnetutils (`MetadataBuilder` + `InstructionEncoder` +
+ * `ManagedPEBuilder`). This class owns the [IlEmitter] contract, the row
+ * insertion order, and PE serialization; the other responsibilities are split
+ * out (J-01): [PeRecords] — the row model, [MemberRefParser] — parsing of text
+ * references (the format is documented there), [PeSignatures] — signatures,
+ * [PeBodyEncoder] — Op buffer → IL stream, [PeTypeDefWriter] — TypeDef
+ * finalization, [PeReferenceResolver] — operand resolution + TypeRef/
+ * AssemblyRef caches.
  *
- * Тела методов буферизуются ([Op]-списки в [MethodRec]) и кодируются
- * отложенно — в [endContainerClass]: к этому моменту известны все методы
- * файла, вызовы «вперёд» разрешаются в предвыделенные MethodDef-хэндлы
- * без второго прохода IR. Отклонения от kotlinc-JVM (Private-поля,
- * TypeDef вместо NIL-scope TypeRef для своих типов и т.д.) — ADR 0010,
- * TODO/PHASE-10.md §«Итоги».
+ * Method bodies are buffered ([Op] lists in [MethodRec]) and encoded lazily in
+ * [endContainerClass]: by that point every method of the file is known, and
+ * "forward" calls resolve into preallocated MethodDef handles without a second
+ * IR pass. Deviations from kotlinc-JVM (Private fields, TypeDef instead of the
+ * NIL-scope TypeRef for own types, etc.) are covered by ADR 0010 and
+ * TODO/PHASE-10.md §"Summary".
  */
 class PeIlEmitter(
     /** Debug build → assembly-level DebuggableAttribute(0x0107). */
@@ -53,7 +53,7 @@ class PeIlEmitter(
     private val ilStream = BlobBuilder()
     private val bodyStream = MethodBodyStreamEncoder(ilStream)
 
-    /** Резолв операндов и кэш TypeRef/AssemblyRef (инъекция доступа к модели). */
+    /** Operand resolution and the TypeRef/AssemblyRef cache (model access injected). */
     private val refs =
         PeReferenceResolver(
             metadata,
@@ -77,10 +77,10 @@ class PeIlEmitter(
     private var containerClass = ""
     private var containerOpened = false
 
-    /** Методы контейнерного класса (top-level функции файла). */
+    /** Methods of the container class (the file's top-level functions). */
     private val containerMethods = mutableListOf<MethodRec>()
 
-    /** Пользовательские классы файла в порядке объявления. */
+    /** The file's user-defined classes in declaration order. */
     private val classes = mutableListOf<ClassRec>()
 
     private var currentClass: ClassRec? = null
@@ -90,7 +90,7 @@ class PeIlEmitter(
     private val labelIds = HashMap<String, Int>()
     private var nextLabelId = 0
 
-    /** MVID сборки в байтах — Id потока #Pdb. */
+    /** The assembly MVID as bytes — the Id of the #Pdb stream. */
     private var mvidBytes: ByteArray? = null
 
 
@@ -129,40 +129,40 @@ class PeIlEmitter(
         check(containerOpened) { "endContainerClass without beginContainerClass" }
         containerOpened = false
 
-        // 1. Синтез дефолтных .ctor для классов без конструкторов.
+        // 1. Synthesize default .ctors for classes without constructors.
         PeTypeDefWriter.synthesizeDefaultCtors(classes)
 
-        // 2. Порядок строк MethodDef == порядок групп: контейнер, затем классы.
+        // 2. MethodDef row order == group order: the container first, then classes.
         val orderedMethods = buildList {
             addAll(containerMethods)
             classes.forEach { addAll(it.methods) }
         }
 
-        // Предвыделение MethodDef-хэндлов: row id следует порядку вставки,
-        // поэтому вызовы «вперёд» разрешаются до кодирования тел.
+        // Preallocate MethodDef handles: the row id follows insertion order,
+        // so "forward" calls resolve before body encoding.
         orderedMethods.forEachIndexed { i, m ->
             m.handle = MetadataTokens.methodDefinitionHandle(i + 1)
         }
 
-        // 3. Кодирование тел (+ захват sequence points).
+        // 3. Encode bodies (+ capture sequence points).
         for (m in orderedMethods) {
             val r = bodyEncoder.encode(m)
             m.bodyOffset = r.bodyOffset
             m.seqPoints.clear(); m.seqPoints.addAll(r.sequencePoints)
         }
 
-        // 4. FieldDef-строки (по классам, в порядке объявления классов).
+        // 4. FieldDef rows (per class, in class declaration order).
         for (cls in classes) {
             for (f in cls.fields) {
                 f.handle = metadata.addFieldDefinition(
-                    attributes = 0x0001, // Private — kotlinc-JVM parity для бэкинг-полей
+                    attributes = 0x0001, // Private — kotlinc-JVM parity for backing fields
                     name = metadata.getOrAddString(f.name),
                     signature = PeSignatures.fieldSignature(metadata, refs::resolveTypeEntity, f.cilType),
                 )
             }
         }
 
-        // 5. MethodDef-строки.
+        // 5. MethodDef rows.
         for (m in orderedMethods) {
             m.handle = metadata.addMethodDefinition(
                 attributes = m.effectiveAttributes,
@@ -179,7 +179,7 @@ class PeIlEmitter(
             }
         }
 
-        // 6–7. Диапазоны групп и TypeDef-строки (+ interface impl).
+        // 6–7. Group ranges and TypeDef rows (+ interface impl).
         PeTypeDefWriter.writeTypeDefinitions(
             metadata = metadata,
             containerNamespace = containerNamespace,
@@ -269,7 +269,7 @@ class PeIlEmitter(
     }
 
     override fun endMethod() {
-        // Тело уже забуферизовано; deferred-кодирование — в endContainerClass.
+        // The body is already buffered; deferred encoding happens in endContainerClass.
         current = null
     }
 
@@ -374,7 +374,7 @@ class PeIlEmitter(
 
     // === Result ===
 
-    /** Сериализует собранную сборку в PE-файл (.exe/.dll). */
+    /** Serializes the assembled assembly into a PE file (.exe/.dll). */
     fun writeAssemblyTo(outputFile: File, isExe: Boolean) {
         check(moduleInitialized) { "nothing was emitted (assemblyHeader missing)" }
         check(current == null) { "method is still open" }
@@ -473,14 +473,14 @@ class PeIlEmitter(
         val entrypointToken =
             if (ep == null) 0 else MetadataTokens.getToken(ep.toEntityHandle())
 
-        // Standalone portable PDB → PE-образ (как в Roslyn): метаданные без IL.
+        // Standalone portable PDB → a PE image (as in Roslyn): metadata without IL.
         val image = PdbBuilder(pdbMetadata, mvid, entrypointToken).build()
 
         outputFile.parentFile?.mkdirs()
         outputFile.writeBytes(image.toArray())
     }
 
-    /** Методы с предвыделенными row id (порядок MethodDef таблицы). */
+    /** Methods with preallocated row ids (the MethodDef table order). */
     private fun methodsWithRows(): List<Pair<Int, MethodRec>> = buildList {
         var rowId = 1
         containerMethods.forEach { add(rowId++ to it) }
@@ -518,9 +518,9 @@ class PeIlEmitter(
     }
 
     /**
-     * Row id своего класса по имени (`Ns.Name`, без скобочной сборки),
-     * либо null. Row id предвычисляется: 1=<Module>, 2=контейнер,
-     * классы — далее по порядку объявления.
+     * The row id of an own class by name (`Ns.Name`, without the bracketed
+     * assembly), or null. The row id is precomputed: 1=<Module>, 2=the container,
+     * then classes in declaration order.
      */
     private fun findOwnTypeDefRow(t: MemberRefParser.TypeNameInfo): Int? {
         if (t.assembly != null) return null
@@ -540,7 +540,7 @@ class PeIlEmitter(
 
     private companion object {
         /**
-         * System.Diagnostics.DebuggingModes для debug-сборки:
+         * System.Diagnostics.DebuggingModes for a debug build:
          * Default | IgnoreSymbolStoreSequencePoints | EnableEditAndContinue |
          * DisableOptimizations (= csc /debug+).
          */

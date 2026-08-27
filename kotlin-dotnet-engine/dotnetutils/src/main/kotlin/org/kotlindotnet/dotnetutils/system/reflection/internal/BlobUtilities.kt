@@ -175,7 +175,7 @@ internal object BlobUtilities {
                     }
                     else -> {
                         // Unpaired high/low surrogate (regular chars >= 0x800
-                        // must not be replaced — см. SRM WriteUTF8).
+                        // must not be replaced — see SRM WriteUTF8).
                         if (!allowUnpairedSurrogates && isSurrogateChar(c)) {
                             c = replacementCharacter.code
                         }

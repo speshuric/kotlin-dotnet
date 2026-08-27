@@ -1,6 +1,6 @@
-# scripts/deactivate.sh — снять env, установленный activate.sh
+# scripts/deactivate.sh — clears the env set by activate.sh
 #
-# Использование:
+# Usage:
 #   source scripts/deactivate.sh
 
 _deactivate_dotnet() {

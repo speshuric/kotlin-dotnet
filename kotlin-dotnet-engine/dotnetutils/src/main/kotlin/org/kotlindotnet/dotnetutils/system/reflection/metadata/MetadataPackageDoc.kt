@@ -1,18 +1,19 @@
 /**
  * org.kotlindotnet.dotnetutils.system.reflection.metadata
  *
- * Порт write-path System.Reflection.Metadata (MetadataBuilder и окружение,
- * см. .sources/dotnet-runtime/src/libraries/System.Reflection.Metadata) на Kotlin.
+ * Port of the System.Reflection.Metadata write path (MetadataBuilder and its
+ * surroundings; see .sources/dotnet-runtime/src/libraries/System.Reflection.Metadata)
+ * to Kotlin.
  *
- * Цель: создание .NET-сборок (PE DLL/EXE) напрямую из JVM-кода, без ilasm.
- * Имена API следуют оригиналу (namespace system.reflection.metadata отражает
- * dotnet-неймспейс), соглашения именования — Kotlin:
- * классы PascalCase, методы/свойства lowerCamelCase, константы UPPER_SNAKE.
+ * Goal: build .NET assemblies (PE DLL/EXE) directly from JVM code, without ilasm.
+ * API names follow the original (the namespace system.reflection.metadata reflects
+ * the dotnet namespace); naming conventions are Kotlin:
+ * classes PascalCase, methods/properties lowerCamelCase, constants UPPER_SNAKE.
  *
- * Ограничения (adr/0009):
- *  - только чистый kotlin-stdlib; прямые import java.* запрещены;
- *  - отсечено: Edit-and-Continue, WinMD, Portable PDB / embedded PDB;
- *  - верификация: юнит-тесты + C#-harness на настоящем SRM, затем
- *    минимальный MetadataReader на Kotlin.
+ * Limitations (adr/0009):
+ *  - pure kotlin-stdlib only; direct java.* imports are forbidden;
+ *  - cut out: Edit-and-Continue, WinMD, Portable PDB / embedded PDB;
+ *  - verification: unit tests plus a C# harness against real SRM, then
+ *    a minimal MetadataReader in Kotlin.
  */
 package org.kotlindotnet.dotnetutils.system.reflection.metadata

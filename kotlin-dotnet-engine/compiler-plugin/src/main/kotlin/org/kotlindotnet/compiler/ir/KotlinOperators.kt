@@ -1,15 +1,15 @@
 package org.kotlindotnet.compiler.ir
 
 /**
- * Имена operator-функций Kotlin stdlib (`IrFunction.name.asString()`),
- * которые обрабатывает [DotnetIrVisitor] (см. A-05).
+ * Names of the Kotlin stdlib operator functions (`IrFunction.name.asString()`)
+ * handled by [DotnetIrVisitor] (see A-05).
  *
- * IR операторных вызовов (`a + b`, `!a`, ...) приходит как `IrCall` на
- * функцию с именем `plus`, `not` и т.д. Чтобы `when (symbolName)` ловил
- * опечатки и был читаем, сравниваем с этими константами.
+ * The IR of operator calls (`a + b`, `!a`, ...) arrives as an `IrCall` on a
+ * function named `plus`, `not`, etc. Comparing against these constants keeps
+ * `when (symbolName)` typo-proof and readable.
  *
- * Список не исчерпывающий: добавляем по мере появления новых операторов.
- * Неизвестный оператор обрабатывается через `else -> TODO(...)` в visitor.
+ * The list is not exhaustive: new operators are added as they appear.
+ * An unknown operator is handled by `else -> TODO(...)` in the visitor.
  */
 object KotlinOperators {
     /** `a + b` → `plus`. */
@@ -42,14 +42,14 @@ object KotlinOperators {
     const val USHR = "ushr"
     /** `a..b` → `rangeTo` (Phase 9). */
     const val RANGE_TO = "rangeTo"
-    /** `a.inc()` / `a++` → `inc` (operator). Для примитивов → +1. */
+    /** `a.inc()` / `a++` → `inc` (operator). For primitives → +1. */
     const val INC = "inc"
-    /** `a.dec()` / `a--` → `dec` (operator). Для примитивов → -1. */
+    /** `a.dec()` / `a--` → `dec` (operator). For primitives → -1. */
     const val DEC = "dec"
 
     /**
-     * Все operator-имена, обрабатываемые visitor'ом. Вызовы с другими
-     * именами считаются пользовательскими (top-level/instance, Phase 10).
+     * Every operator name handled by the visitor. Calls with other names are
+     * treated as user-defined ones (top-level/instance, Phase 10).
      */
     val ALL: Set<String> = setOf(
         PLUS, MINUS, TIMES, DIV, REM,

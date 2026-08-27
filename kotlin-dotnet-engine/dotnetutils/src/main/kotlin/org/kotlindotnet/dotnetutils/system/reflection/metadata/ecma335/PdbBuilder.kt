@@ -33,7 +33,7 @@ class PdbBuilder(
         require(id.size == 16) { "id must be a 16-byte GUID" }
     }
 
-    /** Собирает standalone PDB: сырой корень метаданных (без PE-обёртки). */
+    /** Builds a standalone PDB: the raw metadata root (no PE wrapper). */
     fun build(): BlobBuilder {
         val root = MetadataRootBuilder(metadata, id, entryPointToken)
         val builder = BlobBuilder()

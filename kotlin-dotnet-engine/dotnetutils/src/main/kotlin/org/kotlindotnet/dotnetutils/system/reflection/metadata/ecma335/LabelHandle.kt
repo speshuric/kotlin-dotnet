@@ -15,8 +15,8 @@ value class LabelHandle private constructor(val id: Int) {
     val isNil: Boolean
         get() = id == 0
 
-    // Без reflection — модуль компилируется и в .NET; имя нужно для
-    // диагностики и будущей унификации хэндлов.
+    // No reflection here: the module also compiles to .NET; the name exists
+    // for diagnostics and future handle unification.
     private val className: String get() = "LabelHandle"
 
     companion object {

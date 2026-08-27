@@ -1,18 +1,18 @@
 package org.kotlindotnet.compiler.ir
 
 /**
- * Отладочные имена [org.jetbrains.kotlin.ir.IrElement.origin] для IR-узлов,
- * которые обрабатывает [DotnetIrVisitor] (см. A-05).
+ * Debug names of [org.jetbrains.kotlin.ir.IrElement.origin] for the IR nodes
+ * handled by [DotnetIrVisitor] (see A-05).
  *
- * `IrElement.origin?.debugName` возвращает строку — мы сравниваем её с
- * этими константами, чтобы `when(origin)` ловил опечатки на этапе
- * компиляции и был читаемым.
+ * `IrElement.origin?.debugName` returns a string — we compare it against these
+ * constants so that `when(origin)` catches typos at compile time and stays
+ * readable.
  *
- * Список не исчерпывающий: добавляем по мере появления новых узлов.
- * Неизвестный origin обрабатывается через `else -> TODO(...)` в visitor.
+ * The list is not exhaustive: new nodes are added as they appear.
+ * An unknown origin is handled by `else -> TODO(...)` in the visitor.
  *
- * TODO (B-01): когда появится карта обработчиков, можно перейти на
- * `enum class IrOrigin(val debugName: String)` и sealed-`when`.
+ * TODO (B-01): once a handler map exists, we can switch to
+ * an `enum class IrOrigin(val debugName: String)` and a sealed `when`.
  */
 object IrOrigins {
     /** `a + b` (operator plus, binary). */
@@ -40,8 +40,8 @@ object IrOrigins {
     /** `a === b` (referential equality). */
     const val EQEQEQ = "EQEQEQ"
 
-    /** `a && b` (logical and; обычно приходит как `IrWhen`, см. [DotnetIrVisitor.emitAndAnd]). */
+    /** `a && b` (logical and; usually arrives as an `IrWhen`, see [DotnetIrVisitor.emitAndAnd]). */
     const val ANDAND = "ANDAND"
-    /** `a || b` (logical or; обычно приходит как `IrWhen`, см. [DotnetIrVisitor.emitOrOr]). */
+    /** `a || b` (logical or; usually arrives as an `IrWhen`, see [DotnetIrVisitor.emitOrOr]). */
     const val OROR = "OROR"
 }

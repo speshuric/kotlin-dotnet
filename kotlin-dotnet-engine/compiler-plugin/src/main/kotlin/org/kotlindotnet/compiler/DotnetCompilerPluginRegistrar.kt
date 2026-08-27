@@ -6,14 +6,14 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import java.io.File
 
 /**
- * Регистратор плагина для компилятора Kotlin (K2).
+ * The plugin registrar for the Kotlin compiler (K2).
  *
- * Заменяет устаревший (deprecated ERROR в 2.4) `ComponentRegistrar`.
- * Обнаруживается компилятором через ServiceLoader:
+ * Replaces the deprecated (a deprecation ERROR since 2.4) `ComponentRegistrar`.
+ * Discovered by the compiler via ServiceLoader:
  * `META-INF/services/org.jetbrains.kotlin.compiler.plugin.CompilerPluginRegistrar`.
  *
- * CLI-опции обрабатываются отдельным компонентом —
- * [DotnetCommandLineProcessor] (обнаруживается через
+ * CLI options are handled by a separate component —
+ * [DotnetCommandLineProcessor] (discovered through
  * `META-INF/services/org.jetbrains.kotlin.compiler.plugin.CommandLineProcessor`).
  */
 class DotnetCompilerPluginRegistrar : CompilerPluginRegistrar() {
@@ -22,13 +22,13 @@ class DotnetCompilerPluginRegistrar : CompilerPluginRegistrar() {
     override val supportsK2: Boolean = true
 
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
-        // output.dir — из CLI (-P plugin:kotlin.dotnet:output.dir=...),
-        // дефолт `build/` — для совместимости с предыдущим поведением.
-        // Плагин не хардкодит `build/` в путях: только этот fallback.
-        // Ключ берётся из companion-объекта [DotnetCommandLineProcessor]:
-        // `CompilerConfigurationKey.create` создаёт `Key` с identity-`equals`,
-        // поэтому один и тот же экземпляр ключа нужен и в `processOption`,
-        // и здесь (см. ADR 0007).
+        // output.dir — from the CLI (-P plugin:kotlin.dotnet:output.dir=...);
+        // the default `build/` keeps compatibility with the earlier behavior.
+        // The plugin does not hardcode `build/` into paths: this fallback is the
+        // only place. The key is taken from the companion object of
+        // [DotnetCommandLineProcessor]: `CompilerConfigurationKey.create` builds a
+        // `Key` with identity `equals`, so the same key instance is needed both in
+        // `processOption` and here (see ADR 0007).
         val outputDir = configuration.get(DotnetCommandLineProcessor.outputDirKey)
             ?.let(::File)
             ?: File("build")

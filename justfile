@@ -1,23 +1,23 @@
-# kotlin-dotnet — proof-of-concept компилятора Kotlin → .NET
-# Полный конвейер: just bootstrap && just test
+# kotlin-dotnet — proof-of-concept Kotlin → .NET compiler
+# Full pipeline: just bootstrap && just test
 
 default: list
 
-# Показать все рецепты.
+# Show all recipes.
 list:
     @just --list
 
-# === Окружение ===
+# === Environment ===
 
-# Установить локальные SDK (JDK, kotlinc, .NET, Gradle, dotnet-ildasm) в .sdk/.
+# Install local SDKs (JDK, kotlinc, .NET, Gradle, dotnet-ildasm) into .sdk/.
 sdks:
     ./scripts/install-sdks.sh
 
-# Клонировать исходники для референса (JetBrains/kotlin, dotnet/runtime) в .sources/.
+# Clone reference sources (JetBrains/kotlin, dotnet/runtime) into .sources/.
 sources:
     ./scripts/install-sources.sh
 
-# Полный бутстрап: SDK + исходники + проверка запускаемости.
+# Full bootstrap: SDKs + sources + runnability check.
 bootstrap: sdks sources
     #!/usr/bin/env bash
     source scripts/activate.sh
@@ -30,69 +30,69 @@ bootstrap: sdks sources
     echo ""
     echo ">>> Bootstrap complete. Run 'just test' to verify pipeline."
 
-# === Сборка ===
+# === Build ===
 
-# Собрать весь проект (plugin + runtime + все тесты). config: debug (по умолчанию) | release.
+# Build the whole project (plugin + runtime + all tests). config: debug (default) | release.
 build config="debug":
     ./scripts/build.sh all {{config}}
 
-# Собрать без запуска тестов/верификации (только IL + DLL/EXE + runtime-copy).
+# Build without running tests/verification (only IL + DLL/EXE + runtime copy).
 build-no-test config="debug":
     ./scripts/build.sh all {{config}} --no-test
 
-# Собрать только compiler-plugin JAR (Gradle).
+# Build only the compiler plugin JAR (Gradle).
 plugin:
     ./scripts/build.sh plugin debug
 
-# Собрать только KotlinDotnetRuntime.dll (C#).
+# Build only KotlinDotnetRuntime.dll (C#).
 runtime config="release":
     ./scripts/build.sh runtime {{config}}
 
-# === Компиляция одного файла ===
+# === Compiling a single file ===
 
-# Скомпилировать .kt → .exe/.dll (CLI). Использование: just compile path/to/file.kt [-dll]
+# Compile a .kt file to .exe/.dll (CLI). Usage: just compile path/to/file.kt [-dll]
 compile file:
     ./scripts/kotlinc-net.sh {{file}}
 
-# === Тесты ===
+# === Tests ===
 
-# Запустить тесты. selector: all (по умолчанию) | <testid> | <glob>. just test == just test-all.
+# Run tests. selector: all (default) | <testid> | <glob>. just test == just test-all.
 test selector="all":
     ./scripts/test.sh {{selector}}
 
-# Запустить все тесты (синоним just test).
+# Run all tests (alias for just test).
 test-all:
     just test all
 
-# Дымовой тест: один тест (00-int-add).
+# Smoke test: one test (00-int-add).
 test-smoke:
     just test 00-int-add
 
-# Синоним test-smoke.
+# Alias for test-smoke.
 test-short: test-smoke
 
-# === Отладка ===
+# === Debugging ===
 
-# Дизассемблировать DLL через dotnet-ildasm. selector: last | all | <testid> | <glob>.
+# Disassemble a DLL via dotnet-ildasm. selector: last | all | <testid> | <glob>.
 disasm selector="last":
     ./scripts/show.sh disasm {{selector}}
 
-# Синоним disasm (бывший show-il: IL теперь смотрят через ildasm дизассемблер).
+# Alias for disasm (formerly show-il: IL is now viewed through the ildasm disassembler).
 show-il selector="last":
     @./scripts/show.sh disasm {{selector}}
 
-# Показать IR-дамп из плагина. selector: last | all | <testid> | <glob>.
+# Show the IR dump from the plugin. selector: last | all | <testid> | <glob>.
 show-ir selector="last":
     ./scripts/show.sh ir {{selector}}
 
-# Убить Kotlin compile daemon: kotlinc может подхватывать старый
-# plugin jar после пересборки (ловили на K-02). После --rerun-tasks
-# или ручной пересборки jar вызывай перед компиляцией .kt.
+# Kill the Kotlin compile daemon: kotlinc can pick up a stale
+# plugin jar after a rebuild (bit us on K-02). After --rerun-tasks
+# or a manual jar rebuild, run this before compiling .kt files.
 kill-daemon:
     pkill -f "[K]otlinCompileDaemon" || true
 
-# === Очистка ===
+# === Cleanup ===
 
-# Очистка. category: all (по умолчанию) | build | sdk | sources. Bare clean = all (требует пере-bootstrap!).
+# Clean. category: all (default) | build | sdk | sources. Bare clean = all (re-bootstrap required!).
 clean category="all":
     ./scripts/clean.sh {{category}}

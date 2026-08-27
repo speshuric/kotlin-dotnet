@@ -20,8 +20,8 @@ import org.jetbrains.kotlin.ir.types.isUShort
 import org.jetbrains.kotlin.ir.types.isUnit
 
 /**
- * Маппинг Kotlin-типов в CIL-типы (см. AGENTS.md §"Примитивные типы").
- * PoC: покрывает только примитивы и Unit/String/Any.
+ * Maps Kotlin types to CIL types (see AGENTS.md §"Primitive Types").
+ * PoC: covers only primitives and Unit/String/Any.
  */
 object TypeMapper {
 
@@ -41,8 +41,8 @@ object TypeMapper {
         type.isString() -> "string"
         type.isUnit() -> "void"
         type.isAny() || type.isNullableAny() -> "object"
-        // TODO: Array<T>, List<T>, классы — Phase 8+
-        type is IrSimpleType -> "object" // fallback для PoC
+        // TODO: Array<T>, List<T>, classes — Phase 8+
+        type is IrSimpleType -> "object" // PoC fallback
         else -> "object"
     }
 }

@@ -1,11 +1,11 @@
-// Корневой build пуст: реальная сборка — composite-включение
-// kotlin-dotnet-engine (см. settings.gradle.kts). Файл существует, только
-// чтобы зафиксировать поведение задач, которые IDEA пытается запускать
-// в корне.
+// The root build is empty: real building happens in the composite-included
+// kotlin-dotnet-engine (see settings.gradle.kts). This file exists only
+// to pin down the behavior of tasks that IDEA tries to run
+// in the root.
 
-// IDEA при синке вызывает `gradle wrapper` в корне и плодит gradlew /
-// gradle/wrapper под свою версию Gradle. Сборка проекта всегда идёт через
-// kotlin-dotnet-engine/gradlew, поэтому корневой wrapper-таск отключён.
+// During sync, IDEA runs `gradle wrapper` in the root and spawns gradlew /
+// gradle/wrapper for its own Gradle version. The project always builds via
+// kotlin-dotnet-engine/gradlew, so the root wrapper task is disabled.
 tasks.named("wrapper") {
     enabled = false
 }

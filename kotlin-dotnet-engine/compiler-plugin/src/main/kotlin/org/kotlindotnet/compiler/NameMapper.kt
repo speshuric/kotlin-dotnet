@@ -6,35 +6,35 @@ import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import java.io.File
 
 /**
- * Мэппинг имён Kotlin → .NET (см. ADR 0005).
+ * Kotlin → .NET name mapping (see ADR 0005).
  *
- * PoC-решения:
+ * PoC decisions:
  * - package → namespace: **verbatim** (lowercase, 1:1).
- * - top-level functions → контейнер `<FileName>Kt` (JVM-mirror).
- * - имена методов и классов: **verbatim** (включая `_`, `<get-x>`).
- * - assembly name: из имени файла (без расширения).
+ * - top-level functions → the container `<FileName>Kt` (JVM mirror).
+ * - method and class names: **verbatim** (including `_`, `<get-x>`).
+ * - assembly name: from the file name (without extension).
  *
- * TODO: namespace-трансформация в PascalCase для идиоматичности .NET.
+ * TODO: transform namespaces to PascalCase for .NET idiomacy.
  */
 object NameMapper {
 
-    /** Полное имя класса-контейнера для top-level функций файла. */
+    /** Full name of the container class for the file's top-level functions. */
     fun containerClass(file: IrFile): String {
         val fileName = File(file.fileEntry.name).nameWithoutExtension
         return "${fileName}Kt"
     }
 
-    /** Имя пользовательского класса — verbatim. */
+    /** User-defined class name — verbatim. */
     fun className(declaration: IrClass): String = declaration.name.asString()
 
-    /** Namespace из fqName файла (verbatim). */
+    /** The namespace from the file's fqName (verbatim). */
     fun namespace(file: IrFile): String = file.packageFqName.asString()
 
-    /** Имя сборки/модуля из имени файла (без расширения). */
+    /** Assembly/module name from the file name (without extension). */
     fun assemblyName(file: IrFile): String {
         return File(file.fileEntry.name).nameWithoutExtension
     }
 
-    /** Имя метода — verbatim. */
+    /** Method name — verbatim. */
     fun methodName(function: IrSimpleFunction): String = function.name.asString()
 }

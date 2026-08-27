@@ -64,7 +64,7 @@ class RoundTripTests {
 
     @Test
     fun blobReader_compressedSignedIntegers() {
-        // допустимый диапазон writer'а: значение в 28 битах со знаком в LSB
+        // valid writer range: the value fits in 28 bits, with the sign in the LSB
         val values = listOf(
             0, 63, -64, 64, -65, 8191, -8192, 134217727, -134217728,
         )
@@ -75,7 +75,7 @@ class RoundTripTests {
 
     // === metadata-level round trip ===
 
-    /** Строит метаданные мини-сборки и возвращает (builder, mvid, userStringHandle). */
+    /** Builds the metadata of a mini assembly; returns (builder, mvid, userStringHandle). */
     private class Built(
         val bytes: ByteArray,
         val mvid: Uuid,
@@ -213,14 +213,14 @@ class RoundTripTests {
         assertEquals("Main", method.name)
 
         val body = per.methodBody(method.rva)
-        // ldstr token + ret: тело из одного ldstr (5 байт) + ret (1 байт) = 6
-        assertEquals(-1, body.maxStack) // tiny header не хранит maxstack
+        // ldstr token + ret: the body is one ldstr (5 bytes) + ret (1 byte) = 6
+        assertEquals(-1, body.maxStack) // tiny header does not store maxstack
         val ilBytes = body.getILReader(image).readBytes(body.codeSize)
         assertEquals(0x72, ilBytes[0].toInt() and 0xFF)
-        // последний байт — RET (0x2A):
+        // the last byte is RET (0x2A):
         assertEquals(0x2A, ilBytes[ilBytes.size - 1].toInt() and 0xFF)
 
-        // строка из #US читается обратно:
+        // the string from #US reads back:
         val usToken = ((ilBytes[1].toInt() and 0xFF) or ((ilBytes[2].toInt() and 0xFF) shl 8) or
             ((ilBytes[3].toInt() and 0xFF) shl 16) or ((ilBytes[4].toInt() and 0xFF) shl 24)) and 0x00FFFFFF
         val text = reader.getUserString(org.kotlindotnet.dotnetutils.system.reflection.metadata.UserStringHandle.fromOffset(usToken))

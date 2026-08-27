@@ -9,7 +9,7 @@
 
 package org.kotlindotnet.dotnetutils.system.reflection.metadata
 
-/** Upstream: public readonly struct. Equality — по полям (как struct). */
+/** Upstream: public readonly struct. Equality is field-based (struct semantics). */
 data class Blob internal constructor(
     internal val buffer: ByteArray?,
     internal val start: Int,

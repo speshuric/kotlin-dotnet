@@ -1,13 +1,13 @@
-// Корень репозитория — не Gradle-сборка по сути, но объявлен composite build,
-// чтобы IDE (IntelliJ IDEA) при открытии корня автоматически подхватывала
-// движок и не падала с "does not contain a Gradle build".
+// The repository root is not really a Gradle build by itself, but it is declared as a composite build,
+// so that the IDE (IntelliJ IDEA) automatically picks up
+// the engine when opening the root and does not fail with "does not contain a Gradle build".
 //
-// Вся реальная сборка живёт в kotlin-dotnet-engine/ (compiler-plugin +
-// dotnetutils) и запускается её wrapper'ом:
+// All real building lives in kotlin-dotnet-engine/ (compiler-plugin +
+// dotnetutils) and is run through its wrapper:
 //   cd kotlin-dotnet-engine && ./gradlew <tasks>
-// Скрипты проекта (scripts/*.sh, justfile) используют именно этот путь.
+// Project scripts (scripts/*.sh, justfile) use exactly this path.
 //
-// Не добавляйте сюда задачи/модули: корень — только точка входа для IDE.
+// Do not add tasks/modules here: the root is only an entry point for the IDE.
 
 rootProject.name = "kotlin-dotnet"
 

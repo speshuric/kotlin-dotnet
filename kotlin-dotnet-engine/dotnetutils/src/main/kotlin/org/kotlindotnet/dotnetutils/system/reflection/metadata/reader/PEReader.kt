@@ -17,9 +17,9 @@ import org.kotlindotnet.dotnetutils.system.reflection.metadata.BlobReader
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.StandaloneSignatureHandle
 import org.kotlindotnet.dotnetutils.system.reflection.metadata.ecma335.MetadataTokens
 
-/** Разобранные заголовки PE-образа (минимум для чтения метаданных). */
+/** Parsed PE image headers (the minimum needed to read metadata). */
 class PEReader(val image: ByteArray) {
-    /** Файловое смещение корня метаданных ("BSJB"). */
+    /** File offset of the metadata root ("BSJB"). */
     val metadataRootOffset: Int
 
     private val sections = ArrayList<Section>(4)
@@ -75,7 +75,7 @@ class PEReader(val image: ByteArray) {
 
     private fun i32(at: Int): Int = u32(at)
 
-    /** Транслирует RVA в файловое смещение или null, если RVA не замаплен. */
+    /** Translates an RVA to a file offset, or null if the RVA is not mapped. */
     fun rvaToOffset(rva: Int): Int? {
         for ((rva0, size, ptr) in sections) {
             if (rva >= rva0 && rva < rva0 + size) {
@@ -86,15 +86,15 @@ class PEReader(val image: ByteArray) {
     }
 
     /**
-     * Читает тело метода по RVA ([MethodRow.rva]): tiny/fat header,
-     * байты IL, локальная сигнатура, exception regions.
+     * Reads a method body by RVA ([MethodRow.rva]): tiny/fat header,
+     * IL bytes, local variable signature, exception regions.
      */
     fun methodBody(rva: Int): MethodBody {
         val at = requireNotNull(rvaToOffset(rva)) { "method body RVA not mapped" }
         val first = u8(at)
 
         if (first and 0x03 == 0x02) {
-            // tiny header: размер кода в старших 6 битах первого байта
+            // tiny header: code size in the top 6 bits of the first byte
             val codeSize = first shr 2
             return MethodBody(
                 maxStack = -1,
@@ -127,12 +127,12 @@ class PEReader(val image: ByteArray) {
         )
     }
 
-    /// II.25.4.5: выровненный на 4 байта блок после кода;
-    /// small clause — 12 байт, fat clause — 24 байта.
+    /// II.25.4.5: a block aligned to 4 bytes right after the code;
+    /// small clause is 12 bytes, fat clause is 24 bytes.
     private fun decodeExceptionRegions(afterCodeOffset: Int): List<ExceptionRegionInfo> {
         var sect = (afterCodeOffset + 3) and 3.inv()
         val kind = u8(sect)
-        check(kind and 0x40 == 0 || kind and 0x40 != 0) // формат всегда один из двух
+        check(kind and 0x40 == 0 || kind and 0x40 != 0) // the format is always one of the two
         val dataSize = u8(sect + 1) * 4
         val isFat = kind and 0x40 != 0
 
@@ -166,7 +166,7 @@ class PEReader(val image: ByteArray) {
     }
 }
 
-/** Декодированное тело метода (ADR 0011). */
+/** Decoded method body (ADR 0011). */
 class MethodBody internal constructor(
     val maxStack: Int,
     val codeOffset: Int,
@@ -177,7 +177,7 @@ class MethodBody internal constructor(
     fun getILReader(image: ByteArray): BlobReader = BlobReader(image, codeOffset, codeSize)
 }
 
-/** Exception clause из таблицы II.25.4.5 (small или fat формат). */
+/** Exception clause from the II.25.4.5 table (small or fat format). */
 data class ExceptionRegionInfo(
     val kind: Int,
     val tryOffset: Int,
