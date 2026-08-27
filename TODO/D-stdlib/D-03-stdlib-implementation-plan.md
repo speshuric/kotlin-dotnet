@@ -81,7 +81,18 @@ StdlibResolver. Отказной e2e-тест: kind=negative в build-test.sh
 
 Приёмка: см. §6 дизайн-дока (п. 2).
 
-### Шаг 4. Каркас :libraries:stdlib (этап A, вне pipeline)
+### Шаг 4. Каркас :libraries:stdlib (этап A, вне pipeline) — DONE (2026-08-28)
+
+Реализация: Gradle-модуль :libraries:stdlib (settings.gradle.kts),
+сборка kotlinc JVM с -Xallow-kotlin-package (пакет kotlin.* защищён —
+тот же opt-out использует апстрим). Состав: annotations
+(@DotnetName, @KotlinToPascalCase, @DotnetFromPascalCase — SOURCE) +
+шимы println/print/println() в kotlin/io с сигнатурами апстрима.
+Замечание: толерантное сопоставление аннотаций по простому имени в
+StdlibAnnotations остаётся до этапа B (тесты объявляют локальные
+аннотации без пакета).
+
+Историческое описание шага:
 
 - Gradle-модуль `kotlin-dotnet-engine/libraries/stdlib` (раскладка Р4):
   пакеты `kotlin/io`, `kotlin/text`, `kotlin/collections`,
