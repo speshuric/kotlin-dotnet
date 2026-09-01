@@ -567,7 +567,7 @@ kotlin-dotnet/
     **Обязательный prelude** для любой команды сборки/тестов
     (иначе `just`/`gradlew` падают на read-only ФС):
     ```bash
-    cd /home/speshuric/tmp/kotlin-dotnet
+    cd ~/tmp/kotlin-dotnet # or actual project path
     source scripts/activate.sh
     export GRADLE_USER_HOME="$PWD/build/tmp/gradle-home"
     export XDG_RUNTIME_DIR="$PWD/build/tmp/runtime"
